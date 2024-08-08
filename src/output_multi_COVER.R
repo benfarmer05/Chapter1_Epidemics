@@ -1,0 +1,431 @@
+  
+  rm(list=ls())
+
+  # Load workspace from FLKEYS data-processing script
+  load("FLKEYS_workspace.RData")
+  
+  library(tidyverse)
+  library(DEoptim)
+  library(deSolve)
+  
+  # #ONLY if you want to exclude degree-heating weeks (DHW or DHWs)
+  # DHW.modifier = 6 #8 #10
+  # tissue.summary = tissue.summary %>%
+  #   group_by(Site_type) %>%
+  #   slice(head(row_number(), n()-DHW.modifier)) #group_size()
+  # obs = obs %>%
+  #   group_by(Site, Compartment, Category) %>%
+  #   slice(head(row_number(), n()-DHW.modifier))
+  # obs.basic = obs.basic %>%
+  #   group_by(Site, Compartment) %>%
+  #   slice(head(row_number(), n()-DHW.modifier))
+  
+  # # Scenario 1 [maximum transmission modifier of 1.0, with 100% coral cover; uniform lambda].
+  #lambda of 0.0: no effect of cover; overpredicted outbreaks. [Nearshore -> Offshore/Midchannel]
+  #lambda of 0.3: essentially no effect of cover; overpredicted outbreaks. [Nearshore -> Offshore/Midchannel]
+  #lambda of 0.6 / 0.7: essentially no effect of cover; overpredicted outbreaks. [Nearshore -> Offshore/Midchannel]
+  #lambda of 3.0: essentially no effect of cover; overpredicted outbreaks. [Nearshore -> Offshore/Midchannel]
+  #lambda of 7.0: super overpredicted LS/MS loss. the outbreak happens too early and too strong. [Offshore -> Nearshore/Midchannel]
+  #lambda of 8.0: looks really good, at least going from Nearshore to Offshore. now trying reverse
+  #lambda of 20.0: no outbreak!!
+  
+  # # Scenario 2 [maximum transmission modifier of 1.0, with 100% coral cover; varying lambda]
+  #lambdas of 4.0, 5.0, 10.0: the amplifying effect of relative cover is different between groups. might be getting somewhere?
+  #lambdas of 12.0, 12.0, 8.0: effect of cover at LS & MS is too great (going both directions)
+  #lambdas of 3.0, 3.0, 8.0: effect of cover at LS & MS is too great (going both directions)
+  
+  # lambda = as.numeric(8.0) #0.7 worked well for basic SIR, 2.0 for multi-group [other script] - but likely needs to be higher here
+  # offset = 1 - 1 / (1 + exp(-lambda * 1.0))
+  
+  lambda = 8.0
+  lambda.LS = 0.0 # 4.0
+  lambda.MS = 0.0 #5.0
+  lambda.HS = 0.0 #10.0
+  offset.LS = 1 - 1 / (1 + exp(-lambda.LS * 1.0))
+  offset.MS = 1 - 1 / (1 + exp(-lambda.MS * 1.0))
+  offset.HS = 1 - 1 / (1 + exp(-lambda.HS * 1.0))
+  
+  SIR = function(t,y,p){
+    {
+      S.LS = y[1]
+      I.LS = y[2]
+      R.LS = y[3]
+  
+      S.MS = y[4]
+      I.MS = y[5]
+      R.MS = y[6]
+  
+      S.HS = y[7]
+      I.HS = y[8]
+      R.HS = y[9]
+      
+      P = y[10]
+    }
+    with(as.list(p),{
+      # P = (I.LS + I.MS + I.HS)
+      # dP = (I.LS*prop.LS + I.MS*prop.MS + I.HS*prop.HS)
+      
+      # transmission_modifier.LS = (1 / (1 + exp(-l * (C.LS))) + offset)
+      # transmission_modifier.MS = (1 / (1 + exp(-l * (C.MS))) + offset)
+      # transmission_modifier.HS = (1 / (1 + exp(-l * (C.HS))) + offset)
+      transmission_modifier.LS = (1 / (1 + exp(-lambda.LS * (C.LS))) + offset.LS)
+      transmission_modifier.MS = (1 / (1 + exp(-lambda.MS * (C.MS))) + offset.MS)
+      transmission_modifier.HS = (1 / (1 + exp(-lambda.HS * (C.HS))) + offset.HS)
+      
+      dS.LS.dt = -b.LS*S.LS*(P) / N.LS * transmission_modifier.LS
+      dI.LS.dt = b.LS*S.LS*(P) / N.LS * transmission_modifier.LS - g.LS*I.LS
+      dR.LS.dt = g.LS*I.LS
+  
+      dS.MS.dt = -b.MS*S.MS*(P) / N.MS * transmission_modifier.MS
+      dI.MS.dt = b.MS*S.MS*(P) / N.MS * transmission_modifier.MS - g.MS*I.MS
+      dR.MS.dt = g.MS*I.MS
+  
+      dS.HS.dt = -b.HS*S.HS*(P) / N.HS * transmission_modifier.HS
+      dI.HS.dt = b.HS*S.HS*(P) / N.HS * transmission_modifier.HS - g.HS*I.HS
+      dR.HS.dt = g.HS*I.HS
+      
+      # Update dP using the sum of infected individuals
+      dP.dt = (I.LS + I.MS + I.HS) - P
+  
+  return(list(c(dS.LS.dt, dI.LS.dt, dR.LS.dt, dS.MS.dt, dI.MS.dt, dR.MS.dt, dS.HS.dt, dI.HS.dt, dR.HS.dt, dP.dt)))
+      # return(list(c(dS.LS.dt, dI.LS.dt, dR.LS.dt, dS.MS.dt, dI.MS.dt, dR.MS.dt, dS.HS.dt, dI.HS.dt, dR.HS.dt)))
+    })
+  }
+  
+  my.SIRS = vector('list', length(sites))
+  params = vector('list', length(sites))
+  
+  for(i in 1:length(sites)){
+    site = sites[i]
+  
+    # site = "Midchannel" #for testing purposes
+    # i = 1
+    # site = "Nearshore" #for testing purposes
+    # i = 2
+    # site = "Offshore" #for testing purposes
+    # i = 3
+    
+    days = tissue.summary %>% na.omit() %>% filter(Site_type == site) %>% pull(Day)
+    
+    ###tissue SA & counts of susceptible (healthy) hosts at the start of monitoring
+    # also, selecting the correct starting polyp_SA for later in the loop
+    prev.timepoint = ''
+    if(site == 'Nearshore'){
+      prev.timepoint = 'T11' #timepoint before first documented infection timepoint [site specific]
+      polyp_SA = polyp_SA.nearshore[[1]]
+      area.site = 200 #meters squared. this could be changed to reflect available 3D substrate within the site, but we don't have that
+    } else if(site == "Midchannel"){
+      prev.timepoint = 'T7'
+      polyp_SA = polyp_SA.midchannel[[1]]
+      area.site = 200
+    } else{ #offshore
+      prev.timepoint = 'T5'
+      polyp_SA = polyp_SA.offshore[[1]]
+      area.site = 200
+    }
+    
+    time = time_list[[i]]
+    
+    polyp_SA = 1e-4 #m2 - equivalent to 100 mm2, which is a rough approximation of a fully infected medium-sized coral polyp
+    
+    S0.snapshot = subset(tissue.summary, Site_type==site & Timepoint == prev.timepoint)
+    N.site = S0.snapshot$tot.sustiss
+    N.LS.site = S0.snapshot$LS.sustiss
+    N.MS.site = S0.snapshot$MS.sustiss
+    N.HS.site = S0.snapshot$HS.sustiss
+    cover.site = N.site / area.site * 0.33 #(~1:3X) is the approximate ratio of our tissue density to CPCe-based cover (Williams et al. 2021)
+    cover.LS.site = N.LS.site / area.site * 0.33
+    cover.MS.site = N.MS.site / area.site * 0.33
+    cover.HS.site = N.HS.site / area.site * 0.33
+    
+    #sequence of infected & removed SA's for each SusCat within site. remove timepoints before the first infection (zero omit)
+    LS.inftiss = obs %>% filter(Site == site, Category == "LS", Compartment == "Infected") %>% pull(prop)
+    MS.inftiss = obs %>% filter(Site == site, Category == "MS", Compartment == "Infected") %>% pull(prop)
+    HS.inftiss = obs %>% filter(Site == site, Category == "HS", Compartment == "Infected") %>% pull(prop)
+    inftiss = LS.inftiss+MS.inftiss+HS.inftiss
+    
+    # polyp_SA = min(inftiss[1:5])/5
+    # polyp_SA = inftiss[1]/1.5
+    # polyp_SA = min(inftiss[1:5])/1.5
+    
+    LS.remtiss = obs %>% filter(Site == site, Category == "LS", Compartment == "Dead") %>% pull(prop)
+    MS.remtiss = obs %>% filter(Site == site, Category == "MS", Compartment == "Dead") %>% pull(prop)
+    HS.remtiss = obs %>% filter(Site == site, Category == "HS", Compartment == "Dead") %>% pull(prop)
+    remtiss = LS.remtiss+MS.remtiss+HS.remtiss
+    
+    #initial conditions
+    I.LS.tiss = 0
+    S.LS.tiss = N.LS.site - I.LS.tiss #susceptible tissue from that SusCat minus the initial infected tissue
+    R.LS.tiss = 0
+    
+    I.MS.tiss = 0
+    S.MS.tiss = N.MS.site - I.MS.tiss
+    R.MS.tiss = 0
+    
+    I.HS.tiss = polyp_SA
+    S.HS.tiss = N.HS.site - I.HS.tiss 
+    R.HS.tiss = 0
+    
+    P.tiss = I.HS.tiss
+    
+    ############################## OPTIMIZE PARAMETERS ############################################################
+    # Set up the data and initial conditions
+    coraldata.tiss = list(LS.inftiss, MS.inftiss, HS.inftiss, LS.remtiss, MS.remtiss, HS.remtiss)
+    initial_state.tiss = c(S.LS.tiss, I.LS.tiss, R.LS.tiss, S.MS.tiss, I.MS.tiss, R.MS.tiss, S.HS.tiss, I.HS.tiss, R.HS.tiss,
+                           P.tiss,
+                           N.LS.site, N.MS.site, N.HS.site,
+                           cover.site,
+                           cover.LS.site, cover.MS.site, cover.HS.site,
+                           lambda = lambda)
+    
+    # #testing
+    # 
+    # data = coraldata.tiss
+    # SIR.out = SIR.out.tiss
+    # 
+    # #testing
+    # Define the objective function for optimization
+    objective_function = function(params, data, time, initial_state){
+      betas.LS = params[1]
+      gammas.LS = params[2]
+      betas.MS = params[3]
+      gammas.MS = params[4]
+      betas.HS = params[5]
+      gammas.HS = params[6]
+      
+      SIR.out = data.frame(ode(c(S.LS = initial_state[1], I.LS = initial_state[2], R.LS = initial_state[3],
+                                 S.MS = initial_state[4], I.MS = initial_state[5], R.MS = initial_state[6],
+                                 S.HS = initial_state[7], I.HS = initial_state[8], R.HS = initial_state[9],
+                                 P = initial_state[10]),
+                               time, SIR, c(b.LS = betas.LS, g.LS = gammas.LS,
+                                            b.MS = betas.MS, g.MS = gammas.MS,
+                                            b.HS = betas.HS, g.HS = gammas.HS,
+                                            N.LS = initial_state[11], N.MS = initial_state[12], N.HS = initial_state[13],
+                                            C = initial_state[14],
+                                            C.LS = initial_state[15], C.MS = initial_state[16], C.HS = initial_state[17],
+                                            l = as.numeric(initial_state[18]))))
+      
+      #extract simulated values at time points matching observations
+      sim.LS.inf = SIR.out[which(SIR.out$time %in% days), which(colnames(SIR.out) %in% 'I.LS')]
+      sim.MS.inf = SIR.out[which(SIR.out$time %in% days), which(colnames(SIR.out) %in% 'I.MS')]
+      sim.HS.inf = SIR.out[which(SIR.out$time %in% days), which(colnames(SIR.out) %in% 'I.HS')]
+  
+      sim.LS.rem = SIR.out[which(SIR.out$time %in% days), which(colnames(SIR.out) %in% 'R.LS')]
+      sim.MS.rem = SIR.out[which(SIR.out$time %in% days), which(colnames(SIR.out) %in% 'R.MS')]
+      sim.HS.rem = SIR.out[which(SIR.out$time %in% days), which(colnames(SIR.out) %in% 'R.HS')]
+      
+      #extract observed values
+      obs.LS.inf = unlist(data[1])
+      obs.MS.inf = unlist(data[2])
+      obs.HS.inf = unlist(data[3])
+  
+      obs.LS.rem = unlist(data[4])
+      obs.MS.rem = unlist(data[5])
+      obs.HS.rem = unlist(data[6])
+  
+      # NOTE - if there is NO rescaling done, the fit to removal is actually excellent (when I set
+      #   the 'polyp_SA' to 1e-4 at least, as well as DHW modifier to 6 and initial conditions as below). but it's the fit to infection
+      #   that will be really interesting to get right as well.
+      #     initial conditions mentioned:
+      #       upper_bounds.tiss = c(0.15/N.LS.site, 0.10, 0.15/N.MS.site, 0.10, 1/N.HS.site, 1)  # Upper bounds for betas and gammas
+  
+      #use ratio of maximum removed value to maximum infected value to rescale removed. fits the 'I' curve better this way
+      # NOTE - doing this within each susceptibility category. should it be global?
+      max.obs.LS.inf = max(obs.LS.inf)
+      max.obs.MS.inf = max(obs.MS.inf)
+      max.obs.HS.inf = max(obs.HS.inf)
+  
+      max.obs.LS.rem = max(obs.LS.rem)
+      max.obs.MS.rem = max(obs.MS.rem)
+      max.obs.HS.rem = max(obs.HS.rem)
+  
+      rem.inf.LS.ratio = max.obs.LS.rem/max.obs.LS.inf
+      rem.inf.MS.ratio = max.obs.MS.rem/max.obs.MS.inf
+      rem.inf.HS.ratio = max.obs.HS.rem/max.obs.HS.inf
+  
+      obs.LS.rem = obs.LS.rem / rem.inf.LS.ratio
+      obs.MS.rem = obs.MS.rem / rem.inf.MS.ratio
+      obs.HS.rem = obs.HS.rem / rem.inf.HS.ratio
+  
+      sim.LS.rem = sim.LS.rem / rem.inf.LS.ratio
+      sim.MS.rem = sim.MS.rem / rem.inf.MS.ratio
+      sim.HS.rem = sim.HS.rem / rem.inf.HS.ratio
+      
+      # #global version of rescaling
+      # max.obs.inf = max(obs.LS.inf, obs.MS.inf, obs.HS.inf)
+      # max.obs.rem = max(obs.LS.rem, obs.MS.rem, obs.HS.rem)
+      # 
+      # rem.inf.ratio = max.obs.rem/max.obs.inf
+      # 
+      # obs.LS.rem = obs.LS.rem / rem.inf.ratio
+      # obs.MS.rem = obs.MS.rem / rem.inf.ratio
+      # obs.HS.rem = obs.HS.rem / rem.inf.ratio
+      # 
+      # sim.LS.rem = sim.LS.rem / rem.inf.ratio
+      # sim.MS.rem = sim.MS.rem / rem.inf.ratio
+      # sim.HS.rem = sim.HS.rem / rem.inf.ratio
+      
+      # # Calculate differences after normalization
+      # diff.LS.inf = (sim.LS.inf - obs.LS.inf)
+      # diff.MS.inf = (sim.MS.inf - obs.MS.inf)
+      # diff.HS.inf = (sim.HS.inf - obs.HS.inf)
+      # diff.LS.rem = (sim.LS.rem - obs.LS.rem)
+      # diff.MS.rem = (sim.MS.rem - obs.MS.rem)
+      # diff.HS.rem = (sim.HS.rem - obs.HS.rem)
+      # 
+      # #minimize using sum of absolute differences
+      # sum_squared_diff_I = sum(sum(abs(diff.LS.inf)) + sum(abs(diff.MS.inf)) +
+      #                            sum(abs(diff.HS.inf))) #can multiply this by 2 or similar to weight it extra
+      # 
+      # sum_squared_diff_R = sum(sum(abs(diff.LS.rem)) + sum(abs(diff.MS.rem)) +
+      #                            sum(abs(diff.HS.rem)))
+      # 
+      # sum_squared_diff = sum_squared_diff_I + sum_squared_diff_R
+      
+      # Vectorized calculation of differences after normalization
+      diff_inf = cbind(
+        (sim.LS.inf - obs.LS.inf),
+        (sim.MS.inf - obs.MS.inf),
+        (sim.HS.inf - obs.HS.inf)
+      )
+  
+      diff_rem = cbind(
+        (sim.LS.rem - obs.LS.rem),
+        (sim.MS.rem - obs.MS.rem),
+        (sim.HS.rem - obs.HS.rem)
+      )
+  
+      # Minimize using sum of absolute differences
+      sum_squared_diff_I = sum(abs(diff_inf))
+      sum_squared_diff_R = sum(abs(diff_rem))
+      sum_squared_diff = sum_squared_diff_I + sum_squared_diff_R
+  
+      # #minimize using sum of squared differences
+      # sum_squared_diff_I = sum(sum(diff.LS.inf^2) + sum(diff.MS.inf^2) +
+      #                            sum(diff.HS.inf^2))
+      # sum_squared_diff_R = sum(sum(diff.LS.rem^2) + sum(diff.MS.rem^2) +
+      #                            sum(diff.HS.rem^2))
+      # sum_squared_diff = sum_squared_diff_I + sum_squared_diff_R
+  
+      return(sum_squared_diff) #minimized error
+    }
+  
+    ############################## OPTIMIZE PARAMETERS ############################################################
+    
+    # uniform or no?
+    lower_bounds.tiss = c(0, 0, 0, 0, 0, 0)  # Lower bounds for betas and gammas - maybe more relaxed?
+    # upper_bounds.tiss = c(0.09/N.LS.site, 0.11, 0.15/N.MS.site, 0.16, 2.0/N.HS.site, 1.0)  # Upper bounds for betas and gammas
+    # upper_bounds.tiss = c(0.15/N.LS.site, 0.10, 0.15/N.MS.site, 0.10, 1.5/N.HS.site, 1.5)  # Upper bounds for betas and gammas
+    # upper_bounds.tiss = c(0.003/N.LS.site, 0.01, 0.01/N.MS.site, 0.02, 0.15/N.HS.site, 0.10)  # Upper bounds for betas and gammas
+    
+    # upper_bounds.tiss = c(1/N.LS.site, 1, 1/N.MS.site, 1, 1.5/N.HS.site, 1.5)  # Upper bounds for betas and gammas
+    upper_bounds.tiss = c(4, 4, 4, 4, 4, 4)  # Upper bounds for betas and gammas
+    
+    
+    control = list(itermax = 200)  # Maximum number of iterations. 200 is default
+    
+    # Run the optimization
+    result.tiss = DEoptim(fn = objective_function, lower = lower_bounds.tiss, upper = upper_bounds.tiss,
+                          data = coraldata.tiss, time = time, initial_state = initial_state.tiss,
+                          control = control)
+    
+    # #test based on 'SIR-testing.R' script which produced successful outbreak
+    # output.tester = data.frame(ode(c(S.LS = S.LS.tiss, I.LS = I.LS.tiss, R.LS = R.LS.tiss,
+    #                           S.MS = S.MS.tiss, I.MS = I.MS.tiss, R.MS = R.MS.tiss,
+    #                           S.HS = S.HS.tiss, I.HS = I.HS.tiss, R.HS = R.HS.tiss),
+    #                         time, SIR, c(b.LS = 0.0001149425, g.LS = 0.01,
+    #                                      b.MS = 0.00009009009, g.MS = 0.02,
+    #                                      b.HS = 0.004237288, g.HS = 0.1,
+    #                                      N.LS = N.LS.site, N.MS = N.MS.site, N.HS = N.HS.site,
+    #                                      C = 0.2,
+    #                                      l = lambda)))
+  
+    # 
+    # output.tester = pivot_longer(output.tester, cols = -1, names_pattern = "(.*)(..)$", names_to = c("Compartment", "Category")) %>%
+    #   mutate(Compartment = ifelse(Compartment == "", "value", Compartment)) %>%
+    #   mutate(Compartment = ifelse(Compartment == 'S.', 'Susceptible',
+    #                               ifelse(Compartment == 'I.', 'Infected',
+    #                                      ifelse(Compartment == 'R.', 'Dead', Compartment))))
+    # colnames(output.tester)[1] = 'days'
+    # colnames(output.tester)[4] = 'prop'
+    # 
+    # p.fit.tester = ggplot(data = output.tester, aes(days, prop, colour = Compartment, linetype = Category)) +
+    #   xlab("Day of observation period") +
+    #   ylab("Proportion of tissue") +
+    #   geom_line() +
+    #   scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
+    #   theme_classic()
+    # p.fit.tester
+    
+    # Extract the optimized parameters
+    optimized_params.tiss = result.tiss$optim$bestmem  # 411: turn this ON for tissue!
+    
+    # Print the optimized parameters
+    min.beta.LS.tiss = as.numeric(optimized_params.tiss[1])
+    min.gamma.LS.tiss = as.numeric(optimized_params.tiss[2])
+    min.beta.LS.tiss.adj = min.beta.LS.tiss * (1 / (1 + exp(-lambda.LS * (cover.LS.site))) + offset.LS)
+    R0.LS = min.beta.LS.tiss.adj / min.gamma.LS.tiss
+    
+    min.beta.MS.tiss = as.numeric(optimized_params.tiss[3])
+    min.gamma.MS.tiss = as.numeric(optimized_params.tiss[4])
+    min.beta.MS.tiss.adj = min.beta.MS.tiss * (1 / (1 + exp(-lambda.MS * (cover.MS.site))) + offset.MS)
+    R0.MS = min.beta.MS.tiss.adj / min.gamma.MS.tiss
+    
+    min.beta.HS.tiss = as.numeric(optimized_params.tiss[5])
+    min.gamma.HS.tiss = as.numeric(optimized_params.tiss[6])
+    min.beta.HS.tiss.adj = min.beta.HS.tiss * (1 / (1 + exp(-lambda.HS * (cover.HS.site))) + offset.HS)
+    R0.HS = min.beta.HS.tiss.adj / min.gamma.HS.tiss
+    
+    cat("Optimized Tissue Model Parameters for", site, " site:\n\n")
+    
+    # LS (Low Susceptibility) parameters
+    cat("Low Susceptibility (LS) Parameters:\n")
+    cat("  Beta LS:", min.beta.LS.tiss, "\n")
+    cat("  Cover-adjusted beta LS:", min.beta.LS.tiss.adj, "\n")
+    cat("  Gamma LS:", min.gamma.LS.tiss, "\n\n")
+    
+    # MS (Medium Susceptibility) parameters
+    cat("Medium Susceptibility (MS) Parameters:\n")
+    cat("  Beta MS:", min.beta.MS.tiss, "\n")
+    cat("  Cover-adjusted beta MS:", min.beta.MS.tiss.adj, "\n")
+    cat("  Gamma MS:", min.gamma.MS.tiss, "\n\n")
+    
+    # HS (High Susceptibility) parameters
+    cat("High Susceptibility (HS) Parameters:\n")
+    cat("  Beta HS:", min.beta.HS.tiss, "\n")
+    cat("  Cover-adjusted beta HS:", min.beta.HS.tiss.adj, "\n")
+    cat("  Gamma HS:", min.gamma.HS.tiss, "\n\n")
+    
+    # R0
+    cat("Basic Reproduction Number (R0) Parameters:\n")
+    cat("  R0 LS:", R0.LS, "\n")
+    cat("  R0 MS:", R0.MS, "\n")
+    cat("  R0 HS:", R0.HS, "\n")
+    
+    params[[i]] = c(min.beta.LS.tiss, min.beta.LS.tiss.adj, min.gamma.LS.tiss,
+                    min.beta.MS.tiss, min.beta.MS.tiss.adj, min.gamma.MS.tiss,
+                    min.beta.HS.tiss, min.beta.HS.tiss.adj, min.gamma.HS.tiss,
+                    R0.LS, R0.MS, R0.HS,
+                    cover.site,
+                    cover.LS.site, cover.MS.site, cover.HS.site)
+    
+    #simulation using initial state variables and best-fit beta/gamma parameters
+    SIR.out.tiss = data.frame(ode(c(S.LS = initial_state.tiss[1], I.LS = initial_state.tiss[2], R.LS = initial_state.tiss[3],
+                                    S.MS = initial_state.tiss[4], I.MS = initial_state.tiss[5], R.MS = initial_state.tiss[6],
+                                    S.HS = initial_state.tiss[7], I.HS = initial_state.tiss[8], R.HS = initial_state.tiss[9],
+                                    P = initial_state.tiss[10]),
+                                  time, SIR, c(b.LS = min.beta.LS.tiss, g.LS = min.gamma.LS.tiss,
+                                               b.MS = min.beta.MS.tiss, g.MS = min.gamma.MS.tiss,
+                                               b.HS = min.beta.HS.tiss, g.HS = min.gamma.HS.tiss,
+                                               N.LS = initial_state.tiss[11], N.MS = initial_state.tiss[12], N.HS = initial_state.tiss[13],
+                                               C = initial_state.tiss[14],
+                                               C.LS = initial_state.tiss[15], C.MS = initial_state.tiss[16], C.HS = initial_state.tiss[17],
+                                               l = as.numeric(initial_state.tiss[18]))))  
+    
+    my.SIRS[[i]] = SIR.out.tiss
+    
+  }
+  
+  # # Save workspace
+  # save.image(file = "output_multi_COVER_0-0-0_workspace.RData")
+    
