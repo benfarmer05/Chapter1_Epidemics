@@ -254,6 +254,8 @@
   survey_long$progdays = as.numeric(survey_long$progdays)
   survey_long$percinf = NA #estimated instantaneous (daily) %loss of live tissue - proxy of instantaneous %infectious tissue
   survey_long$percinf = as.numeric(survey_long$percinf)
+  survey_long$starttiss = NA
+  survey_long$starttiss = as.numeric(survey_long$starttiss)
   survey_long$inftiss = NA
   survey_long$inftiss = as.numeric(survey_long$inftiss)
   survey_long$remaintiss = NA
@@ -261,13 +263,20 @@
   survey_long$removedtiss = NA
   survey_long$removedtiss = as.numeric(survey_long$removedtiss)
   
+  #initialize amount of tissue on each coral colony
+  survey_long$starttiss = 1-(survey_long$tot_mortality/100) #tissue [scalar] present on the colony at beginning of SCTLD outbreak, after accounting for old mortality
+
   #convert date format to POSIXct
   survey_long$date = str_sub(survey_long$date, 2)
   survey_long$date = as.factor(survey_long$date)
   survey_long$date = as.POSIXct(survey_long$date, format = "%m.%d.%y")
-  surveydiseased = survey_long
+  
+  #sort by coral numerical ID and date to ensure no funny business later when calculating tissue loss from lesions through time
+  survey_long2 = survey_long %>%
+    arrange(coral_numID, date)
   
   #filter down to post-SCTLD introduction (October 30th 2018) infections
+  surveydiseased = survey_long
   surveydiseased = surveydiseased %>%
     filter(
       tot_diseased == "Dis",
@@ -279,6 +288,8 @@
   survey_trimmed$date = as.character(survey_trimmed$date) # NOTE - maybe come back to this, not sure if this breaks something else
   surveydiseased$date = as.character(surveydiseased$date)
   
+  # 'SURPRISE DEAD CORALS'
+  #
   #there were 57 corals that died suddenly between timepoints but were otherwise observed as healthy. these were all quite small and likely died from
   # SCTLD during the first and second infection waves. to account for this cryptic tissue loss, convert those final timepoints into 100% mortality from
   # disease
@@ -295,25 +306,28 @@
   #       - 1_p23_t1_s0_c6_CNAT - Maybe a discrepancy in mortality dataset; it suddenly died 08-30-2018. 75% old mortality suddenly on 05-10-2018, then suddenly 100% old mortality or not found on 08-17-2018.
   #             _ SW: dead-dead on 8-17-2018. was 75% dead by 5-10-2018, if that is useful
   
-  #first, make duplicate dataframe, then filter that frame down to just the recently surprise-dead corals (for LAST date). then, cross-reference the
-  # list of unique coral IDs with the duplicate dataframe itself to extract the full T1-T26 rows for EACH coral (so, 57 corals X 26 timepoints should be a
-  # 1482 row new extraction). Filter the extraction to identify the first "Dead" (and check the first 'Dead' is right, there might be a QA/QC issue there)
-  # and insert a '100' for percloss in that row. Finally, merge this extraction into the original dataframe that duplicate was created from.
-  dup.survey = survey_trimmed
-  surprise.dead = dup.survey %>%
+  #filter surprise-dead corals (read details above), by their health condition on the last date of surveying (2019-12-06)
+  surprise.dead = survey_trimmed %>%
     subset(
       date == '2019-12-06' & tot_diseased == 'Health' & value == 'Dead'
     )
-  extraction = dup.survey[dup.survey$Coral_ID %in% surprise.dead$Coral_ID,]
   
-  first.dead = extraction %>%
+  #pull the full T1 - T26 rows for each surprise-dead coral
+  first.dead = survey_trimmed[survey_trimmed$Coral_ID %in% surprise.dead$Coral_ID,]
+  
+  #filter to the date that the surprise-dead coral was first documented as dead
+  first.dead = first.dead %>%
     filter(grepl("\\Dead", value)) %>%
     group_by(Coral_ID) %>%
     top_n(n=1, wt=desc(date))
+
+  #set mortality from SCTLD to '100%' for all surprise-dead corals at their first documented date of complete mortality
   first.dead$percloss = 100
+  
+  #update the main dataframe with the date-specific complete mortality information
   survey_trimmed = survey_trimmed %>% rows_update(first.dead, by = "ID")
 
-  #quick name changes for clarity
+  #variable name changes for clarity
   names(survey_trimmed)[names(survey_trimmed) == 'tot_mortality'] = 'old_mortality'
   names(survey_trimmed)[names(survey_trimmed) == 'Sps.x'] = 'Sps'
   names(survey_trimmed)[names(survey_trimmed) == 'Max_width.x'] = 'Max_width'
@@ -321,14 +335,19 @@
   names(surveydiseased)[names(surveydiseased) == 'Sps.x'] = 'Sps'
   names(surveydiseased)[names(surveydiseased) == 'Max_width.x'] = 'Max_width'
   
-  #a cleaner dataframe for the surprise-dead corals, but same order as 'survey_trimmed'
+  #clean dataframe for the surprise-dead corals, in same order as 'survey_trimmed'
   currIDsdates = survey_trimmed %>%
     subset(
       tot_diseased == 'Health' & value == 'Dead'
     ) %>%
     select(
-      ID, Coral_ID, date, Tissue, old_mortality, percloss, progdays, percinf, inftiss
+      ID, coral_numID, date, Tissue, old_mortality, percloss, progdays, percinf, starttiss, inftiss
     )
+  #
+  # 'SURPRISE DEAD CORALS'
+  
+  ## STOPPING POINT - updating below with 'coral_numID' to better ensure sorting
+  # 13 August 2024
   
   #loop to calculate instantaneous infected tissue for surprise-dead corals
   curr_ID = ""
