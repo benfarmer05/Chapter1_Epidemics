@@ -234,6 +234,10 @@
   survey_long$coral_numID = hold$coral_numID
   survey_long = survey_long %>% select(coral_numID, everything())
   
+  #append the same coral numerical ID to 'prograte', a dataframe containing time-series lesion progression rates of each diseased coral colony
+  prograte = prograte %>%
+    mutate(coral_numID = survey_long$coral_numID[match(Coral_ID, survey_long$Coral_ID)])
+  
   #add index to each dataframe row to make breaking it apart and then merging & joining later easier
   survey_long$ID = seq.int(nrow(survey_long))
   survey_long = survey_long %>% select(ID, everything())
@@ -264,29 +268,32 @@
   survey_long$removedtiss = as.numeric(survey_long$removedtiss)
   
   #initialize amount of tissue on each coral colony
-  survey_long$starttiss = 1-(survey_long$tot_mortality/100) #tissue [scalar] present on the colony at beginning of SCTLD outbreak, after accounting for old mortality
+  survey_long$starttiss = 1-(survey_long$tot_mortality/100) #tissue percentage [scalar] present on the colony at beginning of SCTLD outbreak, after accounting for old mortality
 
   #convert date format to POSIXct
   survey_long$date = str_sub(survey_long$date, 2)
   survey_long$date = as.factor(survey_long$date)
   survey_long$date = as.POSIXct(survey_long$date, format = "%m.%d.%y")
   
-  #sort by coral numerical ID and date to ensure no funny business later when calculating tissue loss from lesions through time
-  survey_long2 = survey_long %>%
+  #sort by coral numerical ID and date to ensure no unintended behavior when calculating tissue loss from lesions through time
+  survey_long = survey_long %>%
     arrange(coral_numID, date)
   
   #filter down to post-SCTLD introduction (October 30th 2018) infections
-  surveydiseased = survey_long
-  surveydiseased = surveydiseased %>%
+  surveydiseased = survey_long %>%
     filter(
       tot_diseased == "Dis",
       date >= as.POSIXct("2018-10-30")
-    )
+    ) %>%
+    arrange(coral_numID, date) #failsafe to ensure preservation of ID-sorting
   
   #remove exact rows from 'survey_long' as are being extracted for 'surveydiseased', to easily rbind back together after data wrangling
-  survey_trimmed = anti_join(survey_long, surveydiseased)
-  survey_trimmed$date = as.character(survey_trimmed$date) # NOTE - maybe come back to this, not sure if this breaks something else
-  surveydiseased$date = as.character(surveydiseased$date)
+  survey_trimmed = anti_join(survey_long, surveydiseased) %>%
+    arrange(coral_numID, date)
+  
+  # # STOPPING POINTS - needed ?
+  # survey_trimmed$date = as.character(survey_trimmed$date) # NOTE - maybe come back to this, not sure if this breaks something else
+  # surveydiseased$date = as.character(surveydiseased$date)
   
   # 'SURPRISE DEAD CORALS'
   #
@@ -313,7 +320,9 @@
     )
   
   #pull the full T1 - T26 rows for each surprise-dead coral
-  first.dead = survey_trimmed[survey_trimmed$Coral_ID %in% surprise.dead$Coral_ID,]
+  first.dead = survey_trimmed %>%
+    filter(Coral_ID %in% surprise.dead$Coral_ID) %>%
+    arrange(coral_numID, date)
   
   #filter to the date that the surprise-dead coral was first documented as dead
   first.dead = first.dead %>%
@@ -325,7 +334,12 @@
   first.dead$percloss = 100
   
   #update the main dataframe with the date-specific complete mortality information
-  survey_trimmed = survey_trimmed %>% rows_update(first.dead, by = "ID")
+  survey_trimmed = survey_trimmed %>% rows_update(first.dead, by = "ID") %>%
+    arrange(coral_numID, date)
+  
+  # STOPPING POINT 
+  #   - make sure it makes sense that '100%' is inserted like this - is it really mortality? I think that's just a giant lesion all at once
+  #       - so wouldn't it make sense to backtrack that a date (or to first recorded date, 10-30-2018, whichever is first)?
 
   #variable name changes for clarity
   names(survey_trimmed)[names(survey_trimmed) == 'tot_mortality'] = 'old_mortality'
@@ -335,31 +349,33 @@
   names(surveydiseased)[names(surveydiseased) == 'Sps.x'] = 'Sps'
   names(surveydiseased)[names(surveydiseased) == 'Max_width.x'] = 'Max_width'
   
-  #clean dataframe for the surprise-dead corals, in same order as 'survey_trimmed'
+  #prepare a dataframe for calculating infected tissue in surprise-dead corals
   currIDsdates = survey_trimmed %>%
     subset(
       tot_diseased == 'Health' & value == 'Dead'
     ) %>%
     select(
       ID, coral_numID, date, Tissue, old_mortality, percloss, progdays, percinf, starttiss, inftiss
-    )
-  #
-  # 'SURPRISE DEAD CORALS'
-  
-  ## STOPPING POINT - updating below with 'coral_numID' to better ensure sorting
-  # 13 August 2024
-  
+    ) %>%
+    arrange(coral_numID, date)
+
   #loop to calculate instantaneous infected tissue for surprise-dead corals
   curr_ID = ""
   currdate = ""
   for(i in 1:nrow(currIDsdates)){
 
-    curr_ID = as.character(currIDsdates[i,which(colnames(currIDsdates) %in% 'ID')])
-    currdate = as.character(currIDsdates[i,which(colnames(currIDsdates) %in% 'date')])
+    curr_ID = currIDsdates %>%
+      slice(i) %>%
+      pull(ID)
     
-    IDslice = survey_trimmed[which(survey_trimmed$ID == curr_ID ), ]
+    currdate = currIDsdates %>%
+      slice(i) %>%
+      pull(date)
+    
+    IDslice = survey_trimmed %>%
+      filter(ID == curr_ID)
     percloss.loop = IDslice$percloss
-    availtiss = 1-(IDslice$old_mortality/100) #remaining tissue [scalar] on the colony at beginning of SCTLD outbreak, after accounting for old mortality
+    availtiss = IDslice$starttiss
     
     #this is the estimated instantaneous SA of polyp-level infection (i.e., tissue loss / sloughing)
     if(!is.na(percloss.loop) & percloss.loop > 0){ #is.null
@@ -371,8 +387,6 @@
         select(date)
       prevdate = prevdate[[1]]
       
-      currdate = as.POSIXct(currdate, format = "%Y-%m-%d")
-      prevdate = as.POSIXct(prevdate, format = "%Y-%m-%d")
       progdays = as.numeric(difftime(currdate, prevdate, units = "days"))
       
       survey_trimmed[which(survey_trimmed$ID%in%curr_ID), which(names(survey_trimmed) == 'progdays')] = progdays
@@ -384,39 +398,87 @@
       survey_trimmed[which(survey_trimmed$ID%in%curr_ID), which(colnames(survey_trimmed) %in% 'inftiss')] = (percinf/100)*tissue*availtiss
     }
   }
+  #
+  # 'SURPRISE DEAD CORALS'
   
-  #a cleaner dataframe, but same order as 'surveydiseased'
+  # 'CORALS DOCUMENTED AS DISEASED'
+  #
+  #prepare a dataframe for calculating infected tissue in corals documented as diseased in the field
   currIDsdates = surveydiseased %>%
     select(
-      ID, Coral_ID, date
-    )
+      ID, coral_numID, date
+    ) %>%
+    arrange(coral_numID, date)
+  
+  # Initialize error log
+  error_log = data.frame(
+    prevdate = character(),
+    curr_coral_ID = numeric(),
+    curr_ID = numeric(),
+    currdate = character(),
+    stringsAsFactors = FALSE
+  )
   
   #loop to calculate instantaneous infected tissue for confirmed SCTLD-infected corals
+  # NOTE - use i = 589 to single out the problem coral (2_p27_t2_s0_c1_DSTO)
   for(i in 1:nrow(currIDsdates)){
     
-    curr_coral_ID = currIDsdates[i,which(colnames(currIDsdates) %in% 'Coral_ID')]
-    curr_coral_ID = curr_coral_ID[[1]]
-    curr_ID = currIDsdates[i,which(colnames(currIDsdates) %in% 'ID')]
-    curr_ID = curr_ID[[1]]
-    currdate = as.character(currIDsdates[i,which(colnames(currIDsdates) %in% 'date')])
-    dateind = which(colnames(prograte) %in% currdate)
+    # curr_coral_ID = currIDsdates[i,which(colnames(currIDsdates) %in% 'coral_numID')]
+    # curr_coral_ID = curr_coral_ID[[1]]
+    # curr_ID = currIDsdates[i,which(colnames(currIDsdates) %in% 'ID')]
+    # curr_ID = curr_ID[[1]]
+    # currdate = as.character(currIDsdates[i,which(colnames(currIDsdates) %in% 'date')])
+    # dateind = which(colnames(prograte) %in% currdate)
     
-    percloss = as.numeric(as.matrix(setDT(prograte)[Coral_ID == curr_coral_ID, ])[dateind])
-    IDslice = surveydiseased[which(surveydiseased$ID == curr_ID ), ]
-    availtiss = 1-(IDslice$old_mortality/100)
+    # Extract values from currIDsdates
+    curr_values = currIDsdates %>%
+      slice(i) %>%
+      transmute(
+        coral_numID = as.numeric(coral_numID),
+        ID = as.numeric(ID),
+        date = as.character(date)
+      )
     
+    curr_coral_ID = curr_values$coral_numID
+    curr_ID = curr_values$ID
+    currdate = curr_values$date
+    
+    # Find the index of the date column in prograte
+    dateind = which(colnames(prograte) == currdate)
+    
+    percloss = as.numeric(as.matrix(setDT(prograte)[coral_numID == curr_coral_ID, ])[dateind])
+    IDslice = surveydiseased %>%
+      filter(ID == curr_ID)
+    availtiss = IDslice$starttiss
+
     if(percloss > 0 & !is.na(percloss)){
       
       surveydiseased[i,]$percloss = percloss
       
+      # NOTE - the below assumes 'prograte' date columns are in order, which they are. but a better approach would likely pivot
+      #         'prograte' to long format earlier in the script
       prevdate = prograte %>%
         filter(
-          Coral_ID == curr_coral_ID
+          coral_numID == curr_coral_ID
         ) %>%
-        select(0,grep(currdate, colnames(prograte))-1)
+        select(0,grep(currdate, colnames(prograte))-1) # NOTE - line of interest, regarding above comment
       prevdate = colnames(prevdate)
-      currdate = as.POSIXct(currdate, format = "%Y-%m-%d")
-      prevdate = as.POSIXct(prevdate, format = "%Y-%m-%d")
+      
+      # Check if prevdate is a valid date format
+      if (length(prevdate) == 0 || is.na(tryCatch(as.Date(prevdate, format="%Y-%m-%d"), error = function(e) NA))) {        # Log the error
+        error_log = rbind(error_log, data.frame(
+          prevdate = paste(prevdate, collapse = ", "),
+          curr_coral_ID = curr_coral_ID,
+          curr_ID = curr_ID,
+          currdate = currdate,
+          stringsAsFactors = FALSE
+        ))
+        
+        # Skip to the next iteration
+        next
+      }
+      
+      
       progdays = as.numeric(difftime(currdate, prevdate, units = "days"))
       surveydiseased[i,]$progdays = progdays
       
@@ -428,11 +490,25 @@
     }
   }
   
-  surveydiseased$date = as.POSIXct(surveydiseased$date, format = "%Y-%m-%d")
-  survey_trimmed$date = as.POSIXct(survey_trimmed$date, format = "%Y-%m-%d")
-  survey_tissue = rbind(survey_trimmed, surveydiseased)
+  # Print the error log if any errors were logged
+  if (nrow(error_log) > 0) {
+    print("Error log:")
+    print(error_log)
+  }
   
+  #update main dataframe with diseased tissue information
+  survey_tissue = rbind(survey_trimmed, surveydiseased) %>%
+    arrange(coral_numID, date)
+  #
+  # 'CORALS DOCUMENTED AS DISEASED'
+  
+  # STOPPING POINT
+  #  - 14 August 2024
+  #  - pushed changes here, was updating the use of dates
+  
+  # CALCULATING REMOVED / REMAINING TISSUE THROUGH TIME
   #loop to calculate removed tissue per coral
+  # NOTE - 3_p47_t5_s0_c12_MCAV is a good coral to test if the calculations worked correctly for corals with intermittent infections
   num_IDs = max(survey_tissue$coral_numID)
   for(i in 1:num_IDs){
     
