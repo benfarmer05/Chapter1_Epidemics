@@ -512,63 +512,103 @@
       filter(coral_numID %in% i) %>%
       arrange(date)
 
-    availtiss = curr_coral[1,]$starttiss #the '1' is arbitrary since 'old_mortality' is the same for any timepoint
-    tissue = curr_coral[1,]$Tissue #NOTE - the '1' might (?) matter here, as it determines the pre-SCTLD tissue surface area
+    availtiss = curr_coral[1,]$starttiss
+    tissue = curr_coral[1,]$Tissue
 
     # #test
     # # j = 15 #date is 2019-04-11, the first day of infection for 3_p47_t5_s0_c12_MCAV
     # j = 15 #date is 2019-04-11, the first day of infection for 3_p45_t9_s5_c27_SBOU
     
-    #loop through all timepoints (26 here) of the SCTLD monitoring period, from beginning to end
+    #loop through timepoints of monitoring period
     for(j in 1:length(curr_coral)){
 
-      percloss = curr_coral[j,]$percloss
+      percloss = curr_coral[j,]$percloss #perc. of coral lost to SCTLD (active infected or dead); no distinction made in field
       remaintiss = curr_coral[j,]$remaintiss
       curr_remaintiss = NA
+      curr_removedtiss = NA
+      
+      recent_inftiss = if (any(!is.na(curr_coral[1:(j-1),]$inftiss))) {
+        max(na.omit(curr_coral[1:(j-1),]$inftiss))
+      } else {
+        0
+      }
+      
+      # recent_inftiss = if (!is.na(curr_coral[j-1,]$inftiss)) {
+      #   curr_coral[j-1,]$inftiss
+      # } else {
+      #   0
+      # }
+      
     
-      # check - is there an active infection [is 'percloss' nonzero / not NA]?
+      # logical tree:
+      # is there an active infection [is 'percloss' nonzero / not NA]?
       #   if NO --> move on to next iteration and do not change the 'remaintiss' value. there is nothing to update.
       #   if YES --> is there any value in 'remaintiss'?
       #     if NO --> this is the first observation of infection! set 'remaintiss' of the *CURRENT* timepoint as a subtraction of 'inftiss'
       #       from 'availtiss*tissue'. remaintiss' must be zero if 'percloss' was 100%. otherwise, 'remaintiss' is nonzero.
       #     if YES --> this is an active infection that *continued* after the first-infected timepoint! set 'remaintiss' of the *CURRENT*
       #       timepoint as a subtraction of 'inftiss' from percloss*availtiss*tissue. this accounts for all accumulated recent tissue loss
-      if(percloss > 0 & !is.na(percloss)){ #is there an active infection?
+      
+      if(percloss > 0 & !is.na(percloss)){
+        #there is an active infection
 
-        if(remaintiss > 0 & !is.na(remaintiss)){ #is there any value in 'remaintiss'?
+        if(remaintiss > 0 & !is.na(remaintiss)){
+          #this is a *continued* active infection
 
-          #this is an active infection that *continued* after the first-infected timepoint. use 'remaintiss' from the *CURRENT* timepoint
-          #   to update the 'remaintiss' of the *CURRENT* timepoint [this works because 'remaintiss' is applied each iteration from the
-          # *CURRENT* timepoint to all remaining *FUTURE* timepoints]
-          # curr_remaintiss = remaintiss - availtiss*tissue*(percloss/100)
-          recent_inftiss = if (any(!is.na(curr_coral[1:(j-1),]$inftiss))) {
-            max(na.omit(curr_coral[1:(j-1),]$inftiss))
-          } else {
-            0
-          }
-          curr_remaintiss = remaintiss - availtiss * tissue * (percloss / 100) - curr_coral[j,]$inftiss + recent_inftiss
-          
-          if(curr_remaintiss < 0){ #coral has died. set remaining tissue to zero
-            curr_coral[j:nrow(curr_coral),]$remaintiss = 0
-            curr_coral[j:nrow(curr_coral),]$removedtiss = availtiss*tissue # 'removed' now accounts for the loss of the entire colony's tissue postmortem
-          } else{ #coral is losing tissue, and this is not the first observation of loss
+          if(!is.na(curr_remaintiss) && curr_remaintiss < 0){
+            
+            #the coral has died. this is the last day of infection
+            #   NOTE - since we cannot know exactly which day the coral officially died, we are making the assumption that SCTLD was actively
+            #          eating away at tissue until the day a diver arrived at the colony and documented its death. a more nuanced approach
+            #          might interpolate a distribution of times of "true" mortality for all colonies in the study, but this would introduce
+            #          more assumptions and possibly overcomplicate the study
+            curr_remaintiss = 0
+            curr_removedtiss = availtiss*tissue - curr_remaintiss
             curr_coral[j:nrow(curr_coral),]$remaintiss = curr_remaintiss
-            curr_coral[j:nrow(curr_coral),]$removedtiss = availtiss*tissue - curr_remaintiss
+            curr_coral[j:nrow(curr_coral),]$removedtiss = curr_removedtiss
+            
+          } else{
+            #the coral has not yet died
+    
+            
+            # STOPPING POINT
+            #   - 15 august 2024
+            #   - this part is broken, need to properly account for the final-mortality day. also, second-guessing
+            #     how I am treating "death" here - do I actually need to do some backtracking between timepoints
+            #     to properly separate compartments? I think so. ugh
+            curr_remaintiss = remaintiss - availtiss*tissue*(percloss/100) + curr_coral[j,]$inftiss - recent_inftiss
+            curr_removedtiss = availtiss*tissue - curr_remaintiss
+            curr_coral[j:nrow(curr_coral),]$remaintiss = curr_remaintiss
+            curr_coral[j:nrow(curr_coral),]$removedtiss = curr_removedtiss
+            
           }
 
-        } else{ #this is the first observation of infection. set 'remaintiss' of the *CURRENT* timepoint as a subtraction of 'inftiss'
-          #       from 'availtiss*tissue'. 'remaintiss' must be zero if 'percloss' was 100%. otherwise, 'remaintiss' is nonzero.
-          recent_inftiss = if (any(!is.na(curr_coral[1:(j-1),]$inftiss))) {
-            max(na.omit(curr_coral[1:(j-1),]$inftiss))
-          } else {
-            0
-          }
-          curr_remaintiss = availtiss*tissue*(1 - percloss/100) - curr_coral[j,]$inftiss + recent_inftiss
+        } else{
+          
+          #this is the first observation of infection. set remaining tissue at the current timepoint based on percentage lost.
+          #   the current instantaneous infected tissue is added back in, so that there isn't a "doubling up" between the infected
+          #   and removed compartments
+          curr_remaintiss = availtiss*tissue - availtiss*tissue*(percloss/100) + curr_coral[j,]$inftiss
+          curr_removedtiss = availtiss*tissue - curr_remaintiss
           curr_coral[j:nrow(curr_coral),]$remaintiss = curr_remaintiss
-          curr_coral[j:nrow(curr_coral),]$removedtiss = availtiss*tissue - curr_remaintiss
+          curr_coral[j:nrow(curr_coral),]$removedtiss = curr_removedtiss
+          
         }
-      } #if no active infection, move on to next iteration in j-loop (this accounts for corals with intermittent infections with gaps
-      #   between timepoints in 'inftiss')
+      } else{
+        
+        #no active infection. simply accumulate removal of remaining instantaneous infected tissue from prior timepoint (if any)
+        curr_remaintiss = remaintiss - recent_inftiss
+        curr_removedtiss = availtiss*tissue - curr_remaintiss
+        curr_coral[j:nrow(curr_coral),]$remaintiss = curr_remaintiss
+        curr_coral[j:nrow(curr_coral),]$removedtiss = curr_removedtiss
+        
+      }
+      
+      
+      
+      
+      
+      
     }
     survey_tissue[which(survey_tissue$coral_numID%in%i), which(colnames(survey_tissue) %in% 'remaintiss')] = curr_coral$remaintiss
     survey_tissue[which(survey_tissue$coral_numID%in%i), which(colnames(survey_tissue) %in% 'removedtiss')] = curr_coral$removedtiss
@@ -589,7 +629,8 @@
   #               I think the solution may be 'knowing' when there is an infection gap either preceding the current timepoint
   #               when currently on an infected timepoint and adding 'recent_inftiss' - and then *not* adding that 'recent_inftiss'.
   #               The requirement there, is that when there is 'no active infection' in the if/else tree, need to check if there is
-  #               a dangling 'inftiss' from the preceding timepoint, and go ahead and add it to 'removed' (and thus, 'remaining')
+  #               a dangling 'inftiss' from the *immediately preceding* timepoint, and go ahead and add it to 'removed' (and thus,
+  #               'remaining')
   
   # NOTE IMPORTANT - I think I caught something minor, but important. currently, the removed tissue added at a timepoint includes the
   #         current instantaneous 'inftiss'. this is not correct, since a swath of tissue cannot be both actively infected
