@@ -291,10 +291,6 @@
   survey_trimmed = anti_join(survey_long, surveydiseased) %>%
     arrange(coral_numID, date)
   
-  # # STOPPING POINTS - needed ?
-  # survey_trimmed$date = as.character(survey_trimmed$date) # NOTE - maybe come back to this, not sure if this breaks something else
-  # surveydiseased$date = as.character(surveydiseased$date)
-  
   # 'SURPRISE DEAD CORALS'
   #
   #there were 57 corals that died suddenly between timepoints but were otherwise observed as healthy. these were all quite small and likely died from
@@ -340,6 +336,11 @@
   # STOPPING POINT 
   #   - make sure it makes sense that '100%' is inserted like this - is it really mortality? I think that's just a giant lesion all at once
   #       - so wouldn't it make sense to backtrack that a date (or to first recorded date, 10-30-2018, whichever is first)?
+  #   - 16 August 2024: okay this is driving me nuts and I need to set it aside for a second, but basically what I need to do is
+  #                     identify the patient zero corals for each site, and then make sure there is a timepoint 30 days preceding which
+  #                     I can backtrack the infection to (and if not, add one - becoming the new patient zero date). this approach will
+  #                     then be recapitulated downstreamm in the script to apply to all corals that get infected. the "Dead" day for a coral
+  #                     is final, though - there is backtracked infection, but not instantaneous infection like with any ongoing affliction
 
   #variable name changes for clarity
   names(survey_trimmed)[names(survey_trimmed) == 'tot_mortality'] = 'old_mortality'
@@ -515,29 +516,38 @@
     availtiss = curr_coral[1,]$starttiss
     tissue = curr_coral[1,]$Tissue
 
-    # #test
-    # # j = 15 #date is 2019-04-11, the first day of infection for 3_p47_t5_s0_c12_MCAV
-    # j = 15 #date is 2019-04-11, the first day of infection for 3_p45_t9_s5_c27_SBOU
+#     #test
+#     # j = 15 #date is 2019-04-11, the first day of infection for 3_p47_t5_s0_c12_MCAV
+#     j = 15 #date is 2019-04-11, the first day of infection for 3_p45_t9_s5_c27_SBOU
     
     #loop through timepoints of monitoring period
-    for(j in 1:length(curr_coral)){
+    for(j in 1:nrow(curr_coral)){
 
       percloss = curr_coral[j,]$percloss #perc. of coral lost to SCTLD (active infected or dead); no distinction made in field
       remaintiss = curr_coral[j,]$remaintiss
       curr_remaintiss = NA
       curr_removedtiss = NA
       
-      recent_inftiss = if (any(!is.na(curr_coral[1:(j-1),]$inftiss))) {
-        max(na.omit(curr_coral[1:(j-1),]$inftiss))
-      } else {
-        0
-      }
-      
-      # recent_inftiss = if (!is.na(curr_coral[j-1,]$inftiss)) {
-      #   curr_coral[j-1,]$inftiss
+      # recent_inftiss = if (any(!is.na(curr_coral[1:(j-1),]$inftiss))) {
+      #   max(na.omit(curr_coral[1:(j-1),]$inftiss))
       # } else {
       #   0
       # }
+      
+      #set the amount of infected tissue in the prior timepoint
+      if (j > 1) { # Skip the first timepoint (j == 1) since it's not relevant
+        # If the previous timepoint's 'inftiss' is not NA, use that value
+        # Otherwise, set 'recent_inftiss' to 0
+        recent_inftiss <- if (!is.na(curr_coral[j-1,]$inftiss)) {
+          curr_coral[j-1,]$inftiss
+        } else {
+          0
+        }
+      } else {
+        # Set 'recent_inftiss' to 0 if j is 1, as no previous timepoint exists
+        recent_inftiss <- 0
+      }
+      
       
     
       # logical tree:
@@ -609,7 +619,11 @@
       
       
       
+      
     }
+    
+    
+    
     survey_tissue[which(survey_tissue$coral_numID%in%i), which(colnames(survey_tissue) %in% 'remaintiss')] = curr_coral$remaintiss
     survey_tissue[which(survey_tissue$coral_numID%in%i), which(colnames(survey_tissue) %in% 'removedtiss')] = curr_coral$removedtiss
   }
