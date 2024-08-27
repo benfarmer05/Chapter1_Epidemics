@@ -232,6 +232,7 @@
     group_by(Coral_ID) %>%
     mutate(coral_numID = cur_group_id())
   survey_long$coral_numID = hold$coral_numID
+  rm(hold)
   survey_long = survey_long %>% select(coral_numID, everything())
   
   #append the same coral numerical ID to 'prograte', a dataframe containing time-series lesion progression rates of each diseased coral colony
@@ -308,91 +309,77 @@
   #             - SW: dead-dead on 8-17-2018.
   #       - 1_p23_t1_s0_c6_CNAT - Maybe a discrepancy in mortality dataset; it suddenly died 08-30-2018. 75% old mortality suddenly on 05-10-2018, then suddenly 100% old mortality or not found on 08-17-2018.
   #             _ SW: dead-dead on 8-17-2018. was 75% dead by 5-10-2018, if that is useful
-  
+
   #filter surprise-dead corals (read details above), by their health condition on the last date of surveying (2019-12-06)
   surprise.dead = survey_trimmed %>%
-    filter(date == as.POSIXct("2019-12-06"), tot_diseased == 'Health', value == 'Dead')
-  
+    filter(date == as.POSIXct("2019-12-06"), tot_diseased == 'Health', value == 'Dead') %>%
+    arrange(coral_numID, date)
+
   #pull the full T1 - T26 rows for each surprise-dead coral
   first.dead.full = survey_trimmed %>%
-    filter(Coral_ID %in% surprise.dead$Coral_ID) %>%
+    filter(coral_numID %in% surprise.dead$coral_numID) %>%
     arrange(coral_numID, date)
-  
+
   #filter to the date that the surprise-dead coral was first documented as dead
   first.dead = first.dead.full %>%
     filter(grepl("\\Dead", value)) %>%
-    group_by(Coral_ID) %>%
+    group_by(coral_numID) %>%
     top_n(n=1, wt=desc(date)) %>%
-    ungroup()
+    ungroup() %>%
+    mutate(dead_date = date, #create duplicate column to be used later, and indicate the first documented date of complete mortality
+           percloss = 100) %>% #set mortality from SCTLD to '100%'
+    arrange(coral_numID, date)
   
-  #set mortality from SCTLD to '100%' for all surprise-dead corals at their first documented date of complete mortality
-  first.dead$percloss = 100
+  first.dead.full = first.dead.full %>% left_join(
+    first.dead %>% select(coral_numID, dead_date),
+    by = c("coral_numID")
+  ) %>%
+    arrange(coral_numID, date)
   
-  # # not working - updating wrong timepoint with correct value
-  # # Update percloss for the current and preceding timepoints
-  # first.dead.full2 <- first.dead.full %>%
-  #   left_join(first.dead %>% select(Coral_ID, date) %>% rename(dead_date = date), by = "Coral_ID") %>%
-  #   arrange(Coral_ID, date) %>%
-  #   mutate(
-  #     # Set percloss to 100% for the dead date
-  #     percloss = if_else(date == dead_date, 100, percloss),
-  #     
-  #     # Calculate percloss for the preceding date
-  #     prior_date = lag(date),
-  #     percloss = case_when(
-  #       !is.na(prior_date) & date == dead_date ~ 100 / as.numeric(difftime(dead_date, prior_date, units = "days")),
-  #       TRUE ~ percloss
-  #     )
-  #   ) %>%
-  #   select(-prior_date)
-  
-  # STOPPING POINT
-  # 20 August 2024
-  #   - same issue still, trying to backtrack dates. I'm very close on the logic here
-  # Update percloss for the current and preceding timepoints
-  first.dead.full2 <- first.dead.full %>%
-    left_join(first.dead %>% select(Coral_ID, date) %>% rename(dead_date = date), by = "Coral_ID") %>%
-    arrange(Coral_ID, date) %>%
+  # Update percloss in first.dead.full based on values from first.dead
+  # Perform the left join to bring in percloss and date from first.dead
+  first.dead.full <- first.dead.full %>%
+    left_join(
+      first.dead %>% select(coral_numID, date, percloss),
+      by = c("coral_numID", "date")) %>%
     mutate(
-      # Set prior_date to NA by default and compute it only if date equals dead_date
-      prior_date = if_else(date == dead_date, lag(date), as.POSIXct(NA, tz = "UTC")),
-      
-      # Set percloss to 100% for the dead date
-      percloss = if_else(date == dead_date, 100, percloss),
-      
-      # Calculate percloss for the preceding date
-      percloss = case_when(
-        !is.na(prior_date) & date == dead_date ~ 100 / as.numeric(difftime(dead_date, prior_date, units = "days")),
-        TRUE ~ percloss
-      )
+      # Update percloss where available from first.dead
+      percloss = coalesce(percloss.y, percloss.x),
     ) %>%
-    select(-prior_date)
+    select(-percloss.x, -percloss.y) %>%
+    arrange(coral_numID, date) # Sort by coral_numID and date
   
+  # Initialize prior_date column & assign any straggling NA's
+  first.dead.full$prior_date <- NA
+  first.dead.full$percloss <- ifelse(is.na(first.dead.full$percloss), NA, first.dead.full$percloss)
   
+  # Loop through the data frame
+  for (i in 2:nrow(first.dead.full)) {
+    if (first.dead.full$date[i] == first.dead.full$dead_date[i]) {
+      # Set percloss to 100% for the current dead_date
+      first.dead.full$percloss[i] <- 100
+      
+      # Calculate percloss for the previous row (prior_date)
+      first.dead.full$prior_date[i] <- first.dead.full$date[i-1]
+      first.dead.full$percloss[i-1] <- 100 / as.numeric(difftime(first.dead.full$dead_date[i], first.dead.full$date[i-1], units = "days"))
+    }
+  }
   
-  # #update the main dataframe with the date-specific complete mortality information
-  # survey_trimmed = survey_trimmed %>% rows_update(first.dead, by = "ID") %>%
-  #   arrange(coral_numID, date)
+  # Drop the prior_date column if you don't need it anymore
+  first.dead.full$prior_date <- NULL
+  
+  #update original dataframe with surprise-dead coral mortality
+  survey_trimmed = survey_trimmed %>%
+    left_join(
+      first.dead.full %>% select(coral_numID, date, dead_date, percloss),
+      by = c("coral_numID", "date")) %>%
+    mutate(
+      percloss.x = coalesce(percloss.y, percloss.x)
+    ) %>%
+    rename(percloss = percloss.x) %>%
+    select(-percloss.y) %>%
+    arrange(coral_numID, date)
 
-  # STOPPING POINT 
-  #   - make sure it makes sense that '100%' is inserted like this - is it really mortality? I think that's just a giant lesion all at once
-  #       - so wouldn't it make sense to backtrack that a date (or to first recorded date, 10-30-2018, whichever is first)?
-  #   - 16 August 2024: okay this is driving me nuts and I need to set it aside for a second, but basically what I need to do is
-  #                     identify the patient zero corals for each site, and then make sure there is a timepoint 30 days preceding which
-  #                     I can backtrack the infection to (and if not, add one - becoming the new patient zero date). this approach will
-  #                     then be recapitulated downstreamm in the script to apply to all corals that get infected. the "Dead" day for a coral
-  #                     is final, though - there is backtracked infection, but not instantaneous infection like with any ongoing affliction
-  #   - 20 August 2024: what I've gotta do is move forward into the code and identify the three patient zeros, and backtrack. but then,
-  #                     also need to complete that backtracking for every coral in the study (this part is easier though becuase won't
-  #                     be constructing any new timepoints then)
-  # - Offshore patient zero: 2_p27_t2_s0_c1_DSTO, 10-30-2018, 90% loss. backtrack a week? this is only a 5 inch coral
-  # - Midchannel patient zero: 1_p25_t2_s0_c22_DSTO, 11-29-2018, 10% loss
-  # - Nearshore patient zero: 3_p47_t3_s0_c8_PSTR (10% loss) and 3_p47_t4_s5_c15_PSTR (5% loss), 2019-02-08
-  #
-  # This ensures that I am properly backtracking the initial loss of tissue. Currently, I am assuming that infection was progressing
-  #   on the coral all the way up until the moment the surveyor dove up down logged an amount of loss, but I'd rather assume that the
-  #   coral became infected right as the surveyor was ascending back to the surface (because it is convenient)
-  
   #variable name changes for clarity
   names(survey_trimmed)[names(survey_trimmed) == 'tot_mortality'] = 'old_mortality'
   names(survey_trimmed)[names(survey_trimmed) == 'Sps.x'] = 'Sps'
@@ -401,21 +388,30 @@
   names(surveydiseased)[names(surveydiseased) == 'Sps.x'] = 'Sps'
   names(surveydiseased)[names(surveydiseased) == 'Max_width.x'] = 'Max_width'
   
-  #prepare a dataframe for calculating infected tissue in surprise-dead corals
+  # #currently deprecated - before, I could do this because there was no infection backtracking. but see below
+  # #prepare a dataframe for calculating infected tissue in surprise-dead corals
+  # currIDsdates = survey_trimmed %>%
+  #   subset(
+  #     tot_diseased == 'Health' & value == 'Dead'
+  #   ) %>%
+  #   select(
+  #     ID, coral_numID, date, Tissue, old_mortality, percloss, progdays, percinf, starttiss, inftiss
+  #   ) %>%
+  #   arrange(coral_numID, date)
+  
+  #prepare a dataframe for calculating infected tissue in surprise-dead corals (T1 - T26)
   currIDsdates = survey_trimmed %>%
-    subset(
-      tot_diseased == 'Health' & value == 'Dead'
-    ) %>%
-    select(
-      ID, coral_numID, date, Tissue, old_mortality, percloss, progdays, percinf, starttiss, inftiss
-    ) %>%
+    filter(coral_numID %in% surprise.dead$coral_numID) %>%
     arrange(coral_numID, date)
-
+  
   #loop to calculate instantaneous infected tissue for surprise-dead corals
   curr_ID = ""
   currdate = ""
   for(i in 1:nrow(currIDsdates)){
 
+    # #test
+    # i = 42 #for a coral that wasn't already dead
+    
     curr_ID = currIDsdates %>%
       slice(i) %>%
       pull(ID)
@@ -432,6 +428,30 @@
     #this is the estimated instantaneous SA of polyp-level infection (i.e., tissue loss / sloughing)
     if(!is.na(percloss.loop) & percloss.loop > 0){ #is.null
     
+      
+      # STOPPING POINT
+      # - 27 August 2024
+      #     - This part below should actually simplify now - at least, for surprise-dead corals. they are all already backtracked,
+      #         so their instantaneous infection should be straightforward to calculate from here. some modifications are necessary though,
+      #         for sure. some info from before below:
+      #
+      # STOPPING POINT 
+      #   - 16 August 2024: okay this is driving me nuts and I need to set it aside for a second, but basically what I need to do is
+      #                     identify the patient zero corals for each site, and then make sure there is a timepoint 30 days preceding which
+      #                     I can backtrack the infection to (and if not, add one - becoming the new patient zero date). this approach will
+      #                     then be recapitulated downstreamm in the script to apply to all corals that get infected. the "Dead" day for a coral
+      #                     is final, though - there is backtracked infection, but not instantaneous infection like with any ongoing affliction
+      #   - 20 August 2024: what I've gotta do is move forward into the code and identify the three patient zeros, and backtrack. but then,
+      #                     also need to complete that backtracking for every coral in the study (this part is easier though becuase won't
+      #                     be constructing any new timepoints then)
+      # - Offshore patient zero: 2_p27_t2_s0_c1_DSTO, 10-30-2018, 90% loss. backtrack a week? this is only a 5 inch coral
+      # - Midchannel patient zero: 1_p25_t2_s0_c22_DSTO, 11-29-2018, 10% loss
+      # - Nearshore patient zero: 3_p47_t3_s0_c8_PSTR (10% loss) and 3_p47_t4_s5_c15_PSTR (5% loss), 2019-02-08
+      #
+      # This ensures that I am properly backtracking the initial loss of tissue. Currently, I am assuming that infection was progressing
+      #   on the coral all the way up until the moment the surveyor dove up down logged an amount of loss, but I'd rather assume that the
+      #   coral became infected right as the surveyor was ascending back to the surface (because it is convenient)
+      
       prevdate = survey_trimmed %>%
         filter(
           ID == as.numeric(curr_ID)-1
