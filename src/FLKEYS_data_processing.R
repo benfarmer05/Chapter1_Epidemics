@@ -1,6 +1,6 @@
 
-  rm(list=ls())
-  
+  .rs.restartR(clean = TRUE)
+
   library(tidyverse)
   library(data.table)
   library(mgcv)
