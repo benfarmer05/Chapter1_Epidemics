@@ -1,6 +1,6 @@
 
-  .rs.restartR(clean = TRUE)
-
+  # .rs.restartR(clean = TRUE)
+  
   library(tidyverse)
   library(data.table)
   library(mgcv)
@@ -452,24 +452,43 @@
       #   on the coral all the way up until the moment the surveyor dove up down logged an amount of loss, but I'd rather assume that the
       #   coral became infected right as the surveyor was ascending back to the surface (because it is convenient)
       
-      prevdate = survey_trimmed %>%
-        filter(
-          ID == as.numeric(curr_ID)-1
-        ) %>%
-        select(date)
-      prevdate = prevdate[[1]]
+      # prevdate = survey_trimmed %>%
+      #   filter(
+      #     ID == as.numeric(curr_ID)-1
+      #   ) %>%
+      #   select(date)
+      # prevdate = prevdate[[1]]
+      # 
+      # progdays = as.numeric(difftime(currdate, prevdate, units = "days"))
+      # 
+      # survey_trimmed[which(survey_trimmed$ID%in%curr_ID), which(names(survey_trimmed) == 'progdays')] = progdays
       
-      progdays = as.numeric(difftime(currdate, prevdate, units = "days"))
-      
-      survey_trimmed[which(survey_trimmed$ID%in%curr_ID), which(names(survey_trimmed) == 'progdays')] = progdays
-    
-      percinf = percloss.loop/progdays
+
+      percinf = percloss.loop
       tissue = survey_trimmed[which(survey_trimmed$ID%in%curr_ID), which(colnames(survey_trimmed) %in% 'Tissue')]
       tissue = tissue[[1]]
       survey_trimmed[which(survey_trimmed$ID%in%curr_ID), which(colnames(survey_trimmed) %in% 'percinf')] = percinf
       survey_trimmed[which(survey_trimmed$ID%in%curr_ID), which(colnames(survey_trimmed) %in% 'inftiss')] = (percinf/100)*tissue*availtiss
     }
   }
+  
+
+  # Assuming survey_trimmed and currIDsdates are already defined dataframes
+  test <- survey_trimmed %>%
+    left_join(currIDsdates, by = "ID") %>%
+    group_by(ID) %>%
+    rowwise() %>%
+    mutate(
+      prevdate = lag(date),  # Getting the previous date
+      progdays = as.numeric(difftime(date, prevdate, units = "days")), # Calculating the days between timepoints
+      percinf = ifelse(!is.na(percloss) & percloss > 0, percloss / progdays, NA), # Calculating infection rate
+      inftiss = ifelse(!is.na(percinf), (percinf / 100) * starttiss * Tissue, NA) # Calculating infected tissue
+    ) %>%
+    ungroup()
+  
+  
+  
+  
   #
   # 'SURPRISE DEAD CORALS'
   
