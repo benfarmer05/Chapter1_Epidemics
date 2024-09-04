@@ -1,5 +1,8 @@
 
   # .rs.restartR(clean = TRUE)
+
+  rm(list=ls())
+
   
   library(tidyverse)
   library(data.table)
@@ -309,7 +312,7 @@
   #             - SW: dead-dead on 8-17-2018.
   #       - 1_p23_t1_s0_c6_CNAT - Maybe a discrepancy in mortality dataset; it suddenly died 08-30-2018. 75% old mortality suddenly on 05-10-2018, then suddenly 100% old mortality or not found on 08-17-2018.
   #             _ SW: dead-dead on 8-17-2018. was 75% dead by 5-10-2018, if that is useful
-
+  
   #filter surprise-dead corals (read details above), by their health condition on the last date of surveying (2019-12-06)
   surprise.dead = survey_trimmed %>%
     filter(date == as.POSIXct("2019-12-06"), tot_diseased == 'Health', value == 'Dead') %>%
@@ -388,118 +391,73 @@
   names(surveydiseased)[names(surveydiseased) == 'Sps.x'] = 'Sps'
   names(surveydiseased)[names(surveydiseased) == 'Max_width.x'] = 'Max_width'
   
-  # #currently deprecated - before, I could do this because there was no infection backtracking. but see below
-  # #prepare a dataframe for calculating infected tissue in surprise-dead corals
-  # currIDsdates = survey_trimmed %>%
-  #   subset(
-  #     tot_diseased == 'Health' & value == 'Dead'
-  #   ) %>%
-  #   select(
-  #     ID, coral_numID, date, Tissue, old_mortality, percloss, progdays, percinf, starttiss, inftiss
-  #   ) %>%
-  #   arrange(coral_numID, date)
-  
-  #prepare a dataframe for calculating infected tissue in surprise-dead corals (T1 - T26)
-  currIDsdates = survey_trimmed %>%
+  # Prepare a dataframe for calculating infected tissue in surprise-dead corals (T1 - T26)
+  # only calculating instanteous infected tissue (tissue loss / sloughing within 24 hours) for corals that haven't completed died already
+  # NOTE - the way 'percloss' is handled here is different than the loop for confirmed diseased corals below. here, it was assigned
+  #         manually be me, to backtrack daily percentage loss back to the last timepoint (and this translates directly to 
+  #         instantaneous infected tissue in a day). but below, percloss was a measure of how much tissue was lost between timepoints
+  #         in confirmed SCTLD-infected corals. that's why it needs be backtracked and then divided by the number of days between
+  #         timepoints. I might have benefited from using a different term than 'percloss' for the surprise-dead corals - could maybe
+  #         go back and call it 'instantloss' or 'dailyloss'. similar nomenclature may be useful below as well
+  surprise.dead.infections <- survey_trimmed %>%
     filter(coral_numID %in% surprise.dead$coral_numID) %>%
-    arrange(coral_numID, date)
-  
-  #loop to calculate instantaneous infected tissue for surprise-dead corals
-  curr_ID = ""
-  currdate = ""
-  for(i in 1:nrow(currIDsdates)){
-
-    # #test
-    # i = 42 #for a coral that wasn't already dead
-    
-    curr_ID = currIDsdates %>%
-      slice(i) %>%
-      pull(ID)
-    
-    currdate = currIDsdates %>%
-      slice(i) %>%
-      pull(date)
-    
-    IDslice = survey_trimmed %>%
-      filter(ID == curr_ID)
-    percloss.loop = IDslice$percloss
-    availtiss = IDslice$starttiss
-    
-    #this is the estimated instantaneous SA of polyp-level infection (i.e., tissue loss / sloughing)
-    if(!is.na(percloss.loop) & percloss.loop > 0){ #is.null
-    
-      
-      # STOPPING POINT
-      # - 27 August 2024
-      #     - This part below should actually simplify now - at least, for surprise-dead corals. they are all already backtracked,
-      #         so their instantaneous infection should be straightforward to calculate from here. some modifications are necessary though,
-      #         for sure. some info from before below:
-      #
-      # STOPPING POINT 
-      #   - 16 August 2024: okay this is driving me nuts and I need to set it aside for a second, but basically what I need to do is
-      #                     identify the patient zero corals for each site, and then make sure there is a timepoint 30 days preceding which
-      #                     I can backtrack the infection to (and if not, add one - becoming the new patient zero date). this approach will
-      #                     then be recapitulated downstreamm in the script to apply to all corals that get infected. the "Dead" day for a coral
-      #                     is final, though - there is backtracked infection, but not instantaneous infection like with any ongoing affliction
-      #   - 20 August 2024: what I've gotta do is move forward into the code and identify the three patient zeros, and backtrack. but then,
-      #                     also need to complete that backtracking for every coral in the study (this part is easier though becuase won't
-      #                     be constructing any new timepoints then)
-      # - Offshore patient zero: 2_p27_t2_s0_c1_DSTO, 10-30-2018, 90% loss. backtrack a week? this is only a 5 inch coral
-      # - Midchannel patient zero: 1_p25_t2_s0_c22_DSTO, 11-29-2018, 10% loss
-      # - Nearshore patient zero: 3_p47_t3_s0_c8_PSTR (10% loss) and 3_p47_t4_s5_c15_PSTR (5% loss), 2019-02-08
-      #
-      # This ensures that I am properly backtracking the initial loss of tissue. Currently, I am assuming that infection was progressing
-      #   on the coral all the way up until the moment the surveyor dove up down logged an amount of loss, but I'd rather assume that the
-      #   coral became infected right as the surveyor was ascending back to the surface (because it is convenient)
-      
-      # prevdate = survey_trimmed %>%
-      #   filter(
-      #     ID == as.numeric(curr_ID)-1
-      #   ) %>%
-      #   select(date)
-      # prevdate = prevdate[[1]]
-      # 
-      # progdays = as.numeric(difftime(currdate, prevdate, units = "days"))
-      # 
-      # survey_trimmed[which(survey_trimmed$ID%in%curr_ID), which(names(survey_trimmed) == 'progdays')] = progdays
-      
-
-      percinf = percloss.loop
-      tissue = survey_trimmed[which(survey_trimmed$ID%in%curr_ID), which(colnames(survey_trimmed) %in% 'Tissue')]
-      tissue = tissue[[1]]
-      survey_trimmed[which(survey_trimmed$ID%in%curr_ID), which(colnames(survey_trimmed) %in% 'percinf')] = percinf
-      survey_trimmed[which(survey_trimmed$ID%in%curr_ID), which(colnames(survey_trimmed) %in% 'inftiss')] = (percinf/100)*tissue*availtiss
-    }
-  }
-  
-
-  # Assuming survey_trimmed and currIDsdates are already defined dataframes
-  test <- survey_trimmed %>%
-    left_join(currIDsdates, by = "ID") %>%
-    group_by(ID) %>%
-    rowwise() %>%
+    group_by(coral_numID) %>%
+    filter(!all(old_mortality == 100)) %>%  # Exclude coral_numIDs with 100% old mortality before SCTLD surveying
+    ungroup() %>%
     mutate(
-      prevdate = lag(date),  # Getting the previous date
-      progdays = as.numeric(difftime(date, prevdate, units = "days")), # Calculating the days between timepoints
-      percinf = ifelse(!is.na(percloss) & percloss > 0, percloss / progdays, NA), # Calculating infection rate
-      inftiss = ifelse(!is.na(percinf), (percinf / 100) * starttiss * Tissue, NA) # Calculating infected tissue
+      percinf = if_else(!is.na(percloss) & percloss > 0 & percloss != 100, percloss, NA_real_), #exclude corals that are 100% dead (from SCTLD)
+      inftiss = if_else(!is.na(percinf),
+                        (percinf / 100) * Tissue * starttiss,
+                        NA_real_)
     ) %>%
-    ungroup()
-  
-  
-  
-  
+    arrange(coral_numID, date)
+    
+
+  #update original dataframe with surprise-dead coral mortality
+  survey_trimmed = survey_trimmed %>%
+    left_join(
+      surprise.dead.infections %>% select(coral_numID, date, percinf, inftiss),
+      by = c("coral_numID", "date")) %>%
+    mutate(
+      percinf.x = coalesce(percinf.y, percinf.x),
+      inftiss.x = coalesce(inftiss.y, inftiss.x)
+    ) %>%
+    rename(percinf = percinf.x, inftiss = inftiss.x) %>%
+    select(-percinf.y, -inftiss.y) %>%
+    arrange(coral_numID, date)
   #
   # 'SURPRISE DEAD CORALS'
+  
+  
+  
+  # STOPPING POINT 
+  #   - 4 September 2024: okay this is driving me nuts and I need to set it aside for a second, but basically what I need to do is
+  #                     identify the patient zero corals for each site, and then make sure there is a timepoint 30 days preceding which
+  #                     I can backtrack the infection to (and if not, add one - becoming the new patient zero date). this approach will
+  #                     then be recapitulated downstreamm in the script to apply to all corals that get infected. the "Dead" day for a coral
+  #                     is final, though - there is backtracked infection, but not instantaneous infection like with any ongoing affliction
+  # - Offshore patient zero: 2_p27_t2_s0_c1_DSTO, 10-30-2018, 90% loss. backtrack a week? this is only a 5 inch coral
+  # - Midchannel patient zero: 1_p25_t2_s0_c22_DSTO, 11-29-2018, 10% loss
+  # - Nearshore patient zero: 3_p47_t3_s0_c8_PSTR (10% loss) and 3_p47_t4_s5_c15_PSTR (5% loss), 2019-02-08
+  #
+  # This ensures that I am properly backtracking the initial loss of tissue. Currently, I am assuming that infection was progressing
+  #   on the coral all the way up until the moment the surveyor dove up down logged an amount of loss, but I'd rather assume that the
+  #   coral became infected right as the surveyor was ascending back to the surface (because it is convenient)
+  
+  
+  
+  #steps:
+  # 1.) backtrack percloss of current timepoint to last timepoint (account for patient zeros somehow): percloss/progdays
+  # 2.) apply that backtracked value (inftiss) to the last timepoint, not the current one
+  # 3.) the last inftiss should be on the date preceding the final day of new percloss. whether that is lesion cessation or host death
   
   # 'CORALS DOCUMENTED AS DISEASED'
   #
   #prepare a dataframe for calculating infected tissue in corals documented as diseased in the field
-  currIDsdates = surveydiseased %>%
-    select(
-      ID, coral_numID, date
-    ) %>%
-    arrange(coral_numID, date)
+  observed.infected = surveydiseased %>%
+    mutate(percloss = NA_real_, progdays = NA_real_, percinf = NA_real_, inftiss = NA_real_) %>%
+    arrange(coral_numID, date) 
+  
   
   # Initialize error log
   error_log = data.frame(
@@ -511,13 +469,16 @@
   )
   
   #loop to calculate instantaneous infected tissue for confirmed SCTLD-infected corals
-  # NOTE - use i = 589 to single out the problem coral (2_p27_t2_s0_c1_DSTO)
-  for(i in 1:nrow(currIDsdates)){
+  for(i in 1:nrow(observed.infected)){
+    
+    # #test
+    # # i = 589 #single out the problem coral (2_p27_t2_s0_c1_DSTO). this was a patient zero
+    # i = 5 #first infected coral in dataframe
     
     # Extract values from currIDsdates
-    curr_values = currIDsdates %>%
+    curr_values <- observed.infected %>%
       slice(i) %>%
-      transmute(
+      mutate(
         coral_numID = as.numeric(coral_numID),
         ID = as.numeric(ID),
         date = as.character(date)
@@ -535,19 +496,24 @@
       filter(ID == curr_ID)
     availtiss = IDslice$starttiss
 
+    # Only calculate if percloss is valid
     if(percloss > 0 & !is.na(percloss)){
       
-      surveydiseased[i,]$percloss = percloss
       
-      # NOTE - the below assumes 'prograte' date columns are in order, which they are. but a better approach would likely pivot
-      #         'prograte' to long format earlier in the script
+      # Update percloss in observed.infected
+      observed.infected[i, "percloss"] <- percloss
+      
+
+      # NOTE - the below assumes 'prograte' date columns are in order, which they are. but another approach may pivot
+      #         'prograte' to long format earlier in the script for easier sorting
       prevdate = prograte %>%
         filter(
           coral_numID == curr_coral_ID
         ) %>%
-        select(0,grep(currdate, colnames(prograte))-1) # NOTE - line of interest, regarding above comment
-      prevdate = colnames(prevdate)
+        select(0,grep(currdate, colnames(prograte))-1) %>% # NOTE - line of interest, regarding above comment
+      colnames()
       
+    
       # Check if prevdate is a valid date format
       if (length(prevdate) == 0 || is.na(tryCatch(as.Date(prevdate, format="%Y-%m-%d"), error = function(e) NA))) {        # Log the error
         error_log = rbind(error_log, data.frame(
@@ -562,14 +528,18 @@
         next
       }
       
+      # Calculate progdays and update in observed.infected
       progdays = as.numeric(difftime(currdate, prevdate, units = "days"))
-      surveydiseased[i,]$progdays = progdays
+      observed.infected[i, "progdays"] <- progdays
       
-      percinf = percloss/progdays
-      surveydiseased[i,]$percinf = percinf
+      # Calculate percinf and update in observed.infected
+      percinf = percloss / progdays
+      observed.infected[i, "percinf"] <- percinf
+      
+      # Calculate inftiss and update in observed.infected
       tissue = IDslice$Tissue
-      inftiss = (percinf/100)*tissue*availtiss
-      surveydiseased[i,]$inftiss = inftiss
+      inftiss = (percinf / 100) * tissue * availtiss
+      observed.infected[i, "inftiss"] <- inftiss
     }
   }
   
