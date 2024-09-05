@@ -458,7 +458,6 @@
     mutate(percloss = NA_real_, progdays = NA_real_, percinf = NA_real_, inftiss = NA_real_) %>%
     arrange(coral_numID, date) 
   
-  
   # Initialize error log
   error_log = data.frame(
     prevdate = character(),
@@ -472,8 +471,8 @@
   for(i in 1:nrow(observed.infected)){
     
     # #test
-    # # i = 589 #single out the problem coral (2_p27_t2_s0_c1_DSTO). this was a patient zero
-    # i = 5 #first infected coral in dataframe
+    # i = 589 #single out the problem coral (2_p27_t2_s0_c1_DSTO). this was a patient zero
+    # # i = 5 #first infected coral in dataframe
     
     # Extract values from currIDsdates
     curr_values <- observed.infected %>%
@@ -488,9 +487,7 @@
     curr_ID = curr_values$ID
     currdate = curr_values$date
     
-    # Find the index of the date column in prograte
     dateind = match(curr_values$date, colnames(prograte))
-    
     percloss = as.numeric(as.matrix(setDT(prograte)[coral_numID == curr_coral_ID, ])[dateind])
     IDslice = surveydiseased %>%
       filter(ID == curr_ID)
@@ -499,10 +496,8 @@
     # Only calculate if percloss is valid
     if(percloss > 0 & !is.na(percloss)){
       
-      
       # Update percloss in observed.infected
       observed.infected[i, "percloss"] <- percloss
-      
 
       # NOTE - the below assumes 'prograte' date columns are in order, which they are. but another approach may pivot
       #         'prograte' to long format earlier in the script for easier sorting
@@ -513,9 +508,8 @@
         select(0,grep(currdate, colnames(prograte))-1) %>% # NOTE - line of interest, regarding above comment
       colnames()
       
-    
-      # Check if prevdate is a valid date format
-      if (length(prevdate) == 0 || is.na(tryCatch(as.Date(prevdate, format="%Y-%m-%d"), error = function(e) NA))) {        # Log the error
+      # Check if prevdate is an invalid date format
+      if (length(prevdate) == 0 || is.na(tryCatch(as.Date(prevdate, format="%Y-%m-%d"), error = function(e) NA))){ # Log the error
         error_log = rbind(error_log, data.frame(
           prevdate = paste(prevdate, collapse = ", "),
           curr_coral_ID = curr_coral_ID,
@@ -534,12 +528,12 @@
       
       # Calculate percinf and update in observed.infected
       percinf = percloss / progdays
-      observed.infected[i, "percinf"] <- percinf
+      observed.infected[i-1, "percinf"] <- percinf
       
       # Calculate inftiss and update in observed.infected
       tissue = IDslice$Tissue
       inftiss = (percinf / 100) * tissue * availtiss
-      observed.infected[i, "inftiss"] <- inftiss
+      observed.infected[i-1, "inftiss"] <- inftiss
     }
   }
   
@@ -550,9 +544,30 @@
     print(error_log)
   }
   
+  #update original dataframe with confirmed diseased coral infections
+  survey_trimmed = survey_trimmed %>%
+    left_join(
+      observed.infected %>% select(coral_numID, date, percloss, progdays, percinf, inftiss),
+      by = c("coral_numID", "date")) %>%
+    mutate(
+      percloss.x = coalesce(percloss.y, percloss.x),
+      progdays.x = coalesce(progdays.y, progdays.x),
+      percinf.x = coalesce(percinf.y, percinf.x),
+      inftiss.x = coalesce(inftiss.y, inftiss.x)
+    ) %>%
+    rename(percloss = percloss.x, progdays = progdays.x, percinf = percinf.x, inftiss = inftiss.x) %>%
+    select(-percloss.y, -progdays.y, -percinf.y, -inftiss.y) %>%
+    arrange(coral_numID, date)
+  
+  
+  
+  
   #update main dataframe with diseased tissue information
   survey_tissue = rbind(survey_trimmed, surveydiseased) %>%
     arrange(coral_numID, date)
+  
+  
+  
   #
   # 'CORALS DOCUMENTED AS DISEASED'
   
