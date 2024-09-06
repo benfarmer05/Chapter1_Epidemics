@@ -24,6 +24,11 @@
   #   HIGH SUSCEPTIBILITY (HS)
   #         - Fast onset/fast tissue loss [DSTO, CNAT, PSTR, DLAB] -> moderate cover
   
+  #   PATIENT ZERO CORALS
+  #   - Offshore: 2_p27_t2_s0_c1_DSTO, 10-30-2018, 90% loss. backtrack a week? this is only a 5 inch coral
+  #   - Midchannel: 1_p25_t2_s0_c22_DSTO, 11-29-2018, 10% loss
+  #   - Nearshore: 3_p47_t3_s0_c8_PSTR (10% loss) and 3_p47_t4_s5_c15_PSTR (5% loss), 2019-02-08
+  
   #pull wide-format temporal data from lower Florida Keys (Williams et al. 2021), which recorded individual coral colonies; categorize species
   #   by susceptibility group
   survey = survey %>%
@@ -340,7 +345,6 @@
     arrange(coral_numID, date)
   
   # Update percloss in first.dead.full based on values from first.dead
-  # Perform the left join to bring in percloss and date from first.dead
   first.dead.full <- first.dead.full %>%
     left_join(
       first.dead %>% select(coral_numID, date, percloss),
@@ -351,6 +355,16 @@
     ) %>%
     select(-percloss.x, -percloss.y) %>%
     arrange(coral_numID, date) # Sort by coral_numID and date
+  
+  #calculate accumulated percloss
+  first.dead.full <- first.dead.full %>%
+    group_by(coral_numID) %>%
+    arrange(date, .by_group = TRUE) %>%
+    mutate(cumulative_percloss = cumsum(replace_na(percloss, 0))) %>%
+    ungroup()
+  
+  
+  
   
   # Initialize prior_date column & assign any straggling NA's
   first.dead.full$prior_date <- NA
@@ -368,19 +382,20 @@
     }
   }
   
-  # Drop the prior_date column if you don't need it anymore
+  # Drop the prior_date column
   first.dead.full$prior_date <- NULL
   
   #update original dataframe with surprise-dead coral mortality
   survey_trimmed = survey_trimmed %>%
     left_join(
-      first.dead.full %>% select(coral_numID, date, dead_date, percloss),
+      first.dead.full %>% select(coral_numID, date, dead_date, percloss, cumulative_percloss),
       by = c("coral_numID", "date")) %>%
     mutate(
       percloss.x = coalesce(percloss.y, percloss.x)
     ) %>%
     rename(percloss = percloss.x) %>%
     select(-percloss.y) %>%
+    relocate(dead_date, .after = last_col()) %>%
     arrange(coral_numID, date)
 
   #variable name changes for clarity
@@ -412,7 +427,6 @@
     ) %>%
     arrange(coral_numID, date)
     
-
   #update original dataframe with surprise-dead coral mortality
   survey_trimmed = survey_trimmed %>%
     left_join(
@@ -428,31 +442,14 @@
   #
   # 'SURPRISE DEAD CORALS'
   
-  
-  
-  # STOPPING POINT 
-  #   - 4 September 2024: okay this is driving me nuts and I need to set it aside for a second, but basically what I need to do is
-  #                     identify the patient zero corals for each site, and then make sure there is a timepoint 30 days preceding which
-  #                     I can backtrack the infection to (and if not, add one - becoming the new patient zero date). this approach will
-  #                     then be recapitulated downstreamm in the script to apply to all corals that get infected. the "Dead" day for a coral
-  #                     is final, though - there is backtracked infection, but not instantaneous infection like with any ongoing affliction
-  # - Offshore patient zero: 2_p27_t2_s0_c1_DSTO, 10-30-2018, 90% loss. backtrack a week? this is only a 5 inch coral
-  # - Midchannel patient zero: 1_p25_t2_s0_c22_DSTO, 11-29-2018, 10% loss
-  # - Nearshore patient zero: 3_p47_t3_s0_c8_PSTR (10% loss) and 3_p47_t4_s5_c15_PSTR (5% loss), 2019-02-08
-  #
-  # This ensures that I am properly backtracking the initial loss of tissue. Currently, I am assuming that infection was progressing
-  #   on the coral all the way up until the moment the surveyor dove up down logged an amount of loss, but I'd rather assume that the
-  #   coral became infected right as the surveyor was ascending back to the surface (because it is convenient)
-  
-  
-  
-  #steps:
-  # 1.) backtrack percloss of current timepoint to last timepoint (account for patient zeros somehow): percloss/progdays
-  # 2.) apply that backtracked value (inftiss) to the last timepoint, not the current one
-  # 3.) the last inftiss should be on the date preceding the final day of new percloss. whether that is lesion cessation or host death
-  
   # 'CORALS DOCUMENTED AS DISEASED'
   #
+  #steps:
+  # 1.) backtrack percloss of current timepoint to last timepoint (account for patient zeros somehow): percloss/progdays
+  #      - assumes that the coral became infected right as the surveyor was ascending back to the surface (convenient)
+  # 2.) apply that backtracked value (inftiss) to the last timepoint, not the current one
+  # 3.) the last inftiss is on the date preceding the final day of new percloss. whether that is lesion cessation or host death
+  
   #prepare a dataframe for calculating infected tissue in corals documented as diseased in the field
   observed.infected = surveydiseased %>%
     mutate(percloss = NA_real_, progdays = NA_real_, percinf = NA_real_, inftiss = NA_real_) %>%
@@ -545,7 +542,7 @@
   }
   
   #update original dataframe with confirmed diseased coral infections
-  survey_trimmed = survey_trimmed %>%
+  surveydiseased = surveydiseased %>%
     left_join(
       observed.infected %>% select(coral_numID, date, percloss, progdays, percinf, inftiss),
       by = c("coral_numID", "date")) %>%
@@ -558,190 +555,74 @@
     rename(percloss = percloss.x, progdays = progdays.x, percinf = percinf.x, inftiss = inftiss.x) %>%
     select(-percloss.y, -progdays.y, -percinf.y, -inftiss.y) %>%
     arrange(coral_numID, date)
+
+  #calculate accumulated percloss
+  surveydiseased <- surveydiseased %>%
+    group_by(coral_numID) %>%
+    arrange(date, .by_group = TRUE) %>%
+    mutate(cumulative_percloss = cumsum(replace_na(percloss, 0))) %>%
+    ungroup()
   
+  #assign dead dates (first date when accumulated percloss is 100)
+  first_death_dates <- surveydiseased %>%
+    filter(cumulative_percloss >= 100) %>%
+    group_by(coral_numID) %>%
+    summarize(dead_date = min(date)) %>%
+    ungroup()
   
+  surveydiseased <- surveydiseased %>%
+    left_join(first_death_dates, by = "coral_numID") %>%
+    arrange(coral_numID, date)
   
-  
-  #update main dataframe with diseased tissue information
+  #assemble main dataframe with diseased tissue information
   survey_tissue = rbind(survey_trimmed, surveydiseased) %>%
     arrange(coral_numID, date)
   
-  
-  
+  #remove, rearrange, and rename columns for clarity
+  # NOTE - there may be timepoint-specific bleaching (thermal stress) data for each colony somewhere. can come up later in results revisions
+  # NOTE - also this section below should ideally just be done earlier in the script
+  survey_tissue <- survey_tissue %>%
+    select(-Site, -Plot, -coords_x, -coords_y, -total, -total_bin, -days_dis, -weeks_dis) %>%
+    rename(spp = Sps, diam = Max_width, coral_long_ID = Coral_ID, BL = tot_stressed, D = tot_diseased, BL_D = tot_both, site = Site_type,
+           susc = Sus_Cat, tiss = Tissue, OM = old_mortality, status = value, start_perctiss = starttiss, cum_tissloss = removedtiss,
+           cum_percloss = cumulative_percloss) %>%
+    mutate(
+      site = case_when(
+        site == "Midchannel" ~ "mid",
+        site == "Offshore" ~ "off",
+        site == "Nearshore" ~ "near",
+      ),
+      BL = case_when(
+        BL == "S" ~ "Y",
+        BL == "NS" ~ "N"
+      ),
+      D = case_when(
+        D == "Dis" ~ "Y",
+        D == "Health" ~ "N",
+      ),
+      BL_D = case_when(
+        BL_D == "both" ~ "Y",
+        BL_D == "meh" ~ "N"
+      )
+    )  
   #
   # 'CORALS DOCUMENTED AS DISEASED'
   
-  # CALCULATING REMOVED / REMAINING TISSUE THROUGH TIME
+  # REMOVED / REMAINING TISSUE CALCULATION
   #
-  #   - removed tissue is not instantaneous in the same way that 'inftiss' is. removed tissue represents an accumulated lost tissue
-  #
-  num_IDs = max(survey_tissue$coral_numID)
-
-  #loop to calculate removed tissue per coral
-  for(i in 1:num_IDs){
-
-    # #test
-    # # i = 1822 #coral is 3_p47_t5_s0_c12_MCAV (good for testing calculations on corals w/ intermittent infections)
-    # i = 1534 #coral is 3_p45_t9_s5_c27_SBOU (good for testing both intermittent infection AND total mortality of a coral)
-
-    curr_coral = survey_tissue %>%
-      filter(coral_numID %in% i) %>%
-      arrange(date)
-
-    availtiss = curr_coral[1,]$starttiss
-    tissue = curr_coral[1,]$Tissue
-
-#     #test
-#     # j = 15 #date is 2019-04-11, the first day of infection for 3_p47_t5_s0_c12_MCAV
-#     j = 15 #date is 2019-04-11, the first day of infection for 3_p45_t9_s5_c27_SBOU
-    
-    #loop through timepoints of monitoring period
-    for(j in 1:nrow(curr_coral)){
-
-      percloss = curr_coral[j,]$percloss #perc. of coral lost to SCTLD (active infected or dead); no distinction made in field
-      remaintiss = curr_coral[j,]$remaintiss
-      curr_remaintiss = NA
-      curr_removedtiss = NA
-      
-      # recent_inftiss = if (any(!is.na(curr_coral[1:(j-1),]$inftiss))) {
-      #   max(na.omit(curr_coral[1:(j-1),]$inftiss))
-      # } else {
-      #   0
-      # }
-      
-      #set the amount of infected tissue in the prior timepoint
-      if (j > 1) { # Skip the first timepoint (j == 1) since it's not relevant
-        # If the previous timepoint's 'inftiss' is not NA, use that value
-        # Otherwise, set 'recent_inftiss' to 0
-        recent_inftiss <- if (!is.na(curr_coral[j-1,]$inftiss)) {
-          curr_coral[j-1,]$inftiss
-        } else {
-          0
-        }
-      } else {
-        # Set 'recent_inftiss' to 0 if j is 1, as no previous timepoint exists
-        recent_inftiss <- 0
-      }
-      
-      
-    
-      # logical tree:
-      # is there an active infection [is 'percloss' nonzero / not NA]?
-      #   if NO --> move on to next iteration and do not change the 'remaintiss' value. there is nothing to update.
-      #   if YES --> is there any value in 'remaintiss'?
-      #     if NO --> this is the first observation of infection! set 'remaintiss' of the *CURRENT* timepoint as a subtraction of 'inftiss'
-      #       from 'availtiss*tissue'. remaintiss' must be zero if 'percloss' was 100%. otherwise, 'remaintiss' is nonzero.
-      #     if YES --> this is an active infection that *continued* after the first-infected timepoint! set 'remaintiss' of the *CURRENT*
-      #       timepoint as a subtraction of 'inftiss' from percloss*availtiss*tissue. this accounts for all accumulated recent tissue loss
-      
-      if(percloss > 0 & !is.na(percloss)){
-        #there is an active infection
-
-        if(remaintiss > 0 & !is.na(remaintiss)){
-          #this is a *continued* active infection
-
-          if(!is.na(curr_remaintiss) && curr_remaintiss < 0){
-            
-            #the coral has died. this is the last day of infection
-            #   NOTE - since we cannot know exactly which day the coral officially died, we are making the assumption that SCTLD was actively
-            #          eating away at tissue until the day a diver arrived at the colony and documented its death. a more nuanced approach
-            #          might interpolate a distribution of times of "true" mortality for all colonies in the study, but this would introduce
-            #          more assumptions and possibly overcomplicate the study
-            curr_remaintiss = 0
-            curr_removedtiss = availtiss*tissue - curr_remaintiss
-            curr_coral[j:nrow(curr_coral),]$remaintiss = curr_remaintiss
-            curr_coral[j:nrow(curr_coral),]$removedtiss = curr_removedtiss
-            
-          } else{
-            #the coral has not yet died
-    
-            
-            # STOPPING POINT
-            #   - 15 august 2024
-            #   - this part is broken, need to properly account for the final-mortality day. also, second-guessing
-            #     how I am treating "death" here - do I actually need to do some backtracking between timepoints
-            #     to properly separate compartments? I think so. ugh
-            curr_remaintiss = remaintiss - availtiss*tissue*(percloss/100) + curr_coral[j,]$inftiss - recent_inftiss
-            curr_removedtiss = availtiss*tissue - curr_remaintiss
-            curr_coral[j:nrow(curr_coral),]$remaintiss = curr_remaintiss
-            curr_coral[j:nrow(curr_coral),]$removedtiss = curr_removedtiss
-            
-          }
-
-        } else{
-          
-          #this is the first observation of infection. set remaining tissue at the current timepoint based on percentage lost.
-          #   the current instantaneous infected tissue is added back in, so that there isn't a "doubling up" between the infected
-          #   and removed compartments
-          curr_remaintiss = availtiss*tissue - availtiss*tissue*(percloss/100) + curr_coral[j,]$inftiss
-          curr_removedtiss = availtiss*tissue - curr_remaintiss
-          curr_coral[j:nrow(curr_coral),]$remaintiss = curr_remaintiss
-          curr_coral[j:nrow(curr_coral),]$removedtiss = curr_removedtiss
-          
-        }
-      } else{
-        
-        #no active infection. simply accumulate removal of remaining instantaneous infected tissue from prior timepoint (if any)
-        curr_remaintiss = remaintiss - recent_inftiss
-        curr_removedtiss = availtiss*tissue - curr_remaintiss
-        curr_coral[j:nrow(curr_coral),]$remaintiss = curr_remaintiss
-        curr_coral[j:nrow(curr_coral),]$removedtiss = curr_removedtiss
-        
-      }
-      
-      
-      
-      
-      
-      
-      
-    }
-    
-    
-    
-    survey_tissue[which(survey_tissue$coral_numID%in%i), which(colnames(survey_tissue) %in% 'remaintiss')] = curr_coral$remaintiss
-    survey_tissue[which(survey_tissue$coral_numID%in%i), which(colnames(survey_tissue) %in% 'removedtiss')] = curr_coral$removedtiss
-  }
+  # STOPPING POINT - 6 SEP 2024
+  # NOTE - need to figure out getting the dead date to properly propagate before 10-30-2018 - or also I can just delete that timepoint
+  #   - also could just delete everything before first infection for all corals. would really slim down the dataset
+  #   - and also remove all corals with old mortality that's already 100 before surveying
+  #   - lastly, would be best at some point to go back through the script and first establish the variable names how they end up being
+  #       defined in the end. would really clarify a lot
   
-  
-  # STOPPING POINT
-  # - 14 August 2024. see below:
-  #
-  # NOTE - need to make sure that I actually correctly coded this for a coral that indeed dies
-  # also NOTE - the below important note has now been coded, but I think there is a little bug still nestled in there. in a case
-  #               where there is an intermittent infection, the "dangling" 'inftiss' from the last infected timepoint does not#
-  #               correctly propagate to the intermittent timepoint, but instead gets passed to the next infected timepoint.
-  #               this doesn't make sense for a few reasons: 1.) cases where the coral never gets infected again and survives,
-  #               because now there is some tissue that is never accounted for in the 'removed' compartment, and 2.) cases where
-  #               a coral indeed does get infected again, but the 'removed' compartment is updated weeks to months too late.
-  #
-  #               I think the solution may be 'knowing' when there is an infection gap either preceding the current timepoint
-  #               when currently on an infected timepoint and adding 'recent_inftiss' - and then *not* adding that 'recent_inftiss'.
-  #               The requirement there, is that when there is 'no active infection' in the if/else tree, need to check if there is
-  #               a dangling 'inftiss' from the *immediately preceding* timepoint, and go ahead and add it to 'removed' (and thus,
-  #               'remaining')
-  
-  # NOTE IMPORTANT - I think I caught something minor, but important. currently, the removed tissue added at a timepoint includes the
-  #         current instantaneous 'inftiss'. this is not correct, since a swath of tissue cannot be both actively infected
-  #         and also dead at the same time. so, I need to subtract 'inftiss' of the current timepoint from the removed tissue
-  #         at that timepoint. this is a little tricky because I then have to go back to the previous timepoint, at least in
-  #         the if/else case where there is an ONGOING infection, and ADD the 'inftiss' from the previous timepoint to the
-  #         removed tissue of the current timepoint. very doable, though.
-  #
-  
-  
-  
-  
-  
-  #make special case for patient zero Dichocoenia stokesi on 10-30-2018 since loops don't handle its exception. assume its 90%
-  # tissue loss occurred over 3 weeks since we don't have info except 3 months prior when colony was healthy
-  # note - filter for '2_p27_t2_s0_c1_DSTO'
-  # NOTE - may be causing the infectious tissue "spark" to be too high at Offshore site. could project the infection out to like 30 days instead?
-  # 011: workshop some ideas to get this initial infection started off in a way that's a little more natural
-  survey_tissue[survey_tissue$Coral_ID == '2_p27_t2_s0_c1_DSTO' & survey_tissue$date == '2018-10-30', ]$progdays = 21
-  survey_tissue[survey_tissue$Coral_ID == '2_p27_t2_s0_c1_DSTO' & survey_tissue$date == '2018-10-30', ]$percinf = 90/21
-  survey_tissue[survey_tissue$Coral_ID == '2_p27_t2_s0_c1_DSTO' & survey_tissue$date == '2018-10-30', ]$inftiss = (90/21/100)*(0.02288368)*(.98)
-  survey_tissue[survey_tissue$Coral_ID == '2_p27_t2_s0_c1_DSTO' & survey_tissue$date == '2018-10-30', ]$removedtiss = ((90/21/100)*(0.02288368)*(.98))*21
+  # 2_p28_t1_s0_c9_MCAV for test coral
+  survey_tissue <- survey_tissue %>%
+    mutate(
+      cum_tissloss = (cum_percloss/100) * (tiss * start_perctiss),
+      remaintiss = (tiss * start_perctiss) - cum_tissloss,
+    )
   
   ### NOTE - code above assumes that tissue loss for 'unknown' reason is due to SCTLD (filter by value = 'Unknown' and look at percloss that is nonzero)
   ###           - there are 17 corals which experienced this, mostly LS/MS corals
@@ -767,20 +648,68 @@
   ###      - May have been a result of data cleaning from the original 2021 analysis, where active 'SCTLD' infection was noted in the
   #           field, then in post-analysis, it was determined the coral was actually already dead (can check on this further if needed)
   #
-  # CALCULATING REMOVED / REMAINING TISSUE THROUGH TIME
+  # REMOVED / REMAINING TISSUE CALCULATION
+  
+  #make special case for patient zero Dichocoenia stokesi on 10-30-2018 since loops don't handle its exception. assume its 90%
+  # tissue loss occurred over 14 days since we don't have info except 3 months prior when colony was healthy
+  #
+  # Calculate the difftime in days between the dates '2018-10-16' and '2018-10-30'
+  progdays.new <- 14
+  reference_date <- ymd('2018-10-30')
+  new_date <- reference_date - days(progdays.new)
 
+  # Calculate percinf (90% percloss over the time difference)
+  percinf.new <- 90 / progdays.new
   
-
+  # Extract the existing row for the coral with coral_longID '2_p27_t2_s0_c1_DSTO'
+  coral_row <- survey_tissue %>%
+    filter(coral_long_ID == '2_p27_t2_s0_c1_DSTO' & date == reference_date) #%>%
+    # select(-date) # Remove the date column to replace it with the new date
+  
+  # Calculate inftiss
+  inftiss.new <- (percinf.new / 100) * coral_row$tiss * coral_row$start_perctiss
+  
+  # Create the new row with the calculated values
+  new_row <- coral_row %>%
+    mutate(
+      date = new_date,
+      progdays = progdays.new,
+      percinf = percinf.new,
+      inftiss = inftiss.new,
+      ID_SIR = coral_row$ID,
+      ID = NA  # Set ID to NA for the new row
+    )
+  
+  # Insert the new row into survey_tissue and update `ID_SIR` column to be identical to `ID` and increment the values after the new row
+  survey_tissue2 <- survey_tissue %>%
+    mutate(ID_SIR = NA) %>%
+    add_row(new_row) %>%
+    arrange(coral_numID, date) %>%
+    mutate(
+      ID_SIR = ifelse(is.na(ID_SIR), ID, ID_SIR),  # Keep the correct `ID_SIR`
+      ID_SIR = ifelse(
+        ID >= new_row$ID_SIR & !is.na(ID), ID_SIR + 1, ID_SIR  # Increment after new row
+      )
+    )
+  
+  # STOPPING POINT - Sep 6 2024
+  #   - almost there!!!!
+  #   - in addition to above stopping point, need to add in something that double-checks 'BL', 'D', 'BL_D', and 'status' actually make
+  #       sense with the surprise dead corals included in the dataset as dead from SCTLD. I think just 'D' and 'status' need to be
+  #       looked at
+  #   - wait, also DUH - add something in when surprise dead corals are introduced as a Y/N column! will make checking all this stuff
+  #       way, way easier
+  #
+  # Filter survey_tissue for corals where 'D' is 'Y'. testing to make sure all diseased corals look right
+  test_survey_tissue <- survey_tissue %>%
+    # filter(D == 'Y')
+    filter(cum_percloss == 100)
   
   
   
-  # STOPPING POINT - 7 may 2024
-  #   why not just do the below earlier in the script?
-  # STOPPING POINT - 7 may 2024
   
-  #add column for old mortality-adjusted starting tissue values. this should have been done earlier in script, but it works fine
-  survey_tissue$starttiss = survey_tissue$Tissue*(1-((survey_tissue$old_mortality)/100))
-  
+  # AGGREGATE DATA INTO SUMMARY TABLES
+  #
   ###sum tissue cover values across colonies into bins (Site, Sus_Cat, Date)
   survey_tissue$date_factor = as.factor(survey_tissue$date)
   levels(survey_tissue$date_factor)
