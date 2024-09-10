@@ -5,7 +5,7 @@
 
   
   library(tidyverse)
-  library(data.table)
+  # library(data.table)
   library(mgcv)
   library(gratia)
   library(here)
@@ -32,51 +32,55 @@
   #pull wide-format temporal data from lower Florida Keys (Williams et al. 2021), which recorded individual coral colonies; categorize species
   #   by susceptibility group
   survey = survey %>%
+    rename(site = Site, spp = Sps) %>%
     mutate(
-      Site_type = case_when(
-        Site == 1 ~ "Midchannel", #Site 1, transects 23 and 25 is Wonderland site
-        Site == 2 ~ "Offshore", #Site 2, transects 27 and 28 is ACER site
-        Site == 3 ~ "Nearshore" #Site 3, transects 45 and 47 is N. Birthday site
+      site = case_when(
+        site == 1 ~ "Midchannel", #Site 1, transects 23 and 25 is Wonderland site
+        site == 2 ~ "Offshore", #Site 2, transects 27 and 28 is ACER site
+        site == 3 ~ "Nearshore" #Site 3, transects 45 and 47 is N. Birthday site
       ),
-      Sps = as.factor(Sps),
-      Sus_Cat = case_when(
-        Sps %in% c('PCLI', 'SINT', 'SSID') ~ 'LS', #lowest rates of progression - however, OANN/OFAB have short disease onset time
-        Sps %in% c('OANN', 'OFAV', 'MCAV', 'SBOU') ~ 'MS', #moderate rates of progression - but MCAV slow disease onset! SBOU quick onset
-        Sps %in% c('CNAT', 'DLAB', 'DSTO', 'MMEA', 'MYCE', 'PSTR') ~ 'HS', #quickest rates of  progression and shortest disease onset times
-        Sps %in% c('AAGA', 'ACER', 'OCUL', 'ODIF', 'PAST', 'PDIV', 'PPOR', 'SRAD') ~ 'Unaffected'
+      spp = as.factor(spp),
+      susc = case_when(
+        spp %in% c('PCLI', 'SINT', 'SSID') ~ 'LS', #lowest rates of progression - however, OANN/OFAB have short disease onset time
+        spp %in% c('OANN', 'OFAV', 'MCAV', 'SBOU') ~ 'MS', #moderate rates of progression - but MCAV slow disease onset! SBOU quick onset
+        spp %in% c('CNAT', 'DLAB', 'DSTO', 'MMEA', 'MYCE', 'PSTR') ~ 'HS', #quickest rates of  progression and shortest disease onset times
+        spp %in% c('AAGA', 'ACER', 'OCUL', 'ODIF', 'PAST', 'PDIV', 'PPOR', 'SRAD') ~ 'Unaffected'
       )
     )
   
   #pull middle Florida Keys (Sharp et al. 2020) dataset, which had similar data as 'survey' but measured colonies in 3 dimensions
   #   rather than one. using this dataset to create a statistical association between maximum diameter & colony surface area (SA) by assuming
   #   a hemi-ellipsoid (Holstein et al. 2015), and then predicting SA in 'survey' dataset using maximum diameter alone
-  Sharp2020 = read.csv(here("data", "Sharp_Maxwell_2020.csv"))
-  
-  Sharp2020 = select(Sharp2020, Plot, Transect, Coral, Species, Width, Width_2, Height)
-  
-  #filter meaningless data
+  Sharp2020 = read.csv(here("data", "Sharp_Maxwell_2020.csv")) %>%
+    select(Plot, Transect, Coral, Species, Width, Width_2, Height)
   Sharp2020[Sharp2020==-99] = NA 
   Sharp2020 = Sharp2020[complete.cases(Sharp2020),]
   
-  #setting '0' cm heights as an arbitrarily small amount (cm) to allow the hemi-ellipsoid estimation to function correctly. coral recruits 
+  #set '0' cm heights as an arbitrarily small amount (cm) to allow the hemi-ellipsoid estimation to function correctly. coral recruits 
   #   have very little tangible height, and were recorded underwater as 0 cm height
-  Sharp2020$Height[which(Sharp2020$Height == 0)] = 0.01
+  Sharp2020 = Sharp2020 %>%
+    mutate(Height = ifelse(Height == 0, 0.01, Height)) %>%
+    distinct() #also filter out repeats (not interested in a time series here)
   
-  #filter out repeats (not interested in a time series here)
-  Sharp2020 = distinct(Sharp2020)
+  #hemi-ellipsoid estimation. p is a dimensionless constant; all else in square cm
+  Sharp2020 <- Sharp2020 %>%
+    # Calculate the surface area
+    mutate(
+      a = Height,
+      b = Width_2 / 2,
+      c = Width / 2,
+      p = 1.6075,
+      SA = 2 * pi * (((a * b)^p + (a * c)^p + (b * c)^p) / 3)^(1 / p),
+      SA = SA / 10000  # Convert from square cm to square meters
+    )
   
-  #set up the variables for the hemi-ellipsoid estimation. p is a dimensionless constant; all else in square cm
-  a = Sharp2020$Height; b = Sharp2020$Width_2/2; c = Sharp2020$Width/2; p = 1.6075
-  Sharp2020$SA = 2*pi*((((a*b)^p + (a*c)^p + (b*c)^p)/3)^(1/p))
-  Sharp2020$SA = Sharp2020$SA/10000 #in sq m
-  
-  #construct dataframe of estimated surfacea area, as well as measured maximum diameter ('width' in this dataset)
-  replen = length(Sharp2020$Width)
-  SA = data.frame(x = Sharp2020$Width, y = Sharp2020$SA)
+  # Construct dataframe of estimated surface area and measured maximum diameter ('Width' in this dataset)
+  SA <- Sharp2020 %>%
+    select(x = Width, y = SA)
   
   # #a measure to prevent over-predicting surface area of the largest corals from small sample size [decided as unnecessary]
   # SA = SA %>% filter(x < 145)
-
+  
   plot(SA$x, SA$y)
   
   #Generalized additive model (GAM) to predict colony SA in lower Florida Keys
@@ -98,77 +102,54 @@
   sum(survey$Tissue) #quick summary to assess overall tissue SA across all sites
   
   #incorporate pre-SCTLD old mortality from lower Florida Keys plots (same as the ones in 'survey'). last observation of old mortality
+  # also replace 'FWRI database' instances with 'NA's, for clarity, in relevant 'New_death' columns
   #   before SCTLD arrived was 17 August 2018
   #   SCTLD reached the three sites:
   #   - Offshore: 30 October 2018 [74 days after last observation of old mortality]
   #   - Midchannel: 29 November 2018 [30 days after Offshore]
   #   - Nearshore: 8 February 2019 [71 days after Midchannel; 101 days after Offshore]
-  old_mortality = read.csv(here("data", "Updated_June19_SWG.csv"))
-  
-  #replace 'FWRI database' instances with 'NA' string for clarity in relevant 'New_death' columns
-  old_mortality$New_death_110918 = gsub('FWRI Database', 'NA', old_mortality$New_death_110918)
-  old_mortality$New_death_103018 = gsub('FWRI Database', 'NA', old_mortality$New_death_103018)
+  old_mortality = read.csv(here("data", "Updated_June19_SWG.csv")) %>%
+    mutate(New_death_110918 = str_replace(New_death_110918, 'FWRI Database', 'NA'),
+           New_death_103018 = str_replace(New_death_103018, 'FWRI Database', 'NA'))
   
   #filter to only most recent recordings of mortality pre-SCTLD
-  #   - normal health states / 'Found' statuses for 10 May 2018. but lots of notes (corals turned over especially)
-  #   - no new mortality recorded 1 June or 21 June 2018; those are excluded. normal health states / notes / 'Found' statuses as well
-  #   - normal health states / 'Found' statuses for 16 July 2018
+  #   - there were normal health states / 'Found' statuses for 10 May 2018. but lots of notes (corals turned over especially)
+  #   - there were no new mortality recorded 1 June or 21 June 2018; those are excluded. normal health states / notes / 'Found' statuses as well
+  #   - there were normal health states / 'Found' statuses for 16 July 2018
   old_mortality = old_mortality %>% select(Plot, Sps, Max_width, Coral_ID, New_death_051018, Old_death_051018, New_death_060118,
                                            New_death_062118, New_death_071618, Notes_071618, New_death__081718, Old_death_081718,
                                            Health_state_081718, Notes_081718, Found_081718, SCTLD_081718)
-
-  #create new column that indicates total mortality pre-SCTLD. a tally of new & old mortality columns
-  #   must first replace NA values in 'Old_death_081718' with 0 so that summation can be performed correctly
-  #     NOTE - assuming that NA actually means there wasn't old mortality. only affects 3 corals, so should not be a big deal but should
-  #            be considered. this makes calculations of tissue loss later on more simple and avoids NA problems
-  #               - corals are:
-  #     - 1_p24_t8_s5_c21_MCAV
-  #     - 2_p27_t8_s5_c30_DSTO
-  #     - 3_p46_t4_s0_c30_SINT
-  old_mortality$Old_death_081718[is.na(old_mortality$Old_death_081718)] = 0
-  old_mortality$tot_mortality = old_mortality$New_death__081718 + old_mortality$Old_death_081718
-  old_mortality$tot_mortality = as.numeric(old_mortality$tot_mortality)
   
-  #simplify dataframe
-  old_mortality = old_mortality %>% select(Plot, Sps, Max_width, Coral_ID, tot_mortality)
+  # Create a new column indicating total mortality pre-SCTLD
+  old_mortality <- old_mortality %>%
+    mutate(
+      # Replace NA values in 'Old_death_081718' with 0 (NOTE - assume NA actually means no old mortality - only the case for 3 corals)
+      #   Those three corals:
+      #     - 1_p24_t8_s5_c21_MCAV
+      #     - 2_p27_t8_s5_c30_DSTO
+      #     - 3_p46_t4_s0_c30_SINT
+      Old_death_081718 = replace_na(Old_death_081718, 0),
+      OM = New_death__081718 + Old_death_081718, #calculate total mortality by summing new and old mortality columns
+    ) %>%
+    select(Plot, Sps, Max_width, Coral_ID, OM) %>%
+    rename(spp = Sps)
+  
+  # STOPPING POINT - go down below and consider whether this summing of mortality from 08-17-2018 should be reconsidered!! it might
+  #                   conflict with how I am backtracking infections!
   
   #label the rows which match plots later monitored for SCTLD
   old_mortality = old_mortality %>%
     mutate(
-      Site_type = case_when(
+      site = case_when(
         Plot == 23 | Plot == 25 ~ "Midchannel",
         Plot == 27 | Plot == 28 ~ "Offshore",
         Plot == 45 | Plot == 47 ~ "Nearshore"
       )
-    )
+    ) %>%
+    #keep only the plots continuously monitored for SCTLD. there were extra plots initially part of monitoring!
+    filter(site == "Midchannel" | site == "Offshore" | site == "Nearshore")
   
-  #filter down to only plots monitored for SCTLD. there were extra plots initially part of monitoring!
-  old_mortality = old_mortality %>%
-    filter(
-      Site_type == "Midchannel" | Site_type == "Offshore" | Site_type == "Nearshore"
-    )
-  
-  #mismatched data summary (just for peace of mind):
-  #   - 1_p25_t9_s5_c4_PAST. unclear what the mismatch is
-  #   - 2_p27_t10_s0_c1_OFAV. 'Sps' column labeled as SINT in 'survey'. Brought this up in Mote call
-  #   - 2_p27_t10_s0_c3_OFAV. 'Sps' column labeled as SINT in 'survey'. Brought this up in Mote call
-  #   *-* 2_p28_t4_s5_c8_SINT. in 'survey' only; no coordinates info
-  #   - 3_p47_t1_s0_c1_MCAV. 'Max_width' misentered somewhere. It is 50 in 'survey', but 25 in 'old_mortality'. Brought this up in Mote call
-  #   *-* 3_p47_t5_s0_c24_PAST. in 'survey' only; no coordinates info
-  # mismatches = anti_join(survey, old_mortality, by = c("Coral_ID")) # *-*
-  mismatches = anti_join(survey, old_mortality) #ignore all the ones due to '(1)' or similar in the name. they're fine
-  
-  # Find and edit the column/row indices where 'Sps' needs to be updated for mismatched data
-  row_index = which(survey$Coral_ID == '2_p27_t10_s0_c1_OFAV')
-  survey$Sps[row_index] = 'OFAV'
-  
-  row_index = which(survey$Coral_ID == '2_p27_t10_s0_c3_OFAV')
-  survey$Sps[row_index] = 'OFAV'
-  
-  row_index = which(old_mortality$Coral_ID == '3_p47_t1_s0_c1_MCAV')
-  old_mortality$Max_width[row_index] = 50
-
-  #function to replace ' (1)', ' (2)', or ' (3)' with ''
+  #replace ' (1)', ' (2)', or ' (3)' with '' in dataframes. there were some strange coral_ID entries
   replace_string <- function(data) {
     for (i in 1:ncol(data)) {
       if (is.character(data[, i])) {  # Check if the column is character
@@ -177,127 +158,129 @@
     }
     return(data)
   }
-  
-  #replace ' (1)', ' (2)', or ' (3)' with '' in the entire dataframe
   survey = replace_string(survey)
   old_mortality = replace_string(old_mortality)
   
+  # NOTE - mismatched data summary (just for peace of mind):
+  #   - 1_p25_t9_s5_c4_PAST. unclear what the mismatch is
+  #   - 2_p27_t10_s0_c1_OFAV. 'Sps' column labeled as SINT in 'survey'. Brought this up in Mote call
+  #   - 2_p27_t10_s0_c3_OFAV. 'Sps' column labeled as SINT in 'survey'. Brought this up in Mote call
+  #   *-* 2_p28_t4_s5_c8_SINT. in 'survey' only; no coordinates info
+  #   - 3_p47_t1_s0_c1_MCAV. 'Max_width' misentered somewhere. It is 50 in 'survey', but 25 in 'old_mortality'. Brought this up in Mote call
+  #   *-* 3_p47_t5_s0_c24_PAST. in 'survey' only; no coordinates info
+  mismatches = anti_join(survey, old_mortality)
+  
+  # Update species and max width for mismatched data
+  survey <- survey %>%
+    mutate(spp = case_when(
+      Coral_ID == '2_p27_t10_s0_c1_OFAV' ~ 'OFAV',
+      Coral_ID == '2_p27_t10_s0_c3_OFAV' ~ 'OFAV',
+      TRUE ~ spp  # Keep existing values unchanged
+    ))
+  
+  old_mortality <- old_mortality %>%
+    mutate(Max_width = case_when(
+      Coral_ID == '3_p47_t1_s0_c1_MCAV' ~ 50,
+      TRUE ~ Max_width  # Keep existing values unchanged
+    ))
+  
   #merge in the pre-SCTLD old mortality data
   survey = left_join(
-    survey,
-    old_mortality,
-    by = c("Coral_ID", "Plot", "Site_type", 'Sps', 'Max_width'),
-    copy = FALSE,
-    suffix = c(".x", ".y"),
-    keep = NULL
-  )
+      survey,
+      old_mortality,
+      by = c("Coral_ID", "Plot", "site", 'spp', 'Max_width'),
+      copy = FALSE,
+      suffix = c(".x", ".y"),
+      keep = NULL
+    )
+  survey = survey %>%
+    rename(diam = Max_width) %>%
+    select(-Plot)
   
-  #these two corals are in 'survey' only, so will also assume that they started the SCTLD outbreak with zero old mortality
-  row_index = which(survey$Coral_ID == '2_p28_t4_s5_c8_SINT')
-  survey$tot_mortality[row_index] = 0
-  row_index = which(survey$Coral_ID == '3_p47_t5_s0_c24_PAST')
-  survey$tot_mortality[row_index] = 0
+  # Update tot_mortality for specific Coral_ID values
+  survey <- survey %>%
+    mutate(OM = case_when(
+      Coral_ID == '2_p28_t4_s5_c8_SINT' ~ 0, #was in 'survey' only, assume started SCTLD outbreak with zero old mortality
+      Coral_ID == '3_p47_t5_s0_c24_PAST' ~ 0, #was in 'survey' only, assume started SCTLD outbreak with zero old mortality
+      grepl('p25_t9_s5_c4_PAST', Coral_ID) ~ 10, #possible issue with 'char' string, ensure it has 10% old mortality
+      TRUE ~ OM  # Keep existing values unchanged
+    ))
   
-  #this coral for some reason did not join correctly (possibly a subtle issue with the 'char' string), but does indeed have 10% old mortality
-  row_index = which(grepl('p25_t9_s5_c4_P', survey$Coral_ID))
-  survey$tot_mortality[row_index] = 10
-  
-  ###pivot survey data to long format
-  survey_nearshore = survey %>%
-    subset(
-      Site_type == "Nearshore"
-    ) %>%
+  #pivot survey to long format
+  survey_long <- survey %>%
+    # Filter based on Site_type
+    filter(site %in% c("Nearshore", "Midchannel", "Offshore")) %>%
+    # Pivot to long format
     pivot_longer(
       cols = starts_with("X"),
       names_to = "date"
-    )
-  
-  survey_midchannel = survey %>%
-    subset(
-      Site_type == "Midchannel"
     ) %>%
-    pivot_longer(
-      cols = starts_with("X"),
-      names_to = "date"
-    )
+    # Convert 'tot_diseased' to a factor
+    mutate(tot_diseased = as.factor(tot_diseased)) %>%
+    rename(D = tot_diseased)
   
-  survey_offshore = survey %>%
-    subset(
-      Site_type == "Offshore"
-    ) %>%
-    pivot_longer(
-      cols = starts_with("X"),
-      names_to = "date"
-    )
-  
-  survey_long = rbind(survey_nearshore, survey_midchannel, survey_offshore)
-  survey_long$tot_diseased = as.factor(survey_long$tot_diseased)
-  levels(survey_long$tot_diseased)
-  
-  #convert character-based coral index to numeric-based index. there are 2012 corals, and now they have a unique numeric value across all
-  # timepoints
-  hold = survey_long %>%
+  #create unique numeric value for each coral
+  survey_long <- survey_long %>%
     group_by(Coral_ID) %>%
-    mutate(coral_numID = cur_group_id())
-  survey_long$coral_numID = hold$coral_numID
-  rm(hold)
-  survey_long = survey_long %>% select(coral_numID, everything())
+    mutate(coral_numID = cur_group_id()) %>%
+    ungroup() %>%
+    select(coral_numID, everything())
   
   #append the same coral numerical ID to 'prograte', a dataframe containing time-series lesion progression rates of each diseased coral colony
   prograte = prograte %>%
     mutate(coral_numID = survey_long$coral_numID[match(Coral_ID, survey_long$Coral_ID)])
+
+  #add index to each dataframe row (standard convention for IDs, but also makes breaking it apart and then merging & joining later easier)
+  survey_long <- survey_long %>%
+    mutate(ID = row_number()) %>%
+    select(ID, everything())
   
-  #add index to each dataframe row to make breaking it apart and then merging & joining later easier
-  survey_long$ID = seq.int(nrow(survey_long))
-  survey_long = survey_long %>% select(ID, everything())
-  
-  ###extract instantaneous lesion areal extents (m2) for specific coral host/date combinations from 'progrates' dataframe
-  # reformat progrates
-  names(prograte)[names(prograte) == 'X'] <- '_X'#have to rename this one since it starts with an X
+  #format progrates date columns
+  names(prograte)[names(prograte) == 'X'] <- '_X'#this old column happens to start with an X, like the date columns - so, rename it
   for(i in 1:ncol(prograte)){
     if(substr(colnames(prograte[i]), start = 1, stop = 1) == "X"){
       newdatename = as.character(as.POSIXct(str_sub(colnames(prograte[i]), 2), format = "%m.%d.%y"))
       colnames(prograte)[i] = newdatename
     }
   }
-  
-  survey_long$percloss = NA # percentage loss of live tissue between timepoints
-  survey_long$percloss = as.numeric(survey_long$percloss)
-  survey_long$progdays = NA # percentage loss of live tissue between timepoints
-  survey_long$progdays = as.numeric(survey_long$progdays)
-  survey_long$percinf = NA #estimated instantaneous (daily) %loss of live tissue - proxy of instantaneous %infectious tissue
-  survey_long$percinf = as.numeric(survey_long$percinf)
-  survey_long$starttiss = NA
-  survey_long$starttiss = as.numeric(survey_long$starttiss)
-  survey_long$inftiss = NA
-  survey_long$inftiss = as.numeric(survey_long$inftiss)
-  survey_long$remaintiss = NA
-  survey_long$remaintiss = as.numeric(survey_long$remaintiss)
-  survey_long$removedtiss = NA
-  survey_long$removedtiss = as.numeric(survey_long$removedtiss)
-  
-  #initialize amount of tissue on each coral colony
-  survey_long$starttiss = 1-(survey_long$tot_mortality/100) #tissue percentage [scalar] present on the colony at beginning of SCTLD outbreak, after accounting for old mortality
 
-  #convert date format to POSIXct
-  survey_long$date = str_sub(survey_long$date, 2)
-  survey_long$date = as.factor(survey_long$date)
-  survey_long$date = as.POSIXct(survey_long$date, format = "%m.%d.%y")
-  
-  #sort by coral numerical ID and date to ensure no unintended behavior when calculating tissue loss from lesions through time
-  survey_long = survey_long %>%
-    arrange(coral_numID, date)
+  #initialize the dataframe with all required columns for calculating tissue loss through time
+  survey_long <- survey_long %>%
+    # Initialize columns with NA values and convert to numeric
+    mutate(
+      percloss = NA_real_, #percentage loss of live tissue between timepoints
+      progdays = NA_real_, #percentage loss of live tissue between timepoints
+      percinf = NA_real_, #estimated instantaneous (daily) %loss of live tissue - proxy of instantaneous %infectious tissue
+      start_perctiss = NA_real_,
+      inftiss = NA_real_,
+      remaintiss = NA_real_,
+      cum_tissloss = NA_real_,
+      start_perctiss = 1 - (OM / 100), #initialize amount of tissue on each coral colony
+      date = str_sub(date, 2) %>%
+        as.factor() %>%
+        as.POSIXct(format = "%m.%d.%y"), #cnvert date format to POSIXct
+      surpdead = 'N', #prep dataset for new column indicating surprise-dead (Y/N) and "ever died" ('died') statuses
+      died = 'N'
+    ) %>%
+    rename(coral_long_ID = Coral_ID) %>%
+    arrange(coral_numID, date) #sort by coral ID/date to ensure proper temporal analysis downstream
   
   #filter down to post-SCTLD introduction (October 30th 2018) infections
+  # NOTE - make sure this doesn't mess up the backtracking
   surveydiseased = survey_long %>%
     filter(
-      tot_diseased == "Dis",
+      D == "Dis", # STOPPING POINT (10 Sep 2024) - still cleaning up old code. this will get redefined as Y/N as below, but here
       date >= as.POSIXct("2018-10-30")
     ) %>%
     arrange(coral_numID, date) #failsafe to ensure preservation of ID-sorting
   
   #remove exact rows from 'survey_long' as are being extracted for 'surveydiseased', to easily rbind back together after data wrangling
   survey_trimmed = anti_join(survey_long, surveydiseased) %>%
+    arrange(coral_numID, date)
+  
+  #prep original dataset for new column indicating surprise-dead (Y/N) and "ever died" ('died') statuses
+  survey_trimmed = survey_trimmed %>%
+    mutate(surpdead = 'N', died = 'N') %>%
     arrange(coral_numID, date)
   
   # 'SURPRISE DEAD CORALS'
@@ -321,11 +304,13 @@
   #filter surprise-dead corals (read details above), by their health condition on the last date of surveying (2019-12-06)
   surprise.dead = survey_trimmed %>%
     filter(date == as.POSIXct("2019-12-06"), tot_diseased == 'Health', value == 'Dead') %>%
+    mutate(surpdead = 'Y', died = 'Y') %>%
     arrange(coral_numID, date)
 
   #pull the full T1 - T26 rows for each surprise-dead coral
   first.dead.full = survey_trimmed %>%
     filter(coral_numID %in% surprise.dead$coral_numID) %>%
+    mutate(surpdead = 'Y', died = 'Y') %>%
     arrange(coral_numID, date)
 
   #filter to the date that the surprise-dead coral was first documented as dead
@@ -363,9 +348,6 @@
     mutate(cumulative_percloss = cumsum(replace_na(percloss, 0))) %>%
     ungroup()
   
-  
-  
-  
   # Initialize prior_date column & assign any straggling NA's
   first.dead.full$prior_date <- NA
   first.dead.full$percloss <- ifelse(is.na(first.dead.full$percloss), NA, first.dead.full$percloss)
@@ -388,23 +370,25 @@
   #update original dataframe with surprise-dead coral mortality
   survey_trimmed = survey_trimmed %>%
     left_join(
-      first.dead.full %>% select(coral_numID, date, dead_date, percloss, cumulative_percloss),
+      first.dead.full %>% select(coral_numID, date, surpdead, died, dead_date, percloss, cumulative_percloss),
       by = c("coral_numID", "date")) %>%
     mutate(
-      percloss.x = coalesce(percloss.y, percloss.x)
+      percloss.x = coalesce(percloss.y, percloss.x),
+      surpdead.x = coalesce(surpdead.y, surpdead.x),
+      died.x = coalesce(died.y, died.x)
     ) %>%
-    rename(percloss = percloss.x) %>%
-    select(-percloss.y) %>%
+    rename(percloss = percloss.x,
+           surpdead = surpdead.x,
+           died = died.x) %>%
+    select(-percloss.y, -surpdead.y, -died.y) %>%
     relocate(dead_date, .after = last_col()) %>%
     arrange(coral_numID, date)
 
-  #variable name changes for clarity
-  names(survey_trimmed)[names(survey_trimmed) == 'tot_mortality'] = 'old_mortality'
-  names(survey_trimmed)[names(survey_trimmed) == 'Sps.x'] = 'Sps'
-  names(survey_trimmed)[names(survey_trimmed) == 'Max_width.x'] = 'Max_width'
-  names(surveydiseased)[names(surveydiseased) == 'tot_mortality'] = 'old_mortality'
-  names(surveydiseased)[names(surveydiseased) == 'Sps.x'] = 'Sps'
-  names(surveydiseased)[names(surveydiseased) == 'Max_width.x'] = 'Max_width'
+  # #variable name changes for clarity
+  survey_trimmed <- survey_trimmed %>%
+    rename(old_mortality = tot_mortality)
+  surveydiseased <- surveydiseased %>%
+    rename(old_mortality = tot_mortality)
   
   # Prepare a dataframe for calculating infected tissue in surprise-dead corals (T1 - T26)
   # only calculating instanteous infected tissue (tissue loss / sloughing within 24 hours) for corals that haven't completed died already
@@ -583,9 +567,8 @@
   # NOTE - also this section below should ideally just be done earlier in the script
   survey_tissue <- survey_tissue %>%
     select(-Site, -Plot, -coords_x, -coords_y, -total, -total_bin, -days_dis, -weeks_dis) %>%
-    rename(spp = Sps, diam = Max_width, coral_long_ID = Coral_ID, BL = tot_stressed, D = tot_diseased, BL_D = tot_both, site = Site_type,
-           susc = Sus_Cat, tiss = Tissue, OM = old_mortality, status = value, start_perctiss = starttiss, cum_tissloss = removedtiss,
-           cum_percloss = cumulative_percloss) %>%
+    rename(diam = Max_width, coral_long_ID = Coral_ID, BL = tot_stressed, BL_D = tot_both, site = Site_type, tiss = Tissue,
+           status = value, cum_percloss = cumulative_percloss) %>%
     mutate(
       site = case_when(
         site == "Midchannel" ~ "mid",
@@ -604,7 +587,12 @@
         BL_D == "both" ~ "Y",
         BL_D == "meh" ~ "N"
       )
-    )  
+    ) %>%
+    filter(date >= as.Date("2018-08-17"))
+  
+  
+  
+  
   #
   # 'CORALS DOCUMENTED AS DISEASED'
   
