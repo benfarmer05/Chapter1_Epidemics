@@ -47,12 +47,17 @@
     select(-coords_x, -coords_y, -total, -total_bin, -days_dis, -weeks_dis) # NOTE - could further analyze days/weeks diseased for stats
 
   #pull middle Florida Keys (Sharp et al. 2020) dataset, which had similar data as 'survey' but measured colonies in 3 dimensions
-  #   rather than one. using this dataset to create a statistical association between maximum diameter & colony surface area (SA) by assuming
+  #   rather than one. use this dataset to create a statistical association between maximum diameter & colony surface area (SA) by assuming
   #   a hemi-ellipsoid (Holstein et al. 2015), and then predicting SA in 'survey' dataset using maximum diameter alone
-  Sharp2020 = read.csv(here("data", "Sharp_Maxwell_2020.csv")) %>%
-    select(Plot, Transect, Coral, Species, Width, Width_2, Height)
-  Sharp2020[Sharp2020==-99] = NA 
-  Sharp2020 = Sharp2020[complete.cases(Sharp2020),]
+  # Sharp2020 = read.csv(here("data", "Sharp_Maxwell_2020.csv")) %>%
+  #   select(Plot, Transect, Coral, Species, Width, Width_2, Height)
+  # Sharp2020[Sharp2020==-99] = NA
+  # Sharp2020 = Sharp2020[complete.cases(Sharp2020),]
+  
+  Sharp2020 <- read.csv(here("data", "Sharp_Maxwell_2020.csv")) %>%
+    select(Plot, Transect, Coral, Species, Width, Width_2, Height) %>%
+    mutate(across(where(is.numeric), ~na_if(., -99))) %>% #convert -99 fill values to NA
+    drop_na() #remove NAs from dataset
   
   #set '0' cm heights as an arbitrarily small amount (cm) to allow the hemi-ellipsoid estimation to function correctly. coral recruits 
   #   have very little tangible height, and were recorded underwater as 0 cm height
@@ -73,31 +78,185 @@
     )
   
   # Construct dataframe of estimated surface area and measured maximum diameter ('Width' in this dataset)
+  #   NOTE - ignoring the mortality data from Sharp study, as the attempt is to predict dimensions of the original coral,
+  #          including any areas of bare skeleton
   SA <- Sharp2020 %>%
-    select(x = Width, y = SA)
+    select(x = Width, y = SA) 
+  # plot(SA$x, SA$y)
   
-  # #a measure to prevent over-predicting surface area of the largest corals from small sample size [decided as unnecessary]
-  # SA = SA %>% filter(x < 145)
+  #a measure to prevent over-predicting surface area of the largest corals from small sample size [decided as unnecessary]
+  SA = SA %>% filter(x < 122) #145
   
-  plot(SA$x, SA$y)
+  #STOPPING POINT - 16 Sep 2024
+  #   - attempts at fancy model comparisons below. one fitting issue may be differently scaled x and y, and also repeated x values
+  #   - consider how well the GAMs are doing at predicting "correct" SAs - cross-reference between Sharp and Williams datasets
+  #   - values dipping below zero for smallest corals is a problem for GAMs here - see below as well
+  SA.linear <- lm(y ~ x + 0, data = SA) #trying to make sure predictions don't go below zero - struggling with this
+  SA.GAM <- gam(y ~ s(x), data = SA, family = gaussian, method = "REML")
+  SA.GAM_identity = gam(y ~ s(x, bs = "cr"), data = SA, family = gaussian(link = "identity")) #GAM model with a zero intercept constraint
+  SA.GAM_linear <- gam(y ~ s(x) + x, data = SA, family = gaussian, method = "REML")
+  SA.GAM_cr <- gam(y ~ s(x, bs = "cr", k = 20), data = SA, family = gaussian, method = "REML", gamma = 1.4)
+  SA.GAM_gamma <- gam(y ~ s(x), data = SA, family = Gamma(link = "log"), method = "REML")
+  SA$x_scaled <- scale(SA$x)  # rescale x
+  SA.GAM_scaled <- gam(y ~ s(x_scaled, bs = "cr", k = 20), data = SA, family = gaussian, method = "REML")
   
-  #generalized additive model (GAM) to predict colony SA in lower Florida Keys
-  SA.GAM = gam(data = SA, y ~ s(x), family = gaussian, method = "REML")
-  summary(SA.GAM)
-  AIC(SA.GAM)
-  plot(SA.GAM, scale = 0, all.terms = TRUE, shade = T, shade.col="lightpink", xlab = "Max diameter (cm)", ylab = "Surface area (m2)")
-  draw(SA.GAM, select = 1)
-  gam.check(SA.GAM)
-  appraise(SA.GAM)
+  # #diagnostics
+  # summary(SA.GAM)
+  # draw(SA.GAM, select = 1)
+  # gam.check(SA.GAM)
+  # appraise(SA.GAM)
   
-  x = survey$Max_width
-  x.GAM = as.data.frame(x)
-  x.GAM$x = as.numeric(x.GAM$x)
-  y = predict(SA.GAM, newdata = x.GAM, type = "response")
-  y[y<0] = 0.00005 #ensure GAM-predicted surface area does not dip below zero for small recruits. arbitrary value
-  survey$tissue = y
-  plot(x,y, xlim = c(0, 460), xlab = "Max diameter (cm)", ylab = "Surface area (m2)")
-  sum(survey$tissue) #quick summary to assess overall tissue SA across all sites
+  # Generate predictions from each model
+  SA_predictions <- SA %>%
+    mutate(
+      pred_linear = predict(SA.linear),
+      pred_gam = predict(SA.GAM),
+      pred_gam_identity = predict(SA.GAM_identity, newdata = SA),
+      pred_gam_linear = predict(SA.GAM_linear),
+      pred_gam_cr = predict(SA.GAM_cr),
+      pred_gam_gamma = predict(SA.GAM_gamma, type = "response"),
+      pred_gam_scaled = predict(SA.GAM_scaled, newdata = SA)
+    )
+  
+  ggplot(SA_predictions, aes(x = x, y = y)) +
+    geom_point(color = "black", size = 2, alpha = 0.5, show.legend = FALSE) + # Points are black
+    # geom_line(aes(y = pred_linear, color = "Linear"), linewidth = 1, alpha = 0.7) +
+    geom_line(aes(y = pred_gam, color = "GAM"), linewidth = 1, alpha = 0.7) +
+    geom_line(aes(y = pred_gam_identity, color = "GAM with Zero Intercept"), linewidth = 1, alpha = 0.7) +
+    geom_line(aes(y = pred_gam_linear, color = "GAM with Linear Term"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_cr, color = "GAM with CR Basis"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_gamma, color = "GAM with Gamma"), linewidth = 1, alpha = 0.7) +
+    geom_line(aes(y = pred_gam_scaled, color = "GAM with Scaled x"), linewidth = 1, alpha = 0.7) +
+    labs(
+      x = "Max diameter (cm)",
+      y = "Surface area (m2)",
+      title = "Model Fits for Surface Area vs. Max Diameter",
+      color = "Model"
+    ) +
+    scale_color_manual(
+      values = c(
+        "Linear" = "blue",
+        "GAM" = "red",
+        "GAM with Zero Intercept" = "pink",
+        "GAM with Linear Term" = "green",
+        "GAM with CR Basis" = "purple",
+        "GAM with Gamma" = "orange",
+        "GAM with Scaled x" = "brown"
+      )
+    ) +
+    theme_minimal() +
+    theme(
+      legend.position = "bottom",
+      legend.title = element_blank()
+    )
+  
+  #Akaike comparison
+  AIC(SA.linear, SA.GAM, SA.GAM_identity, SA.GAM_linear, SA.GAM_cr, SA.GAM_gamma, SA.GAM_scaled)
+  
+  # # just linear prediction-fits
+  # ggplot(SA_predictions, aes(x = x, y = y)) +
+  #   geom_point() +
+  #   geom_line(aes(y = pred_linear), color = "red") +
+  #   labs(x = "Max diameter (cm)", y = "Surface area (m2)", title = "Linear Model Fit") +
+  #   theme_minimal()
+  # 
+  # # just identity GAM prediction-fits
+  # ggplot(SA_predictions, aes(x = x, y = y)) +
+  #   geom_point() +
+  #   geom_line(aes(y = pred_gam_identity), color = "red") +
+  #   labs(x = "Max diameter (cm)", y = "Surface area (m2)", title = "GAM Model Fit") +
+  #   theme_minimal()
+  # 
+  # # just GAM prediction-fits
+  # ggplot(SA_predictions, aes(x = x, y = y)) +
+  #   geom_point() +
+  #   geom_line(aes(y = pred_gam), color = "red") +
+  #   labs(x = "Max diameter (cm)", y = "Surface area (m2)", title = "GAM Model Fit") +
+  #   theme_minimal()
+  # 
+  # #all prediction-fits
+  # plot(SA.GAM, scale = 0, all.terms = TRUE, shade = T, shade.col="lightpink", xlab = "Max diameter (cm)", ylab = "Surface area (m2)")
+  # plot(SA.GAM_identity, scale = 0, all.terms = TRUE, shade = T, shade.col="lightpink", xlab = "Max diameter (cm)", ylab = "Surface area (m2)")
+  # plot(SA.GAM_linear, scale = 0, all.terms = TRUE, shade = T, shade.col="lightpink", xlab = "Max diameter (cm)", ylab = "Surface area (m2)")
+  # plot(SA.GAM_cr, scale = 0, all.terms = TRUE, shade = T, shade.col="lightpink", xlab = "Max diameter (cm)", ylab = "Surface area (m2)")
+  # plot(SA.GAM_gamma, scale = 0, all.terms = TRUE, shade = T, shade.col="lightpink", xlab = "Max diameter (cm)", ylab = "Surface area (m2)")
+  # plot(SA.GAM_scaled, scale = 0, all.terms = TRUE, shade = T, shade.col="lightpink", xlab = "Max diameter (cm)", ylab = "Surface area (m2)")
+  
+  # #an attempt to correct for GAM dipping below zero. not perfect
+  # x = survey$Max_width
+  # x.GAM = as.data.frame(x)
+  # x.GAM$x = as.numeric(x.GAM$x)
+  # y = predict(SA.GAM, newdata = x.GAM, type = "response")
+  # y[y<0] = 0.00005 #ensure GAM-predicted surface area does not dip below zero for small recruits. arbitrary value
+  # survey$tissue = y
+  # plot(x,y, xlim = c(0, 460), xlab = "Max diameter (cm)", ylab = "Surface area (m2)")
+  # sum(survey$tissue) #quick summary to assess overall tissue SA across all sites
+
+  # Generate predictions for the survey data
+  survey_predictions <- survey %>%
+    mutate(
+      pred_gam = predict(SA.GAM, newdata = data.frame(x = Max_width)),
+      pred_gam_identity = predict(SA.GAM_identity, newdata = data.frame(x = Max_width)),
+      pred_gam_linear = predict(SA.GAM_linear, newdata = data.frame(x = Max_width)),
+      pred_gam_cr = predict(SA.GAM_cr, newdata = data.frame(x = Max_width)),
+      pred_gam_gamma = predict(SA.GAM_gamma, newdata = data.frame(x = Max_width)),
+      pred_gam_scaled = predict(SA.GAM_scaled, newdata = data.frame(x_scaled = scale(Max_width)))
+    )
+  
+  # Plot predictions with ggplot
+  ggplot(survey_predictions, aes(x = Max_width)) +
+    
+    # Lines for each model
+    # geom_line(aes(y = pred_gam, color = "GAM"), linewidth = 1, alpha = 0.7) +
+    geom_line(aes(y = pred_gam_identity, color = "GAM with Zero Intercept"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_linear, color = "GAM with Linear Term"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_cr, color = "GAM with CR Basis"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_gamma, color = "GAM with Gamma"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_scaled, color = "GAM with Scaled x"), linewidth = 1, alpha = 0.7) +
+    
+    # Points for each model's predictions
+    # geom_point(aes(y = pred_gam, color = "GAM"), size = 2, alpha = 0.7, show.legend = FALSE) +
+    geom_point(aes(y = pred_gam_identity, color = "GAM with Zero Intercept"), size = 2, alpha = 0.7, show.legend = FALSE) +
+    # geom_point(aes(y = pred_gam_linear, color = "GAM with Linear Term"), size = 2, alpha = 0.7, show.legend = FALSE) +
+    # geom_point(aes(y = pred_gam_cr, color = "GAM with CR Basis"), size = 2, alpha = 0.7, show.legend = FALSE) +
+    # geom_point(aes(y = pred_gam_gamma, color = "GAM with Gamma"), size = 2, alpha = 0.7, show.legend = FALSE) +
+    # geom_point(aes(y = pred_gam_scaled, color = "GAM with Scaled x"), size = 2, alpha = 0.7, show.legend = FALSE) +
+    
+    #points from Sharp dataset for comparison
+    geom_point(data = SA_predictions, aes(x = x, y = y), color = "black", size = 2, alpha = 0.5, show.legend = FALSE) + # Points are black
+    
+    # Labels and theme
+    labs(
+      x = "Max diameter (cm)",
+      y = "Surface area (m2)",
+      title = "Model Predictions for Surface Area vs. Max Diameter (Survey Data)",
+      color = "Model"
+    ) +
+    scale_color_manual(
+      values = c(
+        "GAM" = "red",
+        "GAM with Zero Intercept" = "pink",
+        "GAM with Linear Term" = "green",
+        "GAM with CR Basis" = "purple",
+        "GAM with Gamma" = "orange",
+        "GAM with Scaled x" = "brown"
+      )
+    ) +
+    # xlim(0, max(SA_predictions$x)) +
+    # ylim(0, max(SA_predictions$y)) +
+    theme_minimal() +
+    theme(
+      legend.position = "bottom",
+      legend.title = element_blank()
+    )
+  
+  
+  # stopping point - 16 sep 2024
+  # - I think the GAM comparisons look great, and if anything are further support for using a basic GAM
+  # - 11 sq meters is the largest predicted coral surface area - and that's about the size of a parking lot space. seems reasonable to me
+  # - add tick marks to show observations in 'survey' - helps to understand level of extrapolation for outlier large corals
+  # - now just move forward with finalizing the script cleaning below, re-running analysis with bleaching info
+  
   
   #incorporate pre-SCTLD old mortality from lower Florida Keys plots (same as the ones in 'survey'). last observation of old mortality
   # also replace 'FWRI database' instances with 'NA's, for clarity, in relevant 'New_death' columns
