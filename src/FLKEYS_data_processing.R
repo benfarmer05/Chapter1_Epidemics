@@ -49,11 +49,6 @@
   #pull middle Florida Keys (Sharp et al. 2020) dataset, which had similar data as 'survey' but measured colonies in 3 dimensions
   #   rather than one. use this dataset to create a statistical association between maximum diameter & colony surface area (SA) by assuming
   #   a hemi-ellipsoid (Holstein et al. 2015), and then predicting SA in 'survey' dataset using maximum diameter alone
-  # Sharp2020 = read.csv(here("data", "Sharp_Maxwell_2020.csv")) %>%
-  #   select(Plot, Transect, Coral, Species, Width, Width_2, Height)
-  # Sharp2020[Sharp2020==-99] = NA
-  # Sharp2020 = Sharp2020[complete.cases(Sharp2020),]
-  
   Sharp2020 <- read.csv(here("data", "Sharp_Maxwell_2020.csv")) %>%
     select(Plot, Transect, Coral, Species, Width, Width_2, Height) %>%
     mutate(across(where(is.numeric), ~na_if(., -99))) %>% #convert -99 fill values to NA
@@ -84,8 +79,8 @@
     select(x = Width, y = SA) 
   # plot(SA$x, SA$y)
   
-  #a measure to prevent over-predicting surface area of the largest corals from small sample size [decided as unnecessary]
-  SA = SA %>% filter(x < 122) #145
+  # #a measure to prevent over-predicting surface area of the largest corals from small sample size [decided as unnecessary]
+  # SA = SA %>% filter(x < 122) #145
   
   #STOPPING POINT - 16 Sep 2024
   #   - attempts at fancy model comparisons below. one fitting issue may be differently scaled x and y, and also repeated x values
@@ -95,10 +90,34 @@
   SA.GAM <- gam(y ~ s(x), data = SA, family = gaussian, method = "REML")
   SA.GAM_identity = gam(y ~ s(x, bs = "cr"), data = SA, family = gaussian(link = "identity")) #GAM model with a zero intercept constraint
   SA.GAM_linear <- gam(y ~ s(x) + x, data = SA, family = gaussian, method = "REML")
-  SA.GAM_cr <- gam(y ~ s(x, bs = "cr", k = 20), data = SA, family = gaussian, method = "REML", gamma = 1.4)
+  SA.GAM_cr <- gam(y ~ s(x, bs = "cr", k = 20), data = SA, family = gaussian, method = "REML", gamma = 2.0)
   SA.GAM_gamma <- gam(y ~ s(x), data = SA, family = Gamma(link = "log"), method = "REML")
   SA$x_scaled <- scale(SA$x)  # rescale x
   SA.GAM_scaled <- gam(y ~ s(x_scaled, bs = "cr", k = 20), data = SA, family = gaussian, method = "REML")
+  
+  # Adding more GAM variations with additional smooth terms, penalties, and log adjustments
+  
+  # # Combination of smooth terms and varying degrees of freedom
+  SA.GAM_complex <- gam(y ~ s(x, bs = "tp", k = 25) + te(x), data = SA, family = gaussian, method = "REML")
+  # SA.GAM_complex <- gam(y ~ s(x, bs = "cr", k = 10) + s(x, bs = "tp", k = 10), data = SA)
+  
+  # Penalize large extrapolation (use gamma > 1)
+  SA.GAM_penalized <- gam(y ~ s(x, bs = "tp", k = 25), data = SA, family = gaussian, method = "REML", gamma = 1.4)
+  
+  # Applying log transformation to the dependent variable and fitting a model
+  SA.GAM_log_y <- gam(log(y) ~ s(x, bs = "cr", k = 20), data = SA, family = gaussian(link = "identity"), method = "REML")
+  
+  # Introducing additional model with adaptive smooth
+  SA.GAM_adaptive <- gam(y ~ s(x, bs = "ad", k = 25), data = SA, family = gaussian, method = "REML")
+  
+  # Modifying model to use a different number of knots and different basis functions
+  SA.GAM_varying_knots <- gam(y ~ s(x, bs = "cr", k = 30), data = SA, family = gaussian, method = "REML")
+  
+  #non-wiggly gamma GAMs
+  SA.GAM_gamma <- gam(y ~ s(x), data = SA, family = Gamma(link = "log"), method = "REML")
+  SA.GAM_gamma_1.5 <- gam(y ~ s(x), data = SA, family = Gamma(link = "log"), method = "REML", gamma = 3)
+  SA.GAM_gamma_tp <- gam(y ~ s(x, bs = "tp", k = 20), data = SA, family = Gamma(link = "log"), method = 'REML', gamma = 1.5)
+  SA.GAM_gamma_ps <- gam(y ~ s(x, bs = "ps", k = 20), data = SA, family = Gamma(link = "log"), method = 'REML', gamma = 1.5)
   
   # #diagnostics
   # summary(SA.GAM)
@@ -111,22 +130,38 @@
     mutate(
       pred_linear = predict(SA.linear),
       pred_gam = predict(SA.GAM),
-      pred_gam_identity = predict(SA.GAM_identity, newdata = SA),
+      pred_gam_identity = predict(SA.GAM_identity), #, newdata = SA
       pred_gam_linear = predict(SA.GAM_linear),
       pred_gam_cr = predict(SA.GAM_cr),
       pred_gam_gamma = predict(SA.GAM_gamma, type = "response"),
-      pred_gam_scaled = predict(SA.GAM_scaled, newdata = SA)
+      pred_gam_scaled = predict(SA.GAM_scaled), #, newdata = SA
+      pred_gam_complex = predict(SA.GAM_complex),
+      pred_gam_penalized = predict(SA.GAM_penalized),
+      pred_gam_log_y = exp(predict(SA.GAM_log_y)),  # Undo log-transformation for predictions
+      pred_gam_adaptive = predict(SA.GAM_adaptive),
+      pred_gam_varying_knots = predict(SA.GAM_varying_knots),
+      pred_gam_gamma_1.5 = predict(SA.GAM_gamma_1.5, type = 'response'),
+      pred_gam_gamma_tp = predict(SA.GAM_gamma_tp, type = 'response'),
+      pred_gam_gamma_ps = predict(SA.GAM_gamma_ps, type = 'response')
     )
   
   ggplot(SA_predictions, aes(x = x, y = y)) +
     geom_point(color = "black", size = 2, alpha = 0.5, show.legend = FALSE) + # Points are black
     # geom_line(aes(y = pred_linear, color = "Linear"), linewidth = 1, alpha = 0.7) +
     geom_line(aes(y = pred_gam, color = "GAM"), linewidth = 1, alpha = 0.7) +
-    geom_line(aes(y = pred_gam_identity, color = "GAM with Zero Intercept"), linewidth = 1, alpha = 0.7) +
-    geom_line(aes(y = pred_gam_linear, color = "GAM with Linear Term"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_identity, color = "GAM with Zero Intercept"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_linear, color = "GAM with Linear Term"), linewidth = 1, alpha = 0.7) +
     # geom_line(aes(y = pred_gam_cr, color = "GAM with CR Basis"), linewidth = 1, alpha = 0.7) +
-    # geom_line(aes(y = pred_gam_gamma, color = "GAM with Gamma"), linewidth = 1, alpha = 0.7) +
-    geom_line(aes(y = pred_gam_scaled, color = "GAM with Scaled x"), linewidth = 1, alpha = 0.7) +
+    geom_line(aes(y = pred_gam_gamma, color = "GAM with Gamma"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_scaled, color = "GAM with Scaled x"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_complex, color = "Complex GAM"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_penalized, color = "Penalized GAM"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_log_y, color = "Log-transformed GAM"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_adaptive, color = "Adaptive GAM"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_varying_knots, color = "Varying Knots GAM"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_gamma_1.5, color = "GAM with Gamma 1.5"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_gamma_tp, color = "GAM with Tensor Product"), linewidth = 1, alpha = 0.7) +
+    geom_line(aes(y = pred_gam_gamma_ps, color = "GAM with P-splines"), linewidth = 1, alpha = 0.7) +
     labs(
       x = "Max diameter (cm)",
       y = "Surface area (m2)",
@@ -141,9 +176,19 @@
         "GAM with Linear Term" = "green",
         "GAM with CR Basis" = "purple",
         "GAM with Gamma" = "orange",
-        "GAM with Scaled x" = "brown"
+        "GAM with Scaled x" = "brown",
+        "Complex GAM" = "cyan",
+        "Penalized GAM" = "magenta",
+        "Log-transformed GAM" = "yellow",
+        "Adaptive GAM" = "darkgreen",
+        "Varying Knots GAM" = "darkblue",
+        "GAM with Gamma 1.5" = 'darkorange',
+        "GAM with Tensor Product" = 'darkmagenta',
+        "GAM with P-splines" = 'darkred'
       )
     ) +
+    # xlim(0, 20) +
+    # ylim(0, 0.10) +
     theme_minimal() +
     theme(
       legend.position = "bottom",
@@ -151,7 +196,9 @@
     )
   
   #Akaike comparison
-  AIC(SA.linear, SA.GAM, SA.GAM_identity, SA.GAM_linear, SA.GAM_cr, SA.GAM_gamma, SA.GAM_scaled)
+  AIC(SA.linear, SA.GAM, SA.GAM_identity, SA.GAM_linear, SA.GAM_cr, SA.GAM_gamma, SA.GAM_scaled, 
+      SA.GAM_complex, SA.GAM_penalized, SA.GAM_log_y, SA.GAM_adaptive, SA.GAM_varying_knots,
+      SA.GAM_gamma_1.5, SA.GAM_gamma_tp, SA.GAM_gamma_ps)
   
   # # just linear prediction-fits
   # ggplot(SA_predictions, aes(x = x, y = y)) +
@@ -199,31 +246,62 @@
       pred_gam_identity = predict(SA.GAM_identity, newdata = data.frame(x = Max_width)),
       pred_gam_linear = predict(SA.GAM_linear, newdata = data.frame(x = Max_width)),
       pred_gam_cr = predict(SA.GAM_cr, newdata = data.frame(x = Max_width)),
-      pred_gam_gamma = predict(SA.GAM_gamma, newdata = data.frame(x = Max_width)),
-      pred_gam_scaled = predict(SA.GAM_scaled, newdata = data.frame(x_scaled = scale(Max_width)))
+      pred_gam_gamma = predict(SA.GAM_gamma, newdata = data.frame(x = Max_width), type = 'response'),
+      pred_gam_scaled = predict(SA.GAM_scaled, newdata = data.frame(x_scaled = scale(Max_width))),
+      pred_gam_complex = predict(SA.GAM_complex, newdata = data.frame(x = Max_width)),
+      pred_gam_penalized = predict(SA.GAM_penalized, newdata = data.frame(x = Max_width)),
+      pred_gam_log_y = exp(predict(SA.GAM_log_y, newdata = data.frame(x = Max_width))),  # Undo log-transformation for predictions
+      pred_gam_adaptive = predict(SA.GAM_adaptive, newdata = data.frame(x = Max_width)),
+      pred_gam_varying_knots = predict(SA.GAM_varying_knots, newdata = data.frame(x = Max_width)),
+      pred_gam_gamma_1.5 = predict(SA.GAM_gamma_1.5, newdata = data.frame(x = Max_width), type = 'response'),
+      pred_gam_gamma_tp = predict(SA.GAM_gamma_tp, newdata = data.frame(x = Max_width), type = 'response'),
+      pred_gam_gamma_ps = predict(SA.GAM_gamma_ps, newdata = data.frame(x = Max_width), type = 'response')
     )
   
   # Plot predictions with ggplot
   ggplot(survey_predictions, aes(x = Max_width)) +
     
     # Lines for each model
-    # geom_line(aes(y = pred_gam, color = "GAM"), linewidth = 1, alpha = 0.7) +
-    geom_line(aes(y = pred_gam_identity, color = "GAM with Zero Intercept"), linewidth = 1, alpha = 0.7) +
+    geom_line(aes(y = pred_gam, color = "GAM"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_identity, color = "GAM with Zero Intercept"), linewidth = 1, alpha = 0.7) +
     # geom_line(aes(y = pred_gam_linear, color = "GAM with Linear Term"), linewidth = 1, alpha = 0.7) +
     # geom_line(aes(y = pred_gam_cr, color = "GAM with CR Basis"), linewidth = 1, alpha = 0.7) +
     # geom_line(aes(y = pred_gam_gamma, color = "GAM with Gamma"), linewidth = 1, alpha = 0.7) +
     # geom_line(aes(y = pred_gam_scaled, color = "GAM with Scaled x"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_complex, color = "Complex GAM"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_penalized, color = "Penalized GAM"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_log_y, color = "Log-transformed GAM"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_adaptive, color = "Adaptive GAM"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_varying_knots, color = "Varying Knots GAM"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_gamma_1.5, color = "GAM Gamma 1.5"), linewidth = 1, alpha = 0.7) +
+    geom_line(aes(y = pred_gam_gamma_tp, color = "GAM Tensor Product"), linewidth = 1, alpha = 0.7) +
+    geom_line(aes(y = pred_gam_gamma_ps, color = "GAM P-splines"), linewidth = 1, alpha = 0.7) +
     
     # Points for each model's predictions
-    # geom_point(aes(y = pred_gam, color = "GAM"), size = 2, alpha = 0.7, show.legend = FALSE) +
-    geom_point(aes(y = pred_gam_identity, color = "GAM with Zero Intercept"), size = 2, alpha = 0.7, show.legend = FALSE) +
+    geom_point(aes(y = pred_gam, color = "GAM"), size = 2, alpha = 0.7, show.legend = FALSE) +
+    # geom_point(aes(y = pred_gam_identity, color = "GAM with Zero Intercept"), size = 2, alpha = 0.7, show.legend = FALSE) +
     # geom_point(aes(y = pred_gam_linear, color = "GAM with Linear Term"), size = 2, alpha = 0.7, show.legend = FALSE) +
     # geom_point(aes(y = pred_gam_cr, color = "GAM with CR Basis"), size = 2, alpha = 0.7, show.legend = FALSE) +
     # geom_point(aes(y = pred_gam_gamma, color = "GAM with Gamma"), size = 2, alpha = 0.7, show.legend = FALSE) +
     # geom_point(aes(y = pred_gam_scaled, color = "GAM with Scaled x"), size = 2, alpha = 0.7, show.legend = FALSE) +
+    # geom_point(aes(y = pred_gam_complex, color = "Complex GAM"), size = 2, alpha = 0.7, show.legend = FALSE) +
+    # geom_point(aes(y = pred_gam_penalized, color = "Penalized GAM"), size = 2, alpha = 0.7, show.legend = FALSE) +
+    # geom_point(aes(y = pred_gam_log_y, color = "Log-transformed GAM"), size = 2, alpha = 0.7, show.legend = FALSE) +
+    # geom_point(aes(y = pred_gam_adaptive, color = "Adaptive GAM"), size = 2, alpha = 0.7, show.legend = FALSE) +
+    # geom_point(aes(y = pred_gam_varying_knots, color = "Varying Knots GAM"), size = 2, alpha = 0.7, show.legend = FALSE) +
+    # geom_point(aes(y = pred_gam_gamma_1.5, color = "GAM Gamma 1.5"), size = 2, alpha = 0.7, show.legend = FALSE) +
+    geom_point(aes(y = pred_gam_gamma_tp, color = "GAM Tensor Product"), size = 2, alpha = 0.7, show.legend = FALSE) +
+    geom_point(aes(y = pred_gam_gamma_ps, color = "GAM P-splines"), size = 2, alpha = 0.7, show.legend = FALSE) +
     
     #points from Sharp dataset for comparison
     geom_point(data = SA_predictions, aes(x = x, y = y), color = "black", size = 2, alpha = 0.5, show.legend = FALSE) + # Points are black
+
+    # # Add density plot or histogram for observation density
+    # geom_density(data = survey, aes(x = Max_width), color = "blue", size = 1, alpha = 0.3, linetype = "dashed") +  # Density plot
+    # # geom_histogram(data = survey, aes(x = Max_width, y = ..density..), bins = 30, fill = "blue", alpha = 0.3) +  # Histogram
+    
+    # Add tick marks on the bottom
+    geom_rug(data = survey, aes(x = Max_width), sides = "b", color = "grey", alpha = 0.5) +
     
     # Labels and theme
     labs(
@@ -239,11 +317,20 @@
         "GAM with Linear Term" = "green",
         "GAM with CR Basis" = "purple",
         "GAM with Gamma" = "orange",
-        "GAM with Scaled x" = "brown"
-      )
+        "GAM with Scaled x" = "brown",
+        "Complex GAM" = "cyan",
+        "Penalized GAM" = "magenta",
+        "Log-transformed GAM" = "yellow",
+        "Adaptive GAM" = "darkgreen",
+        "Varying Knots GAM" = "darkblue",
+        "GAM Gamma 1.5" = "darkred",
+        "GAM Tensor Product" = "darkorange",
+        "GAM P-splines" = "darkcyan"        )
     ) +
-    # xlim(0, max(SA_predictions$x)) +
-    # ylim(0, max(SA_predictions$y)) +
+    xlim(0, max(SA_predictions$x)) +
+    ylim(0, max(SA_predictions$y)) +
+    # xlim(0, 20) +
+    # ylim(0, 0.10) +
     theme_minimal() +
     theme(
       legend.position = "bottom",
@@ -257,6 +344,13 @@
   # - add tick marks to show observations in 'survey' - helps to understand level of extrapolation for outlier large corals
   # - now just move forward with finalizing the script cleaning below, re-running analysis with bleaching info
   
+  # stopping point - 17 sep 2024
+  # - okay I think I finally reached a good place with this: the GAM gamma p-spline and tensor product predictions both look great.
+  #     they account properly for the right-skewed, positive, low-variance nature of the dataset and almost entirely nail the prediction
+  #     of the smaller corals. so, my job is probably just to clean up the model selection a little bit for publication, maybe tweak k
+  #     and gamma values a bit more, and settle on a final model. the only tricky part - extrapolation to the largest corals is a little
+  #     dicey with both options, and I may consider just manually editing the one or two largest corals to a reasonable size. same goes
+  #     for a couple smaller corals that still ended up negative
   
   #incorporate pre-SCTLD old mortality from lower Florida Keys plots (same as the ones in 'survey'). last observation of old mortality
   # also replace 'FWRI database' instances with 'NA's, for clarity, in relevant 'New_death' columns
