@@ -82,10 +82,8 @@
   # #a measure to prevent over-predicting surface area of the largest corals from small sample size [decided as unnecessary]
   # SA = SA %>% filter(x < 122) #145
   
-  #STOPPING POINT - 16 Sep 2024
-  #   - attempts at fancy model comparisons below. one fitting issue may be differently scaled x and y, and also repeated x values
-  #   - consider how well the GAMs are doing at predicting "correct" SAs - cross-reference between Sharp and Williams datasets
-  #   - values dipping below zero for smallest corals is a problem for GAMs here - see below as well
+  # NOTE - GAM comparisons below. one fitting issue may be differently scaled x and y, and also repeated x values
+  #   - values dipping below zero for smallest corals is a problem for GAMs here. Gamma distribution addresses this fairly well
   SA.linear <- lm(y ~ x + 0, data = SA) #trying to make sure predictions don't go below zero - struggling with this
   SA.GAM <- gam(y ~ s(x), data = SA, family = gaussian, method = "REML")
   SA.GAM_identity = gam(y ~ s(x, bs = "cr"), data = SA, family = gaussian(link = "identity")) #GAM model with a zero intercept constraint
@@ -95,9 +93,9 @@
   SA$x_scaled <- scale(SA$x)  # rescale x
   SA.GAM_scaled <- gam(y ~ s(x_scaled, bs = "cr", k = 20), data = SA, family = gaussian, method = "REML")
   
-  # Adding more GAM variations with additional smooth terms, penalties, and log adjustments
-  
-  # # Combination of smooth terms and varying degrees of freedom
+  # More GAM variations with additional smooth terms, penalties, and log adjustments
+  #
+  # Combination of smooth terms and varying degrees of freedom
   SA.GAM_complex <- gam(y ~ s(x, bs = "tp", k = 25) + te(x), data = SA, family = gaussian, method = "REML")
   # SA.GAM_complex <- gam(y ~ s(x, bs = "cr", k = 10) + s(x, bs = "tp", k = 10), data = SA)
   
@@ -196,49 +194,27 @@
     )
   
   #Akaike comparison
-  AIC(SA.linear, SA.GAM, SA.GAM_identity, SA.GAM_linear, SA.GAM_cr, SA.GAM_gamma, SA.GAM_scaled, 
+  aic_values = AIC(SA.linear, SA.GAM, SA.GAM_identity, SA.GAM_linear, SA.GAM_cr, SA.GAM_gamma, SA.GAM_scaled, 
       SA.GAM_complex, SA.GAM_penalized, SA.GAM_log_y, SA.GAM_adaptive, SA.GAM_varying_knots,
       SA.GAM_gamma_1.5, SA.GAM_gamma_tp, SA.GAM_gamma_ps)
   
-  # # just linear prediction-fits
-  # ggplot(SA_predictions, aes(x = x, y = y)) +
-  #   geom_point() +
-  #   geom_line(aes(y = pred_linear), color = "red") +
-  #   labs(x = "Max diameter (cm)", y = "Surface area (m2)", title = "Linear Model Fit") +
-  #   theme_minimal()
-  # 
-  # # just identity GAM prediction-fits
-  # ggplot(SA_predictions, aes(x = x, y = y)) +
-  #   geom_point() +
-  #   geom_line(aes(y = pred_gam_identity), color = "red") +
-  #   labs(x = "Max diameter (cm)", y = "Surface area (m2)", title = "GAM Model Fit") +
-  #   theme_minimal()
-  # 
-  # # just GAM prediction-fits
-  # ggplot(SA_predictions, aes(x = x, y = y)) +
-  #   geom_point() +
-  #   geom_line(aes(y = pred_gam), color = "red") +
-  #   labs(x = "Max diameter (cm)", y = "Surface area (m2)", title = "GAM Model Fit") +
-  #   theme_minimal()
-  # 
-  # #all prediction-fits
-  # plot(SA.GAM, scale = 0, all.terms = TRUE, shade = T, shade.col="lightpink", xlab = "Max diameter (cm)", ylab = "Surface area (m2)")
-  # plot(SA.GAM_identity, scale = 0, all.terms = TRUE, shade = T, shade.col="lightpink", xlab = "Max diameter (cm)", ylab = "Surface area (m2)")
-  # plot(SA.GAM_linear, scale = 0, all.terms = TRUE, shade = T, shade.col="lightpink", xlab = "Max diameter (cm)", ylab = "Surface area (m2)")
-  # plot(SA.GAM_cr, scale = 0, all.terms = TRUE, shade = T, shade.col="lightpink", xlab = "Max diameter (cm)", ylab = "Surface area (m2)")
-  # plot(SA.GAM_gamma, scale = 0, all.terms = TRUE, shade = T, shade.col="lightpink", xlab = "Max diameter (cm)", ylab = "Surface area (m2)")
-  # plot(SA.GAM_scaled, scale = 0, all.terms = TRUE, shade = T, shade.col="lightpink", xlab = "Max diameter (cm)", ylab = "Surface area (m2)")
+  # Create a tibble with model names, degrees of freedom, and AIC values
+  model_names <- c("SA.linear", "SA.GAM", "SA.GAM_identity", "SA.GAM_linear", "SA.GAM_cr", 
+                   "SA.GAM_gamma", "SA.GAM_scaled", "SA.GAM_complex", "SA.GAM_penalized", 
+                   "SA.GAM_log_y", "SA.GAM_adaptive", "SA.GAM_varying_knots", 
+                   "SA.GAM_gamma_1.5", "SA.GAM_gamma_tp", "SA.GAM_gamma_ps")
   
-  # #an attempt to correct for GAM dipping below zero. not perfect
-  # x = survey$Max_width
-  # x.GAM = as.data.frame(x)
-  # x.GAM$x = as.numeric(x.GAM$x)
-  # y = predict(SA.GAM, newdata = x.GAM, type = "response")
-  # y[y<0] = 0.00005 #ensure GAM-predicted surface area does not dip below zero for small recruits. arbitrary value
-  # survey$tissue = y
-  # plot(x,y, xlim = c(0, 460), xlab = "Max diameter (cm)", ylab = "Surface area (m2)")
-  # sum(survey$tissue) #quick summary to assess overall tissue SA across all sites
-
+  aic_df <- tibble(
+    Model = model_names,
+    df = aic_values$df,
+    AIC = aic_values$AIC
+  )
+  
+  # Sort by AIC values in ascending order; view "best" models
+  sorted_aic <- aic_df %>%
+    arrange(AIC)  
+  sorted_aic
+  
   # Generate predictions for the survey data
   survey_predictions <- survey %>%
     mutate(
@@ -327,8 +303,8 @@
         "GAM Tensor Product" = "darkorange",
         "GAM P-splines" = "darkcyan"        )
     ) +
-    xlim(0, max(SA_predictions$x)) +
-    ylim(0, max(SA_predictions$y)) +
+    # xlim(0, max(SA_predictions$x)) +
+    # ylim(0, max(SA_predictions$y)) +
     # xlim(0, 20) +
     # ylim(0, 0.10) +
     theme_minimal() +
@@ -337,20 +313,23 @@
       legend.title = element_blank()
     )
   
+  # - NOTE - The GAM gamma p-spline and tensor product predictions both look pretty good. They account well for the right-skewed,
+  #           positive, low-variance nature of the dataset - or seem to - because the small corals are predicted well. but, there is 
+  #           still some over-prediction at the extremes, something a regular GAM performs better with and avoids. so, the below:
+  #       - but, still manually editing the one or two largest extrapolated corals to a reasonable size
+  #
+  # Retrieve row indices in 'survey' for the two largest corals
+  largest_width_rows <- survey %>%
+    slice_max(Max_width, n = 2, with_ties = FALSE)
+  largest_width_indices <- which(survey$Max_width %in% largest_width_rows$Max_width)
   
-  # stopping point - 16 sep 2024
-  # - I think the GAM comparisons look great, and if anything are further support for using a basic GAM
-  # - 11 sq meters is the largest predicted coral surface area - and that's about the size of a parking lot space. seems reasonable to me
-  # - add tick marks to show observations in 'survey' - helps to understand level of extrapolation for outlier large corals
-  # - now just move forward with finalizing the script cleaning below, re-running analysis with bleaching info
-  
-  # stopping point - 17 sep 2024
-  # - okay I think I finally reached a good place with this: the GAM gamma p-spline and tensor product predictions both look great.
-  #     they account properly for the right-skewed, positive, low-variance nature of the dataset and almost entirely nail the prediction
-  #     of the smaller corals. so, my job is probably just to clean up the model selection a little bit for publication, maybe tweak k
-  #     and gamma values a bit more, and settle on a final model. the only tricky part - extrapolation to the largest corals is a little
-  #     dicey with both options, and I may consider just manually editing the one or two largest corals to a reasonable size. same goes
-  #     for a couple smaller corals that still ended up negative
+  # Update survey with predicted SA from the "best" GAM (gamma with log-link, tensor product). extrapolated values from the two largest
+  #   corals as predicted by the simple GAM are pasted in, since a simple GAM does not over-predict as much at the extremes
+  survey <- survey %>%
+    left_join(survey_predictions %>% select(Coral_ID, pred_gam_gamma_tp, pred_gam), by = "Coral_ID") %>%
+    mutate(colony_SA = pred_gam_gamma_tp)
+  survey$colony_SA[largest_width_indices] <- survey_predictions$pred_gam[largest_width_indices]
+  survey = survey %>% select(-pred_gam_gamma_tp, -pred_gam)
   
   #incorporate pre-SCTLD old mortality from lower Florida Keys plots (same as the ones in 'survey'). last observation of old mortality
   # also replace 'FWRI database' instances with 'NA's, for clarity, in relevant 'New_death' columns
@@ -380,9 +359,9 @@
       #     - 2_p27_t8_s5_c30_DSTO
       #     - 3_p46_t4_s0_c30_SINT
       Old_death_081718 = replace_na(Old_death_081718, 0),
-      OM = New_death__081718 + Old_death_081718, #calculate total mortality by summing new and old mortality columns
+      percOM = New_death__081718 + Old_death_081718, #calculate total mortality by summing new and old mortality columns
     ) %>%
-    select(Plot, Sps, Max_width, Coral_ID, OM) %>%
+    select(Plot, Sps, Max_width, Coral_ID, percOM) %>%
     rename(spp = Sps)
   
   # STOPPING POINT - 13 SEP 2024
@@ -438,26 +417,26 @@
   
   #merge in the pre-SCTLD old mortality data
   survey = left_join(
-      survey,
-      old_mortality,
-      by = c("Coral_ID", "Plot", "site", 'spp', 'Max_width'),
-      copy = FALSE,
-      suffix = c(".x", ".y"),
-      keep = NULL
-    )
+    survey,
+    old_mortality,
+    by = c("Coral_ID", "Plot", "site", 'spp', 'Max_width'),
+    copy = FALSE,
+    suffix = c(".x", ".y"),
+    keep = NULL
+  ) %>%
+  group_by(Coral_ID) %>%
+  filter(!all(percOM == 100)) %>% #exclude corals with 100% old mortality before SCTLD surveying
+  ungroup() %>%
+  rename(diam = Max_width) %>%
+  select(-Plot)
   
-  #clean up the metadata after joining
-  survey = survey %>%
-    rename(diam = Max_width) %>%
-    select(-Plot)
-  
-  # Update tot_mortality for specific Coral_ID values
+  # Update tot_mortality for specific errant corals
   survey <- survey %>%
-    mutate(OM = case_when(
+    mutate(percOM = case_when(
       Coral_ID == '2_p28_t4_s5_c8_SINT' ~ 0, #was in 'survey' only, assume started SCTLD outbreak with zero old mortality
       Coral_ID == '3_p47_t5_s0_c24_PAST' ~ 0, #was in 'survey' only, assume started SCTLD outbreak with zero old mortality
       grepl('p25_t9_s5_c4_PAST', Coral_ID) ~ 10, #possible issue with 'char' string, ensure it has 10% old mortality
-      TRUE ~ OM  # Keep existing values unchanged
+      TRUE ~ percOM  # Keep existing values unchanged
     ))
   
   #pivot survey to long format
@@ -471,14 +450,16 @@
     ) %>%
     # Convert 'tot_diseased' to a factor
     mutate(tot_diseased = as.factor(tot_diseased)) %>%
-    rename(D = tot_diseased, status_field = value) %>%
+    rename(D_field = tot_diseased, status_field = value) %>%
     mutate(
-      D = case_when(
-        D == "Dis" ~ "Y",
-        D == "Health" ~ "N",
+      D_field = case_when(
+        D_field == "Dis" ~ "Y",
+        D_field == "Health" ~ "N",
       ),
+      D_model = D_field,
       status_model = status_field
-    )
+    ) %>%
+    select(1:which(names(.) == "D_field"), D_model, everything())  #reorder to place D_model after D_field
   
   #create unique numeric value for each coral
   survey_long <- survey_long %>%
@@ -510,32 +491,36 @@
   survey_long <- survey_long %>%
     # Initialize columns with NA values and convert to numeric
     mutate(
-      start_perctiss = NA_real_,
+      start_perctiss = NA_real_, #starting percentage of whole-colony SA that is live tissue
       percloss = NA_real_, #percentage loss of live tissue between timepoints
       cum_percloss = NA_real_,
       percinf = NA_real_, #estimated instantaneous (daily) %loss of live tissue - proxy of instantaneous %infectious tissue
       progdays = NA_real_, #amount of days between timepoints
+      starttiss = NA_real_, #starting amount of tissue (SA in m2)
       remaintiss = NA_real_,
       inftiss = NA_real_,
       cum_tissloss = NA_real_,
-      start_perctiss = 1 - (OM / 100), #initialize amount of tissue on each coral colony
+      start_perctiss = 100 - percOM, #initialize amount of tissue on each coral colony
+      starttiss = colony_SA * (start_perctiss / 100),
       date = str_sub(date, 2) %>%
         as.factor() %>%
-        as.POSIXct(format = "%m.%d.%y"), #cnvert date format to POSIXct
+        as.POSIXct(format = "%m.%d.%y"), #convert date format to POSIXct
       surpdead = 'N', #prep dataset for new column indicating surprise-dead (Y/N) and "ever died" ('died') statuses
       died = 'N'
     ) %>%
     rename(coral_long_ID = Coral_ID) %>%
+    # filter(date >= as.Date("2018-08-17")) %>% #remove pre-SCTLD timepoints
+    filter(date >= as.Date("2018-10-30")) %>% #remove pre-SCTLD timepoints
     arrange(coral_numID, date) #sort by coral ID/date to ensure proper temporal analysis downstream
   
   #filter down to post-SCTLD introduction (October 30th 2018) infections
   # NOTE / STOPPING POINT - make sure this doesn't mess up the backtracking
   surveydiseased = survey_long %>%
     filter(
-      D == "Y",
-      date >= as.POSIXct("2018-10-30")
+      D_field == "Y",
+      date >= as.POSIXct("2018-10-30") # 'prograte' only begins at 10-30-2018
     ) %>%
-    arrange(coral_numID, date) #failsafe to ensure preservation of ID-sorting
+    arrange(coral_numID, date) #failsafe to ensure preservation of ID-sorting. recapitulated throughout script
   
   #remove exact rows from 'survey_long' as are being extracted for 'surveydiseased', to easily rbind back together after data wrangling
   survey_trimmed = anti_join(survey_long, surveydiseased) %>%
@@ -551,7 +536,7 @@
   #there were 57 corals that died suddenly between timepoints but were otherwise observed as healthy. these were all quite small and likely died from
   # SCTLD during the first and second infection waves. to account for this cryptic tissue loss, convert those final timepoints into 100% mortality from
   # disease
-  # note - to find these, filter by 2019-12-06 and D = 'N' & status = 'Dead'
+  # note - to find these, filter by 2019-12-06 and D_field = 'N' & status = 'Dead'
   #   - almost all of these corals were small, HS corals which makes sense. important to keep track of their loss between timepoints
   #   - also, applying this modification now means that a small 11 cm-diameter CNAT  becomes our patient zero - it was already dead before the DSTO on
   #       October 30th, 2018.
@@ -565,25 +550,27 @@
   #             _ SW: dead-dead on 8-17-2018. was 75% dead by 5-10-2018, if that is useful
   
   #filter surprise-dead corals (read details above), by their health condition on the last date of surveying (2019-12-06)
-  surprise.dead = survey_trimmed %>%
-    filter(date == as.POSIXct("2019-12-06"), D == 'N', status_field == 'Dead') %>%
-    mutate(surpdead = 'Y', died = 'Y', D = 'Y') %>% #update presumed disease history to SCTLD-positive
+  surprise.dead <- survey_trimmed %>%
+    group_by(coral_numID) %>%
+    filter(D_field == 'N', status_field == 'Dead') %>% #filter the corals that were never marked as being diseased but died unexpectedly
+    ungroup() %>%
+    filter(date == as.POSIXct("2019-12-06")) %>% #filter to final day of surveying
+    mutate(surpdead = 'Y', died = 'Y', D_model = 'Y') %>%  # update presumed disease history to SCTLD-positive
     arrange(coral_numID, date)
 
   #pull the full T1 - T26 rows for each surprise-dead coral
   first.dead.full = survey_trimmed %>%
     filter(coral_numID %in% surprise.dead$coral_numID) %>%
-    mutate(surpdead = 'Y', died = 'Y') %>%
+    mutate(D_model = 'Y', surpdead = 'Y', died = 'Y') %>%
     arrange(coral_numID, date)
-
-  #filter to the date that the surprise-dead coral was first documented as dead
+  
+  #filter to the date that the surprise-dead coral was first documented as dead and document it
   first.dead = first.dead.full %>%
     filter(grepl("\\Dead", status_field)) %>%
     group_by(coral_numID) %>%
     top_n(n=1, wt=desc(date)) %>%
     ungroup() %>%
-    mutate(dead_date = date, #create duplicate column to be used later, and indicate the first documented date of complete mortality
-           percloss = 100) %>% #set mortality from SCTLD to '100%'
+    mutate(dead_date = date) %>% #create duplicate column to be used later, and indicate the first documented date of complete mortality
     arrange(coral_numID, date)
   
   first.dead.full = first.dead.full %>% left_join(
@@ -592,110 +579,77 @@
   ) %>%
     arrange(coral_numID, date)
   
-  # Update percloss in first.dead.full based on values from first.dead
-  first.dead.full <- first.dead.full %>%
-    left_join(
-      first.dead %>% select(coral_numID, date, percloss),
-      by = c("coral_numID", "date")) %>%
-    mutate(
-      # Update percloss where available from first.dead
-      percloss = coalesce(percloss.y, percloss.x),
-    ) %>%
-    select(-percloss.x, -percloss.y) %>%
-    arrange(coral_numID, date) # Sort by coral_numID and date
+  #backtrack infections
+  # NOTE - the '100' doesn't really make sense now ... rethink?
+  for (i in 2:nrow(first.dead.full)) { #start at 2 to accommodate reverse indexing
+    if (first.dead.full$date[i] == first.dead.full$dead_date[i]) { #when the date of death is the current date
+      
+      # Set backtracked %infected to the prior date
+      first.dead.full$percinf[i-1] <- 100 / as.numeric(difftime(first.dead.full$dead_date[i], first.dead.full$date[i-1], units = "days"))
+      
+      # Set 100% loss to SCTLD for current (dead) date
+      first.dead.full$percloss[i] <- 100
+    }
+  }
   
-  #calculate accumulated percloss
+  #calculate accumulated tissue loss percentage
   first.dead.full <- first.dead.full %>%
     group_by(coral_numID) %>%
     arrange(date, .by_group = TRUE) %>%
     mutate(cum_percloss = cumsum(replace_na(percloss, 0))) %>%
     ungroup()
   
-  # Initialize prior_date column & assign any straggling NA's
-  first.dead.full$prior_date <- NA
-  first.dead.full$percloss <- ifelse(is.na(first.dead.full$percloss), NA, first.dead.full$percloss)
-
-    # Loop through the data frame
-  for (i in 2:nrow(first.dead.full)) {
-    if (first.dead.full$date[i] == first.dead.full$dead_date[i]) {
-      # Set percloss to 100% for the current dead_date
-      first.dead.full$percloss[i] <- 100
-      
-      # Calculate percloss for the previous row (prior_date)
-      first.dead.full$prior_date[i] <- first.dead.full$date[i-1]
-      first.dead.full$percloss[i-1] <- 100 / as.numeric(difftime(first.dead.full$dead_date[i], first.dead.full$date[i-1], units = "days"))
-    }
-  }
-  
   #update backtracked SCTLD-infected status for the timepoint prior to the surprise-dead date
   first.dead.full <- first.dead.full %>%
     mutate(
-      status_model = ifelse(!is.na(percloss) & percloss < 100, 'backtracked_SCTLD', status_model)
+      status_model = ifelse(!is.na(percinf) & percinf > 0, 'backtracked_SCTLD', status_model)
     )
-  
-  
-  
-  # STOPPING POINT - final touch-up: insert correct status for backtracked infections. maybe implement as new column to distinguish
-  #   from status as defined by the field findings? or just supersede it.
-  
-
-  
-  # Drop the prior_date column
-  first.dead.full$prior_date <- NULL
   
   #update original dataframe with surprise-dead coral mortality
   survey_trimmed = survey_trimmed %>%
     left_join(
-      first.dead.full %>% select(coral_numID, date, status_model, surpdead, died, dead_date, percloss, cum_percloss),
+      first.dead.full %>% select(coral_numID, date, D_model, status_model, surpdead, died, dead_date, percloss, cum_percloss, percinf),
       by = c("coral_numID", "date")) %>%
     mutate(
+      D_model.x = coalesce(D_model.y, D_model.x),
       status_model.x = coalesce(status_model.y, status_model.x),
       percloss.x = coalesce(percloss.y, percloss.x),
       surpdead.x = coalesce(surpdead.y, surpdead.x),
       died.x = coalesce(died.y, died.x),
-      cum_percloss.x = coalesce(cum_percloss.y, cum_percloss.x)
+      cum_percloss.x = coalesce(cum_percloss.y, cum_percloss.x),
+      percinf.x = coalesce(percinf.y, percinf.x)
     ) %>%
-    rename(status_model = status_model.x, 
+    rename(D_model = D_model.x,
+           status_model = status_model.x, 
            percloss = percloss.x,
            surpdead = surpdead.x,
            died = died.x,
-           cum_percloss = cum_percloss.x) %>%
-    select(-status_model.y, -percloss.y, -surpdead.y, -died.y, -cum_percloss.y) %>%
+           cum_percloss = cum_percloss.x,
+           percinf = percinf.x) %>%
+    select(-D_model.y, -status_model.y, -percloss.y, -surpdead.y, -died.y, -cum_percloss.y, -percinf.y) %>%
     relocate(dead_date, .after = last_col()) %>%
     arrange(coral_numID, date)
 
-  # Prepare a dataframe for calculating infected tissue in surprise-dead corals (T1 - T26)
-  # only calculating instantaneous infected tissue (tissue loss / sloughing within 24 hours) for corals that haven't completed died already
-  # NOTE - the way 'percloss' is handled here is different than the loop for confirmed diseased corals below. here, it was assigned
-  #         manually by me, to backtrack daily percentage loss back to the last timepoint (and this translates directly to 
-  #         instantaneous infected tissue in a day). but below, percloss was a measure of how much tissue was lost between timepoints
-  #         in confirmed SCTLD-infected corals. that's why it needs be backtracked and then divided by the number of days between
-  #         timepoints. I might have benefited from using a different term than 'percloss' for the surprise-dead corals - could maybe
-  #         go back and call it 'instantloss' or 'dailyloss'. similar nomenclature may be useful below as well
+  # calculate backtracked instantaneous (tissue loss / sloughing within 24 hours) infected tissue in surprise-dead corals 
   surprise.dead.infections <- survey_trimmed %>%
     filter(coral_numID %in% surprise.dead$coral_numID) %>%
-    group_by(coral_numID) %>%
-    filter(!all(OM == 100)) %>%  # Exclude coral_numIDs with 100% old mortality before SCTLD surveying
-    ungroup() %>%
     mutate(
-      percinf = if_else(!is.na(percloss) & percloss > 0 & percloss != 100, percloss, NA_real_), #exclude corals that are 100% dead (from SCTLD)
       inftiss = if_else(!is.na(percinf),
-                        (percinf / 100) * tissue * start_perctiss,
+                        (percinf / 100) * starttiss,
                         NA_real_)
     ) %>%
     arrange(coral_numID, date)
-    
+  
   #update original dataframe with surprise-dead coral mortality
   survey_trimmed = survey_trimmed %>%
     left_join(
-      surprise.dead.infections %>% select(coral_numID, date, percinf, inftiss),
+      surprise.dead.infections %>% select(coral_numID, date, inftiss),
       by = c("coral_numID", "date")) %>%
     mutate(
-      percinf.x = coalesce(percinf.y, percinf.x),
       inftiss.x = coalesce(inftiss.y, inftiss.x)
     ) %>%
-    rename(percinf = percinf.x, inftiss = inftiss.x) %>%
-    select(-percinf.y, -inftiss.y) %>%
+    rename(inftiss = inftiss.x) %>%
+    select(-inftiss.y) %>%
     arrange(coral_numID, date)
   #
   # 'SURPRISE DEAD CORALS'
@@ -729,8 +683,8 @@
   for(i in 1:nrow(observed.infected)){
     
     # #test
-    # i = 589 #single out the problem coral (2_p27_t2_s0_c1_DSTO). this was a patient zero
-    # # i = 5 #first infected coral in dataframe
+    # # i = 589 #single out the problem coral (2_p27_t2_s0_c1_DSTO). this was a patient zero
+    # i = 5 #first infected coral in dataframe
     
     # Extract values from currIDsdates
     curr_values <- observed.infected %>%
@@ -745,9 +699,6 @@
     curr_ID = curr_values$ID
     currdate = curr_values$date
     
-    # dateind = match(curr_values$date, colnames(prograte))
-    # percloss = as.numeric(as.matrix(setDT(prograte)[coral_numID == curr_coral_ID, ])[dateind])
-    
     percloss <- prograte %>%
       filter(coral_numID == curr_coral_ID) %>%
       select(all_of(curr_values$date)) %>%
@@ -756,7 +707,7 @@
     
     IDslice = surveydiseased %>%
       filter(ID == curr_ID)
-    availtiss = IDslice$start_perctiss
+    starttiss = IDslice$starttiss
 
     # Only calculate if percloss is valid
     if(percloss > 0 & !is.na(percloss)){
@@ -787,17 +738,16 @@
         next
       }
       
-      # Calculate progdays and update in observed.infected
+      # Calculate #/days it took for the amount of loss observed to accumulate
       progdays = as.numeric(difftime(currdate, prevdate, units = "days"))
       observed.infected[i, "progdays"] <- progdays
       
-      # Calculate percinf and update in observed.infected
+      # Calculate backtracked % of coral tissue that was infected, each day, from prior timepoint until current observation
       percinf = percloss / progdays
       observed.infected[i-1, "percinf"] <- percinf
       
-      # Calculate inftiss and update in observed.infected
-      tissue = IDslice$tissue
-      inftiss = (percinf / 100) * tissue * availtiss
+      # Populate backtracked amount of tissue (SA) infected, from percentage value (percinf)
+      inftiss = (percinf / 100) * starttiss
       observed.infected[i-1, "inftiss"] <- inftiss
       
       # Update backtracked infection status
@@ -838,7 +788,10 @@
   surveydiseased <- surveydiseased %>%
     group_by(coral_numID) %>%
     arrange(date, .by_group = TRUE) %>%
-    mutate(cum_percloss = cumsum(replace_na(percloss, 0))) %>%
+    mutate(
+      cum_percloss = cumsum(replace_na(percloss, 0)),
+      cum_percloss = if_else(cum_percloss == 0, NA_real_, cum_percloss)  # Replace 0s with NA
+    ) %>%
     ungroup()
   
   #assign dead dates (first date when accumulated percloss is 100)
@@ -856,67 +809,85 @@
   survey_tissue = rbind(survey_trimmed, surveydiseased) %>%
     arrange(coral_numID, date)
   
-  #remove, rearrange, and rename columns for clarity
+  #remove, rearrange, and rename columns for clarity; update disease statuses for model
+  # NOTE - 3_p47_t1_s0_c4_MCAV, 3_p47_t6_s0_c17_CNAT, and 2_p28_t4_s0_c5_SSID are useful corals to check to make sure
+  #         intermittent/lapsed/recurrent infection statuses are populated correctly
   # NOTE - there may be timepoint-specific bleaching (thermal stress) data for each colony somewhere. can come up later in results revisions
   survey_tissue <- survey_tissue %>%
-    rename(BL = tot_stressed, BL_D = tot_both) %>%
+    rename(BL_field = tot_stressed, BL_D_model = tot_both) %>%
+    group_by(coral_numID) %>%
     mutate(
-      BL = case_when(
-        BL == "S" ~ "Y",
-        BL == "NS" ~ "N"
+      dead_date = if(any(!is.na(dead_date))) first(na.omit(dead_date)) else dead_date, #populate 'dead_date' before 10-30-2018
+      died = if(any(!is.na(dead_date))) "Y" else died, #mark coral as infected
+      status_model = if_else(!is.na(cum_percloss) & cum_percloss == 100, "Dead", status_model), # set status_model to 'Dead' if cum_percloss is 100 (redundant, for peace of mind)
+      status_model = if_else( #set 'status_model' to 'SCTLD' if there is active infection (redundant, for peace of mind)
+        status_model != "backtracked_SCTLD" & 
+          status_model != "SCTLD" & 
+          !is.na(cum_percloss) & 
+          cum_percloss > 0 & 
+          cum_percloss < 100, 
+        "SCTLD", 
+        status_model
+      ), 
+      status_model = if_else( #corals not actively infected (but marked 'Unknown' in field) are marked healthy
+        status_model == "Unknown", 
+        "Healthy", 
+        status_model
       ),
-      BL_D = case_when(
-        BL_D == "both" ~ "Y",
-        BL_D == "meh" ~ "N"
+      # status_model = if_else( #corals marked with % loss in field, but no *active* infection as defined by model, marked as 'halted_SCTLD'
+      #   !is.na(percloss) &
+      #     is.na(percinf) &
+      #     cum_percloss != 100,
+      #   "Halted_SCTLD", 
+      #   status_model
+      # )
+      status_model = if_else( #corals marked with % loss in field, but no *active* infection as defined by model, marked as 'halted_SCTLD'
+        !is.na(cum_percloss) &
+          cum_percloss != 100 &
+          is.na(percinf),
+        "Halted_SCTLD", 
+        status_model
       )
     ) %>%
-    filter(date >= as.Date("2018-08-17") & OM != 100) #remove pre-SCTLD temporal data and any corals that were 100% dead before SCTLD
-  #
-  # 'CORALS DOCUMENTED AS DISEASED'
-  
-  # REMOVED / REMAINING TISSUE CALCULATION
-  #
-  # STOPPING POINT - 13 SEP 2024
-  # NOTE - need to figure out getting the dead date (and cum_percloss etc.) to properly propagate before 10-30-2018 - or also I can just delete that timepoint
-  
-  # 2_p28_t1_s0_c9_MCAV for test coral
-  # STOPPING POINT / NOTE - 13 Sep 2024
-  #   - seeing here that 'backtracked_SCTLD' does not always fill correctly. check out '2_p28_t4_s0_c5_SSID'
-  #   - could also clean up columns: S, I, and R for tissue and percentage should be named and arranged accordingly
-  survey_tissue <- survey_tissue %>%
+    ungroup() %>%
     mutate(
-      cum_tissloss = (cum_percloss/100) * (tissue * start_perctiss),
-      remaintiss = (tissue * start_perctiss) - cum_tissloss,
-    )
-  
+      BL_field = case_when(
+        BL_field == "S" ~ "Y",
+        BL_field == "NS" ~ "N"
+      ),
+      BL_D_field = case_when( #mark coral as either 'Y' (cormorbid for disease & bleaching across timepoints) or 'N' (no comorbidity)
+        BL_field == "Y" & D_field == "Y" ~ "Y", 
+        BL_field == "N" | D_field == "N" ~ "N"
+      ),
+      BL_D_model = case_when( #mark coral as either 'Y' (cormorbid for disease & bleaching across timepoints) or 'N' (no comorbidity)
+        BL_field == "Y" & D_model == "Y" ~ "Y", 
+        BL_field == "N" | D_model == "N" ~ "N"
+      )
+    ) %>%
+    select(1:which(names(.) == "D_model"), BL_D_field, everything())  #reorder to place BL_D_field after D_model
+  #
   ### NOTE - code above assumes that tissue loss for 'unknown' reason is due to SCTLD (filter by value = 'Unknown' and look at percloss that is nonzero)
   ###           - there are 17 corals which experienced this, mostly LS/MS corals
   ###           - I checked all of them, and each ended up also having SCTLD in near or immediately adjacent timepoints - fair assumption that all loss was SCTLD
   ###           - Solenastrea might be a bit more susceptible than I'd thought. a few cases of total mortality in 3-4 weeks. also seeing evidence that 
   ###           -   PCLI can sustain long infections; might match up well with susceptibility knowledge from VI
-  
-  # # NOTE - after bringing in the old mortality information, the below-described coral was actually already dead prior to the start of
-  #           confirmed SCTLD monitoring. while it is certainly possible it actually died of SCTLD, since we can't say for sure, it is not
-  #           adding any infectious or removed tissue to the SIR model.
-  # #another special case for "true" patient zero Colpophyllia natans on 10-30-2018 which had suddenly died by that survey date. assume its 100%
-  # # tissue loss occurred over 3 weeks as well
-  # # NOTE - may be causing the infectious tissue "spark" to be too high, particularly at Midchannel! look back at this
-  # survey_tissue[survey_tissue$Coral_ID == '1_p23_t1_s0_c6_CNAT' & survey_tissue$date == '2018-10-30', ]$progdays = 21
-  # survey_tissue[survey_tissue$Coral_ID == '1_p23_t1_s0_c6_CNAT' & survey_tissue$date == '2018-10-30', ]$percinf = 100/21
-  # survey_tissue[survey_tissue$Coral_ID == '1_p23_t1_s0_c6_CNAT' & survey_tissue$date == '2018-10-30', ]$inftiss = (100/21/100)*(0.01773432)
-  
-  ### NOTE - there are a few corals with 'SCTLD' for their health status even after 100% percloss:
-  ###         - 3_p47_t3_s0_c8_PSTR
-  ###         - 3_p47_t3_s0_c15_CNAT
-  ###         - 3_p47_t7_s0_c2_PSTR
-  ###         - 1_p23_t1_s0_c5_DSTO
-  ###      - May have been a result of data cleaning from the original 2021 analysis, where active 'SCTLD' infection was noted in the
-  #           field, then in post-analysis, it was determined the coral was actually already dead (can check on this further if needed)
+  #
+  # 'CORALS DOCUMENTED AS DISEASED'
+
+  # REMOVED / REMAINING TISSUE CALCULATION
+  #
+  survey_tissue <- survey_tissue %>%
+    mutate(
+      cum_tissloss = (cum_percloss/100) * starttiss,
+      remaintiss = starttiss - cum_tissloss,
+    )
   #
   # REMOVED / REMAINING TISSUE CALCULATION
   
-  #make special case for patient zero 2_p27_t2_s0_c1_DSTO on 10-30-2018 since loops don't handle its exception. assume its 90%
-  # tissue loss occurred over 14 days since we don't have info except 3 months prior when colony was healthy
+  # PATIENT ZERO SPECIAL CASE
+  #
+  #true patient zero is 2_p27_t2_s0_c1_DSTO on 10-30-2018. assume its 90% tissue loss occurred over 14 days since we don't have info
+  #   except 3 months prior when colony was healthy
   progdays.new <- 14
   reference_date <- ymd('2018-10-30')
   new_date <- reference_date - days(progdays.new) #backtrack 14 days from surprise-dead day of 10-30-2018
@@ -930,15 +901,22 @@
     # select(-date) # Remove the date column to replace it with the new date
   
   # Calculate inftiss
-  inftiss.new <- (percinf.new / 100) * coral_row$tissue * coral_row$start_perctiss
+  inftiss.new <- (percinf.new / 100) * coral_row$starttiss
   
   # Create the new row with the calculated values
   new_row <- coral_row %>%
     mutate(
       date = new_date,
-      progdays = progdays.new,
+      status_field = NA_character_,
+      status_model = 'patientzero_SCTLD',
+      percloss = NA_real_,
+      cum_percloss = NA_real_,
+      progdays = NA_real_,
+      remaintiss = NA_real_,
+      # progdays = progdays.new,
       percinf = percinf.new,
       inftiss = inftiss.new,
+      cum_tissloss = NA_real_,
       ID_SIR = coral_row$ID,
       ID = NA  # Set ID to NA for the new row
     )
@@ -952,42 +930,62 @@
       ID_SIR = ifelse(is.na(ID_SIR), ID, ID_SIR),  # Keep the correct `ID_SIR`
       ID_SIR = ifelse(
         ID >= new_row$ID_SIR & !is.na(ID), ID_SIR + 1, ID_SIR  # Increment after new row
-      )
+      ),
+      progdays = ifelse(coral_long_ID == '2_p27_t2_s0_c1_DSTO' & #update forward-tracked days of progression since backtracked prior date
+                          date == '2018-10-30',
+                        progdays.new,
+                        progdays)
     )
-  
-  # STOPPING POINT - Sep 13 2024
-  #   - almost there!!!!
-  #   - I don't think I was handling the patient zero coral quite right. something is awry there with the two '90' percloss values
-  #   - in addition to above stopping points, need to add in something that double-checks 'BL', 'D', 'BL_D', and 'status' actually make
-  #       sense with the surprise dead corals included in the dataset as dead from SCTLD. I think just 'D' and 'status' need to be
-  #       looked at [update - yes, 'BL' is fully from field data that I cannot corroborate, so take it as truth, and update 'D'
-  #       perhaps as 'D_model', and rename 'D' to 'D_field'. 'BL_D' should be updated accordingly. 'status' is taken care of]
   #
-
+  # PATIENT ZERO SPECIAL CASE
+  
   # AGGREGATE DATA INTO SUMMARY TABLES
   #
+  
+  
+  
   ###sum tissue cover values across colonies into bins (Site, Sus_Cat, Date)
   survey_tissue$date_factor = as.factor(survey_tissue$date)
   levels(survey_tissue$date_factor)
-  
-  # STOPPING POINT - should decide if 2018-08-17 timepoint (T1 now) is required at all - I don't think so. patient zero 2018-10-16 should
-  # be all that is needed
+
   survey_tissue = within(survey_tissue, {
     Timepoint = paste("T", factor(date_factor, labels=seq(unique(date_factor))), sep="")
   })
-  
+
   survey_tissue$fill = survey_tissue$tissue*(1-survey_tissue$OM/100)
   indices = which(is.na(survey_tissue$remaintiss))
   survey_tissue$remaintiss[is.na(survey_tissue$remaintiss)] = survey_tissue$fill[indices]
   survey_tissue = survey_tissue[,-which(colnames(survey_tissue) %in% 'fill')]
-  
+
   #clean up dataframe
   survey_tissue$Site_type = as.factor(survey_tissue$site)
   survey_tissue$Timepoint = as.factor(survey_tissue$Timepoint)
   survey_tissue = subset(survey_tissue, select = -date_factor)
-  
+
   #remove the SCTLD-unaffected corals from the simulation entirely. they should not be included in the infection "pool"
   survey_tissue = survey_tissue[!grepl('Unaffected', survey_tissue$Sus_Cat),]
+  
+  
+  
+  # survey_tissue2 <- survey_tissue %>%
+  #   ### sum tissue cover values across colonies into bins (Site, Sus_Cat, Date)
+  #   mutate(date_factor = as.factor(date)) %>%
+  #   mutate(Timepoint = paste("T", factor(date_factor, labels = seq_along(unique(date_factor))), sep = "")) %>%
+  #   mutate(fill = tissue * (1 - OM / 100)) %>%
+  #   mutate(remaintiss = ifelse(is.na(remaintiss), fill, remaintiss)) %>%
+  #   select(-fill) %>%
+  #   
+  #   # clean up dataframe
+  #   mutate(Site_type = as.factor(site), 
+  #          Timepoint = as.factor(Timepoint)) %>%
+  #   select(-date_factor) %>%
+  #   
+  #   # remove the SCTLD-unaffected corals from the simulation entirely. they should not be included in the infection "pool"
+  #   filter(!grepl('Unaffected', Sus_Cat))
+  
+  
+  
+  
   
   #summary table for infected tissue carpet at plot level
   cols = c("Site_type", "date", "Timepoint", "Plot", "Sus_Cat")
