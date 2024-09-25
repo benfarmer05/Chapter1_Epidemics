@@ -13,9 +13,9 @@
   
   #   LOW SUSCEPTIBILITY (LS)
   #         - Slow onset/slow tissue loss [SSID] -> high cover
-  #         - Moderate onset/slow tissue loss [SINT, PCLI] -> high cover
+  #         - moderate onset/slow tissue loss [SINT, PCLI] -> high cover
   #   MODERATE SUSCEPTIBILITY (MS)
-  #         - Moderate onset/moderate tissue loss [MCAV] -> moderate cover
+  #         - moderate onset/moderate tissue loss [MCAV] -> moderate cover
   #         - Fast onset/slow tissue loss [OANN, OFAV] -> low cover
   #         - Fast onset/moderate tissue loss [SBOU] -> low cover
   #   HIGH SUSCEPTIBILITY (HS)
@@ -38,12 +38,13 @@
       ),
       spp = as.factor(spp),
       susc = case_when(
-        spp %in% c('PCLI', 'SINT', 'SSID') ~ 'LS', #lowest rates of progression - however, OANN/OFAB have short disease onset time
-        spp %in% c('OANN', 'OFAV', 'MCAV', 'SBOU') ~ 'MS', #moderate rates of progression - but MCAV slow disease onset! SBOU quick onset
-        spp %in% c('CNAT', 'DLAB', 'DSTO', 'MMEA', 'MYCE', 'PSTR') ~ 'HS', #quickest rates of  progression and shortest disease onset times
+        spp %in% c('PCLI', 'SINT', 'SSID') ~ 'low', #lowest rates of progression - however, OANN/OFAB have short disease onset time
+        spp %in% c('OANN', 'OFAV', 'MCAV', 'SBOU') ~ 'moderate', #moderate rates of progression - but MCAV slow disease onset! SBOU quick onset
+        spp %in% c('CNAT', 'DLAB', 'DSTO', 'MMEA', 'MYCE', 'PSTR') ~ 'high', #quickest rates of  progression and shortest disease onset times
         spp %in% c('AAGA', 'ACER', 'OCUL', 'ODIF', 'PAST', 'PDIV', 'PPOR', 'SRAD') ~ 'Unaffected'
       )
     ) %>%
+    filter(!grepl('Unaffected', susc)) %>% #remove presumed SCTLD-unaffected corals, mainly PAST
     select(-coords_x, -coords_y, -total, -total_bin, -days_dis, -weeks_dis) # NOTE - could further analyze days/weeks diseased for stats
 
   #pull middle Florida Keys (Sharp et al. 2020) dataset, which had similar data as 'survey' but measured colonies in 3 dimensions
@@ -597,6 +598,7 @@
     group_by(coral_numID) %>%
     arrange(date, .by_group = TRUE) %>%
     mutate(cum_percloss = cumsum(replace_na(percloss, 0))) %>%
+    mutate(cum_percloss = replace(cum_percloss, cum_percloss == 0, NA)) %>% #replace 0's pre-SCTLD with NA
     ungroup()
   
   #update backtracked SCTLD-infected status for the timepoint prior to the surprise-dead date
@@ -874,12 +876,17 @@
   #
   # 'CORALS DOCUMENTED AS DISEASED'
 
+  
+  #check out 3_p45_t10_s5_c12_PSTR
+  
+  
   # REMOVED / REMAINING TISSUE CALCULATION
   #
   survey_tissue <- survey_tissue %>%
     mutate(
       cum_tissloss = (cum_percloss/100) * starttiss,
-      remaintiss = starttiss - cum_tissloss,
+      remaintiss = starttiss - ifelse(is.na(inftiss), 0, inftiss) - ifelse(is.na(cum_tissloss), 0, cum_tissloss), #subtract non-NA infected and accumulated dead tissue from starting tissue to get remaining tissue
+      remaintiss = coalesce(remaintiss, starttiss)  #anywhere 'remaintiss' is NA (no tissue loss has begun), revert to starting tissue value
     )
   #
   # REMOVED / REMAINING TISSUE CALCULATION
@@ -912,10 +919,10 @@
       percloss = NA_real_,
       cum_percloss = NA_real_,
       progdays = NA_real_,
-      remaintiss = NA_real_,
       # progdays = progdays.new,
       percinf = percinf.new,
       inftiss = inftiss.new,
+      remaintiss = starttiss - inftiss,
       cum_tissloss = NA_real_,
       ID_SIR = coral_row$ID,
       ID = NA  # Set ID to NA for the new row
@@ -935,110 +942,131 @@
                           date == '2018-10-30',
                         progdays.new,
                         progdays)
-    )
+    ) %>%
+    select(1:which(names(.) == "ID"), ID_SIR, everything())
   #
   # PATIENT ZERO SPECIAL CASE
   
   # AGGREGATE DATA INTO SUMMARY TABLES
   #
-  
-  
-  
-  ###sum tissue cover values across colonies into bins (Site, Sus_Cat, Date)
-  survey_tissue$date_factor = as.factor(survey_tissue$date)
-  levels(survey_tissue$date_factor)
-
-  survey_tissue = within(survey_tissue, {
-    Timepoint = paste("T", factor(date_factor, labels=seq(unique(date_factor))), sep="")
-  })
-
-  survey_tissue$fill = survey_tissue$tissue*(1-survey_tissue$OM/100)
-  indices = which(is.na(survey_tissue$remaintiss))
-  survey_tissue$remaintiss[is.na(survey_tissue$remaintiss)] = survey_tissue$fill[indices]
-  survey_tissue = survey_tissue[,-which(colnames(survey_tissue) %in% 'fill')]
-
-  #clean up dataframe
-  survey_tissue$Site_type = as.factor(survey_tissue$site)
-  survey_tissue$Timepoint = as.factor(survey_tissue$Timepoint)
-  survey_tissue = subset(survey_tissue, select = -date_factor)
-
-  #remove the SCTLD-unaffected corals from the simulation entirely. they should not be included in the infection "pool"
-  survey_tissue = survey_tissue[!grepl('Unaffected', survey_tissue$Sus_Cat),]
-  
-  
-  
-  # survey_tissue2 <- survey_tissue %>%
-  #   ### sum tissue cover values across colonies into bins (Site, Sus_Cat, Date)
-  #   mutate(date_factor = as.factor(date)) %>%
-  #   mutate(Timepoint = paste("T", factor(date_factor, labels = seq_along(unique(date_factor))), sep = "")) %>%
-  #   mutate(fill = tissue * (1 - OM / 100)) %>%
-  #   mutate(remaintiss = ifelse(is.na(remaintiss), fill, remaintiss)) %>%
-  #   select(-fill) %>%
-  #   
-  #   # clean up dataframe
-  #   mutate(Site_type = as.factor(site), 
-  #          Timepoint = as.factor(Timepoint)) %>%
-  #   select(-date_factor) %>%
-  #   
-  #   # remove the SCTLD-unaffected corals from the simulation entirely. they should not be included in the infection "pool"
-  #   filter(!grepl('Unaffected', Sus_Cat))
-  
-  
-  
-  
-  
-  #summary table for infected tissue carpet at plot level
-  cols = c("Site_type", "date", "Timepoint", "Plot", "Sus_Cat")
-  tissue.summary.plots = survey_tissue %>%
-    group_by(across(all_of(cols))) %>%
-    summarize(plot.sustiss = sum(remaintiss, na.rm = TRUE),
-              plot.inftiss = sum(inftiss, na.rm = TRUE),
-              plot.remtiss = sum(removedtiss, na.rm = TRUE),
-              num.inf = across(starts_with("inf"), ~ sum(.x != 0, na.rm = TRUE)),
-              census = n()
+  # Add timepoints and compute summaries
+  summary_grouped <- survey_tissue %>%
+    mutate(TP = sprintf("%02d", dense_rank(date))) %>%
+    group_by(site, date, TP, susc) %>%
+    mutate(
+      is_susceptible = ifelse(is.na(inftiss) & (is.na(cum_percloss) | cum_percloss != 100), 1, 0),  # Temporary column for susceptible corals
+      is_infected = ifelse(inftiss > 0, 1, 0),  # Temporary column for infected corals
+      is_dead = ifelse(cum_percloss == 100, 1, 0)  # Temporary column for dead corals
+    ) %>%
+    summarise(
+      tottiss = sum(remaintiss, inftiss, cum_tissloss, na.rm = TRUE),
+      sustiss = sum(remaintiss, na.rm = TRUE),
+      inftiss = sum(inftiss, na.rm = TRUE),
+      deadtiss = sum(cum_tissloss, na.rm = TRUE),
+      totnum = n(),  # Count of all entries in the group
+      susnum = sum(is_susceptible, na.rm = TRUE),  # Count susceptible corals
+      infnum = sum(is_infected, na.rm = TRUE),  # Count infected corals
+      deadnum = sum(is_dead, na.rm = TRUE),  # Count dead corals
+      .groups = 'drop'  # Ungroup after summarizing
+    ) %>%
+    complete(site, TP, susc, fill = list(tottiss = NA, sustiss = NA, inftiss = NA, deadtiss = NA, totnum = NA, susnum = NA,
+                                         infnum = NA, deadnum = NA)) %>%
+    group_by(site, susc) %>% 
+    mutate( #fill NA values for backtracked patient zero timepoint using subsequent timepoint. requires further cleaning, as below
+      tottiss = ifelse(TP == "01" & is.na(tottiss), lead(tottiss, default = NA), tottiss),
+      sustiss = ifelse(TP == "01" & is.na(sustiss), lead(sustiss, default = NA), sustiss),
+      inftiss = ifelse(TP == "01" & is.na(inftiss), lead(inftiss, default = NA), inftiss),
+      deadtiss = ifelse(TP == "01" & is.na(deadtiss), lead(deadtiss, default = NA), deadtiss),
+      totnum = ifelse(TP == "01" & is.na(totnum), lead(totnum, default = NA), totnum),
+      susnum = ifelse(TP == "01" & is.na(susnum), lead(susnum, default = NA), susnum),
+      infnum = ifelse(TP == "01" & is.na(infnum), lead(infnum, default = NA), infnum),
+      deadnum = ifelse(TP == "01" & is.na(deadnum), lead(deadnum, default = NA), deadnum)
+    ) %>%
+    ungroup() %>%
+    mutate( #properly update 'tottiss' and 'sustiss' values for patient zero timepoint
+      #handle high-susceptibles (which contain patient zero)
+      tottiss = ifelse(site == "off" & TP == "01" & susc == "high",
+                       tottiss[site == "off" & TP == "02" & susc == "high"], 
+                       tottiss),
+      sustiss = ifelse(site == "off" & TP == "01" & susc == "high",
+                       tottiss[site == "off" & TP == "02" & susc == "high"] - inftiss[site == "off" & TP == "01" & susc == "high"], 
+                       sustiss),
+      totnum = ifelse(site == "off" & TP == "01" & susc == "high",
+                      totnum[site == "off" & TP == "02" & susc == "high"],
+                      totnum),
+      susnum = ifelse(site == "off" & TP == "01" & susc == "high",
+                      totnum[site == "off" & TP == "02" & susc == "high"] - infnum[site == "off" & TP == "01" & susc == "high"],
+                      susnum),
+      #handle moderate-susceptibles (which do not contain patient zero but do get infected in the subsequent timepoint)
+      sustiss = ifelse(site == "off" & TP == "01" & susc == "moderate", 
+                       tottiss, 
+                       sustiss),
+      inftiss = ifelse(site == "off" & TP == "01" & susc == "moderate", 
+                       0, 
+                       inftiss),
+      susnum = ifelse(site == "off" & TP == "01" & susc == "moderate", 
+                      totnum, 
+                      susnum),
+      infnum = ifelse(site == "off" & TP == "01" & susc == "moderate", 
+                      0, 
+                      infnum)
     )
   
-  #silly column naming procedure because of R quirk
-  temp = as.vector(tissue.summary.plots$num.inf)
-  temp = temp[[1]]
-  tissue.summary.plots = subset(tissue.summary.plots, select = -num.inf)
-  tissue.summary.plots$num.inf = temp
+  #populate dates for patient zero timepoint
+  summary_grouped$date[summary_grouped$TP == "01"] <- as.POSIXct("2018-10-16")
   
-  # NOTE - including surprise-dead unaffected corals (there were 2 OCUL & 1 PAST as infected, but not including unaffected corals in
-  #         census count since so few of them ever "died" of SCTLD
-  cols = c("Site_type", "date", "Timepoint")
-  tissue.summary = tissue.summary.plots %>%
-    group_by(across(all_of(cols))) %>%
+  #further summary
+  # NOTE - infections are always zero for the final timepoint of the study. this is because there is no further timepoint with which to
+  #         backtrack infections to. it is a limitation of the approach, but I think the best choice for the available data
+  summary = summary_grouped %>%
+    group_by(site, date, TP) %>%
     summarize(
       
-      tot.sustiss = sum(plot.sustiss[Sus_Cat=="LS"]) + sum(plot.sustiss[Sus_Cat=="MS"]) + sum(plot.sustiss[Sus_Cat=="HS"]), #excluding unaffected
-      LS.sustiss = sum(plot.sustiss[Sus_Cat=="LS"]),
-      MS.sustiss = sum(plot.sustiss[Sus_Cat=="MS"]),
-      HS.sustiss = sum(plot.sustiss[Sus_Cat=="HS"]),
+      #low-susceptibility
+      low.sustiss = sum(sustiss[susc=="low"]),
+      low.inftiss = sum(inftiss[susc=="low"]),
+      low.deadtiss = sum(deadtiss[susc=="low"]),
+      
+      low.susnum = sum(susnum[susc=="low"]),
+      low.infnum = sum(infnum[susc=="low"]),
+      low.deadnum = sum(deadnum[susc=="low"]),
+      
+      #moderate-susceptibility
+      moderate.sustiss = sum(sustiss[susc=="moderate"]),
+      moderate.inftiss = sum(inftiss[susc=="moderate"]),
+      moderate.deadtiss = sum(deadtiss[susc=="moderate"]),
+      
+      moderate.susnum = sum(susnum[susc=="moderate"]),
+      moderate.infnum = sum(infnum[susc=="moderate"]),
+      moderate.deadnum = sum(deadnum[susc=="moderate"]),
+      
+      #high-susceptibility
+      high.sustiss = sum(sustiss[susc=="high"]),
+      high.inftiss = sum(inftiss[susc=="high"]),
+      high.deadtiss = sum(deadtiss[susc=="high"]),
 
-      tot.inftiss = sum(plot.inftiss[Sus_Cat=="LS"]) + sum(plot.inftiss[Sus_Cat=="MS"]) + sum(plot.inftiss[Sus_Cat=="HS"]), #excluding (very few) infected "unaffected"
-      LS.inftiss = sum(plot.inftiss[Sus_Cat=="LS"]),
-      MS.inftiss = sum(plot.inftiss[Sus_Cat=="MS"]),
-      HS.inftiss = sum(plot.inftiss[Sus_Cat=="HS"]),
-
-      tot.remtiss = sum(plot.remtiss[Sus_Cat=="LS"]) + sum(plot.remtiss[Sus_Cat=="MS"]) + sum(plot.remtiss[Sus_Cat=="HS"]),
-      LS.remtiss = sum(plot.remtiss[Sus_Cat=="LS"]),
-      MS.remtiss = sum(plot.remtiss[Sus_Cat=="MS"]),
-      HS.remtiss = sum(plot.remtiss[Sus_Cat=="HS"]),
-
-      tot.susnum = sum(census[Sus_Cat=="LS"]) + sum(census[Sus_Cat=="MS"]) + sum(census[Sus_Cat=="HS"]), #excluding unaffected
-      LS.susnum = sum(census[Sus_Cat=="LS"]),
-      MS.susnum = sum(census[Sus_Cat=="MS"]),
-      HS.susnum = sum(census[Sus_Cat=="HS"]),
-
-      tot.infnum = sum(num.inf[Sus_Cat=="LS"]) + sum(num.inf[Sus_Cat=="MS"]) + sum(num.inf[Sus_Cat=="HS"]), #excluding (very few) infected "unaffected"
-      LS.infnum = sum(num.inf[Sus_Cat=="LS"]),
-      MS.infnum = sum(num.inf[Sus_Cat=="MS"]),
-      HS.infnum = sum(num.inf[Sus_Cat=="HS"]),
+      high.susnum = sum(susnum[susc=="high"]),
+      high.infnum = sum(infnum[susc=="high"]),
+      high.deadnum = sum(deadnum[susc=="high"]),
+      
+      #total
+      tot.sustiss = low.sustiss + moderate.sustiss + high.sustiss,
+      tot.inftiss = low.inftiss + moderate.inftiss + high.inftiss,
+      tot.deadtiss = low.deadtiss + moderate.deadtiss + high.deadtiss,
+      
+      tot.susnum = low.susnum + moderate.susnum + high.susnum,
+      tot.infnum = low.infnum + moderate.infnum + high.infnum,
+      tot.deadnum = low.deadnum + moderate.deadnum + high.deadnum
     )
   
+  
+  # STOPPING POINT - 25 SEP 2024
+  #   - Made great progress; looks like the summary tables are totally done
+  #   - Now just chug directly into the below section
+  
+  
   #incorporate days since first infection for each site
-  sites = levels(tissue.summary$Site_type)
+  sites = levels(as.factor(summary)$site)
   tissue.summary['Day'] = NA
   tissue.summary$Day[is.na(tissue.summary$Day)] = 0
   list(time_list <- vector("list", length = length(sites)))
