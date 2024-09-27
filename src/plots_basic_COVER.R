@@ -270,7 +270,7 @@
 
   # polyp_SA = min(inftiss[1:5])/5
   polyp_SA = inftiss[1]/5
-
+  
   # I.offshore = 1e-4 #m2 - equivalent to 100 mm2, which is a rough approximation of a fully infected medium-sized coral polyp
   I.offshore = polyp_SA
   S.offshore = S0.tot.sustiss - I.offshore

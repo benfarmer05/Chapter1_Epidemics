@@ -1,37 +1,16 @@
   
-  
-  # some thoughts:
-  #   - this seemed to work better when I was working with numbers really close to, but below, 1.0. struggling
-  #       when working with values close to, but ABOVE, 1.0.
-  #   - why might that be?
-  #   - I was getting R0's that made more sense on January 26th, and also earlier in the afternoon Jan 29 (check Box version control)
-  #
-  #   - I tested something below where 1.0 is the limit for a coral cover of 100%...but not the same as what worked well before.
-  #       - with a lambda of 1.0, you end up with a very large effect of coral cover on transmission. this means that wonky things can
-  #           happen
-  #   - theoretically, should there not be some very large lambda value for which coral cover explains so much of transmission that
-  #       a cross-site transfer of beta from Nearshore to Offshore / Midchannel simply results in zero outbreak?
-  #         - that's what I was seeing before (like with the sqrt function directly), where past certain thresholds, there is either
-  #           zero outbreak after the transfer, or an outbreak that reduces to exactly the Nearshore outbreak, proportionally
-  #             - I should probably get this back to that place. and maybe hit a stopping point and move on to the multi-group model again
-  #   - okay! I sort of hit that point again: a lambda of 3.0 does indeed result in no outbreak for Midchannel & Offshore
-  #
-  #   - one takeway I've got is, it seems like it might be really important to have values close to 1.0 so that the infection
-  #       can take off quickly early in the outbreak. the total removal can get close with current methods below when transfering
-  #       between sites, but there's usually a phase difference (temporal mismatch). consider looking at the other functions again, like
-  #       a simple square root or the exponential one Dan did. these might provide clues too
-  #         - part of the problem is that when I change lambda, it's changing the relationship of ALL sites to cover, but also
-  #             their relationship with each other
-  
+  # .rs.restartR(clean = TRUE)
   rm(list=ls())
-  
-  load("FLKEYS_workspace.RData")
-  
-  library(tidyverse)
-  library(DEoptim)
-  library(deSolve)
 
-  # #ONLY if you want to exclude degree-heating weeks (DHW or DHWs)
+  library(here)
+  library(tidyverse)
+  # library(DEoptim)
+  # library(deSolve)
+  
+  #import workspace from FLKEYS_data_processing.R
+  load(here("output", "data_processing_workspace.RData"))
+  
+  # #ONLY if intending to exclude degree-heating weeks (DHW or DHWs)
   # DHW.modifier = 8 #10
   # tissue.summary = tissue.summary %>%
   #   group_by(Site_type) %>%
@@ -77,59 +56,82 @@
     })
   }
   
+  sites = unique(summary$site)
+  # list(time_list <- vector("list", length = length(sites)))
+  
   my.SIRS = vector('list', length(sites))
   params = vector('list', length(sites))
   
   for(i in 1:length(sites)){
-    site = sites[i]
+    site.loop = sites[i]
   
-    # site = "Midchannel" #for testing purposes
+    # site.loop = "mid" #for testing purposes
     # i = 1
-    # site = "Nearshore" #for testing purposes
+    # site.loop = "near" #for testing purposes
     # i = 2
-    # site = "Offshore" #for testing purposes
+    # site.loop = "off" #for testing purposes
     # i = 3
     
-    days = tissue.summary %>% na.omit() %>% filter(Site_type == site) %>% pull(Day)
+    days = summary %>%
+      drop_na(days.survey) %>%
+      filter(site == site.loop) %>%
+      pull(days.survey)
     
     ###tissue SA & counts of susceptible (healthy) hosts at the start of monitoring
     # also, selecting the correct starting polyp_SA for later in the loop
     prev.timepoint = ''
-    if(site == 'Nearshore'){
-      prev.timepoint = 'T11' #timepoint before first documented infection timepoint [site specific]
-      polyp_SA = polyp_SA.nearshore[[1]]
+    if(site == 'near'){
+      prev.timepoint = '07' #timepoint before first documented infection timepoint [site specific]
+      # polyp_SA = polyp_SA.nearshore[[1]]
       area.site = 200 #meters squared, 2D. this could be changed to reflect available 3D substrate within the site, but we don't have that
-    } else if(site == "Midchannel"){
-      prev.timepoint = 'T7'
-      polyp_SA = polyp_SA.midchannel[[1]]
+    } else if(site == "mid"){
+      prev.timepoint = '03'
+      # polyp_SA = polyp_SA.midchannel[[1]]
       area.site = 200
     } else{ #offshore
-      prev.timepoint = 'T5'
-      polyp_SA = polyp_SA.offshore[[1]]
+      prev.timepoint = '01'
+      # polyp_SA = polyp_SA.offshore[[1]]
       area.site = 200
     }
     
-    time = time_list[[i]]
+    # STOPPING POINT - 27 SEP 2024
+    # - okay, this was pretty intensive. trying to update this code with new dependencies / variable names from data_processing script
+    # - need to get this old version working again, which involves figuring out 'days' / 'time' and 'poly_SA'. once that is squared away,
+    #     I think it would be smart to start migrating everything over to the style set up in 'temp.R'. this should make it easier to
+    #     build off of main list of functions from which to pull and edit for basic SIR vs grouped SIR. that was always an issue before
+    # - and then it's a matter of making sure the SIR output still makes sense! assuming it does, make sure it looks good for the grouped
+    #     SIR as well
+    # - from there, need to bring in effect of DHWs. consider writing 1-2 hr/day M/T/W to get the bones together, and then really work
+    #     hard on Thursday to get a narrative together for the discussion section
+    #
+    # - other general thoughts:
+    #     - would be nice to return to the plots of varying coral covers and compositions. confused about where that went
+    #     - try to fit all three sites with one algorithm?
+    #     - more than anything, focus on simplicity and what will get a paper out. can always add more analyses down the road, but it is
+    #         critical to get this submitted to Ecology ASAP
+    
+    
+    # time = time_list[[i]]
     
     # polyp_SA = 1e-4 #m2 - equivalent to 100 mm2, which is a rough approximation of a fully infected medium-sized coral polyp
     
-    S0.snapshot = subset(tissue.summary, Site_type==site & Timepoint == prev.timepoint)
+    S0.snapshot = subset(summary, site==site & TP == prev.timepoint)
     N.site = S0.snapshot$tot.sustiss
     cover.site = N.site / area.site * 0.3 #0.2840909 (~1:3X) is the ratio of our tissue density to CPCe-based cover (Williams et al. 2021)
     
     #sequence of infected & removed SA's for each SusCat within site. remove timepoints before the first infection (zero omit)
-    LS.inftiss = obs %>% filter(Site == site, Category == "LS", Compartment == "Infected") %>% pull(prop)
-    MS.inftiss = obs %>% filter(Site == site, Category == "MS", Compartment == "Infected") %>% pull(prop)
-    HS.inftiss = obs %>% filter(Site == site, Category == "HS", Compartment == "Infected") %>% pull(prop)
+    LS.inftiss = obs %>% filter(Site == site, Category == "LS", Compartment == "Infected") %>% pull(tissue)
+    MS.inftiss = obs %>% filter(Site == site, Category == "MS", Compartment == "Infected") %>% pull(tissue)
+    HS.inftiss = obs %>% filter(Site == site, Category == "HS", Compartment == "Infected") %>% pull(tissue)
     inftiss = LS.inftiss+MS.inftiss+HS.inftiss
     
     # polyp_SA = min(inftiss[1:5])/5
     # polyp_SA = inftiss[1]/1.5
     polyp_SA = min(inftiss[1:5])/1.5
     
-    LS.remtiss = obs %>% filter(Site == site, Category == "LS", Compartment == "Dead") %>% pull(prop)
-    MS.remtiss = obs %>% filter(Site == site, Category == "MS", Compartment == "Dead") %>% pull(prop)
-    HS.remtiss = obs %>% filter(Site == site, Category == "HS", Compartment == "Dead") %>% pull(prop)
+    LS.remtiss = obs %>% filter(Site == site, Category == "LS", Compartment == "Dead") %>% pull(tissue)
+    MS.remtiss = obs %>% filter(Site == site, Category == "MS", Compartment == "Dead") %>% pull(tissue)
+    HS.remtiss = obs %>% filter(Site == site, Category == "HS", Compartment == "Dead") %>% pull(tissue)
     remtiss = LS.remtiss+MS.remtiss+HS.remtiss
     
     #initial conditions

@@ -510,8 +510,8 @@
       died = 'N'
     ) %>%
     rename(coral_long_ID = Coral_ID) %>%
-    # filter(date >= as.Date("2018-08-17")) %>% #remove pre-SCTLD timepoints
-    filter(date >= as.Date("2018-10-30")) %>% #remove pre-SCTLD timepoints
+    filter(date >= as.Date("2018-08-17")) %>% #remove pre-SCTLD timepoints except for one, to easily establish pre-SCTLD susceptible tissue
+    # filter(date >= as.Date("2018-10-30")) %>% #remove pre-SCTLD timepoints
     arrange(coral_numID, date) #sort by coral ID/date to ensure proper temporal analysis downstream
   
   #filter down to post-SCTLD introduction (October 30th 2018) infections
@@ -969,47 +969,48 @@
                                          infnum = NA, deadnum = NA)) %>%
     group_by(site, susc) %>% 
     mutate( #fill NA values for backtracked patient zero timepoint using subsequent timepoint. requires further cleaning, as below
-      tottiss = ifelse(TP == "01" & is.na(tottiss), lead(tottiss, default = NA), tottiss),
-      sustiss = ifelse(TP == "01" & is.na(sustiss), lead(sustiss, default = NA), sustiss),
-      inftiss = ifelse(TP == "01" & is.na(inftiss), lead(inftiss, default = NA), inftiss),
-      deadtiss = ifelse(TP == "01" & is.na(deadtiss), lead(deadtiss, default = NA), deadtiss),
-      totnum = ifelse(TP == "01" & is.na(totnum), lead(totnum, default = NA), totnum),
-      susnum = ifelse(TP == "01" & is.na(susnum), lead(susnum, default = NA), susnum),
-      infnum = ifelse(TP == "01" & is.na(infnum), lead(infnum, default = NA), infnum),
-      deadnum = ifelse(TP == "01" & is.na(deadnum), lead(deadnum, default = NA), deadnum)
+      tottiss = ifelse(TP == "02" & is.na(tottiss), lead(tottiss, default = NA), tottiss),
+      sustiss = ifelse(TP == "02" & is.na(sustiss), lead(sustiss, default = NA), sustiss),
+      inftiss = ifelse(TP == "02" & is.na(inftiss), lead(inftiss, default = NA), inftiss),
+      deadtiss = ifelse(TP == "02" & is.na(deadtiss), lead(deadtiss, default = NA), deadtiss),
+      totnum = ifelse(TP == "02" & is.na(totnum), lead(totnum, default = NA), totnum),
+      susnum = ifelse(TP == "02" & is.na(susnum), lead(susnum, default = NA), susnum),
+      infnum = ifelse(TP == "02" & is.na(infnum), lead(infnum, default = NA), infnum),
+      deadnum = ifelse(TP == "02" & is.na(deadnum), lead(deadnum, default = NA), deadnum)
     ) %>%
     ungroup() %>%
     mutate( #properly update 'tottiss' and 'sustiss' values for patient zero timepoint
       #handle high-susceptibles (which contain patient zero)
-      tottiss = ifelse(site == "off" & TP == "01" & susc == "high",
-                       tottiss[site == "off" & TP == "02" & susc == "high"], 
+      tottiss = ifelse(site == "off" & TP == "02" & susc == "high",
+                       tottiss[site == "off" & TP == "03" & susc == "high"], 
                        tottiss),
-      sustiss = ifelse(site == "off" & TP == "01" & susc == "high",
-                       tottiss[site == "off" & TP == "02" & susc == "high"] - inftiss[site == "off" & TP == "01" & susc == "high"], 
+      sustiss = ifelse(site == "off" & TP == "02" & susc == "high",
+                       tottiss[site == "off" & TP == "03" & susc == "high"] - inftiss[site == "off" & TP == "02" & susc == "high"], 
                        sustiss),
-      totnum = ifelse(site == "off" & TP == "01" & susc == "high",
-                      totnum[site == "off" & TP == "02" & susc == "high"],
+      totnum = ifelse(site == "off" & TP == "02" & susc == "high",
+                      totnum[site == "off" & TP == "03" & susc == "high"],
                       totnum),
-      susnum = ifelse(site == "off" & TP == "01" & susc == "high",
-                      totnum[site == "off" & TP == "02" & susc == "high"] - infnum[site == "off" & TP == "01" & susc == "high"],
+      susnum = ifelse(site == "off" & TP == "02" & susc == "high",
+                      totnum[site == "off" & TP == "03" & susc == "high"] - infnum[site == "off" & TP == "02" & susc == "high"],
                       susnum),
       #handle moderate-susceptibles (which do not contain patient zero but do get infected in the subsequent timepoint)
-      sustiss = ifelse(site == "off" & TP == "01" & susc == "moderate", 
+      sustiss = ifelse(site == "off" & TP == "02" & susc == "moderate", 
                        tottiss, 
                        sustiss),
-      inftiss = ifelse(site == "off" & TP == "01" & susc == "moderate", 
+      inftiss = ifelse(site == "off" & TP == "02" & susc == "moderate", 
                        0, 
                        inftiss),
-      susnum = ifelse(site == "off" & TP == "01" & susc == "moderate", 
+      susnum = ifelse(site == "off" & TP == "02" & susc == "moderate", 
                       totnum, 
                       susnum),
-      infnum = ifelse(site == "off" & TP == "01" & susc == "moderate", 
+      infnum = ifelse(site == "off" & TP == "02" & susc == "moderate", 
                       0, 
                       infnum)
     )
+  # NOTE - the above '02' and '03 hard-coding is not ideal, and this is an area to look to if there are bugs in the future
   
   #populate dates for patient zero timepoint
-  summary_grouped$date[summary_grouped$TP == "01"] <- as.POSIXct("2018-10-16")
+  summary_grouped$date[summary_grouped$TP == "02"] <- as.POSIXct("2018-10-16")
   
   #further summary
   # NOTE - infections are always zero for the final timepoint of the study. this is because there is no further timepoint with which to
@@ -1073,9 +1074,9 @@
   summary <- summary %>%
     group_by(site) %>%
     mutate( 
-      first.infday = TP[which(tot.infnum > 0)[1]], # Find the first 'TP' (timepoint) where 'tot.infnum' is non-zero
-      first_infection_date = min(date[tot.infnum > 0], na.rm = TRUE), # Get the date of the first infection occurrence for this site
-      days.inf.site = as.numeric(difftime(date, first_infection_date, units = "days")) # Calculate days since the first infection for this specific site (days.inf.site)
+      first.infTP = TP[which(tot.infnum > 0)[1]], # Find the first 'TP' (timepoint) where 'tot.infnum' is non-zero
+      first.infdate = min(date[tot.infnum > 0], na.rm = TRUE), # Get the date of the first infection occurrence for this site
+      days.inf.site = as.numeric(difftime(date, first.infdate, units = "days")) # Calculate days since the first infection for this specific site (days.inf.site)
     ) %>%
     ungroup()
   
@@ -1119,446 +1120,116 @@
 
   ### PLOT
   #
-  
-  # #development
-  # #
-  # #Offshore
-  # # Define the site you are analyzing
-  # sitey <- 'near'
-  # 
-  # # Get the list of infected counts for the specific site
-  # sample_day_list <- summary %>%
-  #   filter(site == sitey) %>%
-  #   pull(tot.infnum)
-  # 
-  # # Record indices for timepoints including and after the first infection day
-  # indices_offshore <- which(sample_day_list > 0)
-  # 
-  # # Ensure that if the number of infected dips briefly to 0, that timepoint is still considered for fitting
-  # indices_offshore <- full_seq(indices_offshore, 1)
-  # 
-  # # Filter summary for the specific site and use the selected indices
-  # site_summary <- summary %>%
-  #   filter(site == sitey) %>%
-  #   slice(indices_offshore)
-  # 
-  # # Get days since survey after filtering the summary
-  # days <- site_summary %>%
-  #   pull(days.survey)  
-  # 
-  # # Create data frames for susceptible and infected tissues based on severity categories
-  # 
-  # # Susceptible (Low, Moderate, High, and Total)
-  # obs_sus_LS_tiss <- site_summary %>%
-  #   transmute(days = days, 
-  #             prop = low.sustiss, 
-  #             Category = "Low", 
-  #             Compartment = "Susceptible", 
-  #             site = sitey)
-  # 
-  # obs_sus_MS_tiss <- site_summary %>%
-  #   transmute(days = days, 
-  #             prop = moderate.sustiss, 
-  #             Category = "Moderate", 
-  #             Compartment = "Susceptible", 
-  #             site = sitey)
-  # 
-  # obs_sus_HS_tiss <- site_summary %>%
-  #   transmute(days = days, 
-  #             prop = high.sustiss, 
-  #             Category = "High", 
-  #             Compartment = "Susceptible", 
-  #             site = sitey)
-  # 
-  # obs_sus_tiss <- site_summary %>%
-  #   transmute(days = days, 
-  #             prop = tot.sustiss, 
-  #             Compartment = "Susceptible", 
-  #             site = sitey)
-  # 
-  # # Infected (Low, Moderate, High, and Total)
-  # obs_inf_LS_tiss <- site_summary %>%
-  #   transmute(days = days, 
-  #             prop = low.inftiss, 
-  #             Category = "Low", 
-  #             Compartment = "Infected", 
-  #             site = sitey)
-  # 
-  # obs_inf_MS_tiss <- site_summary %>%
-  #   transmute(days = days, 
-  #             prop = moderate.inftiss, 
-  #             Category = "Moderate", 
-  #             Compartment = "Infected", 
-  #             site = sitey)
-  # 
-  # 
-  # obs_inf_HS_tiss <- site_summary %>%
-  #   transmute(days = days, 
-  #             prop = high.inftiss, 
-  #             Category = "High", 
-  #             Compartment = "Infected", 
-  #             site = sitey)
-  # 
-  # obs_inf_tiss <- site_summary %>%
-  #   transmute(days = days, 
-  #             prop = tot.inftiss, 
-  #             Compartment = "Infected", 
-  #             site = sitey)
-  # 
-  # # Dead (Low, Moderate, High, and Total)
-  # obs_dead_LS_tiss <- site_summary %>%
-  #   transmute(days = days, 
-  #             prop = low.deadtiss, 
-  #             Category = "Low", 
-  #             Compartment = "Dead", 
-  #             Site = site)
-  # 
-  # obs_dead_MS_tiss <- site_summary %>%
-  #   transmute(days = days, 
-  #             prop = moderate.deadtiss, 
-  #             Category = "Moderate", 
-  #             Compartment = "Dead", 
-  #             Site = site)
-  # 
-  # obs_dead_HS_tiss <- site_summary %>%
-  #   transmute(days = days, 
-  #             prop = high.deadtiss, 
-  #             Category = "High", 
-  #             Compartment = "Dead", 
-  #             Site = site)
-  # 
-  # obs_dead_tiss <- site_summary %>%
-  #   transmute(days = days, 
-  #             prop = tot.deadtiss, 
-  #             Compartment = "Dead", 
-  #             Site = site)
-  # 
-  # # Combine all observations into a single data frame
-  # obs_offshore <- bind_rows(
-  #   obs_sus_LS_tiss, 
-  #   obs_sus_MS_tiss, 
-  #   obs_sus_HS_tiss,
-  #   obs_inf_LS_tiss, 
-  #   obs_inf_MS_tiss, 
-  #   obs_inf_HS_tiss,
-  #   obs_dead_LS_tiss, 
-  #   obs_dead_MS_tiss, 
-  #   obs_dead_HS_tiss
-  # )
-  # 
-  # obs = rbind(obs.offshore, obs.midchannel, obs.nearshore)
-  # obs$Category = as.factor(obs$Category)
-  # obs$Compartment = as.factor(obs$Compartment)
-  # obs$Site = as.factor(obs$Site)
-  
-  
-  
-  
-  
   # Get the list of infected counts for all sites
   sample_day_list <- summary %>%
     group_by(site) %>%
     summarize(inf_count = list(tot.infnum), .groups = 'drop')
   
   # Create a list to store the indices for each site
-  indices_offshore_list <- sample_day_list %>%
-    mutate(indices_offshore = map(inf_count, ~ which(.x > 0))) %>%
+  indices__list <- sample_day_list %>%
+    mutate(indices = map(inf_count, ~ which(.x > 0))) %>%
     ungroup()
   
-  # Expand the indices to ensure timepoints are considered even if they dip to zero
-  indices_offshore_list <- indices_offshore_list %>%
-    mutate(indices_offshore = map(indices_offshore, ~ full_seq(.x, 1)))
+  #ensure the final timepoint is included, even though the model assumes no infections there (to account for newly removed tissue)
+  indices__list <- indices__list %>%
+    mutate(indices = map2(inf_count, indices, ~ {
+      first_nonzero <- min(which(.x > 0))  # Find the index of the first non-zero
+      subsequent_zeros <- which(.x == 0 & seq_along(.x) >= first_nonzero)  # Keep zeros after the first non-zero
+      full_seq(c(.y, subsequent_zeros), 1)  # Extend the sequence
+    }))
   
   # Merge back into summary to prepare for observation creation
   obs_summary <- summary %>%
-    left_join(indices_offshore_list %>% select(site, indices_offshore), by = "site") %>%
+    left_join(indices__list %>% select(site, indices), by = "site") %>%
     group_by(site) %>%
-    mutate(valid_rows = list(slice(., indices_offshore[[1]]))) %>%
+    mutate(valid_rows = list(slice(., indices[[1]]))) %>%
     ungroup()
   
   # Create a function to generate the observations
-  create_observations <- function(data, comp, prop_col, cat) {
+  create_observations <- function(data, comp, tissue_col, count_col, cat) {
     data %>%
       transmute(
+        TP = TP,
         days = days.survey,
-        prop = !!sym(prop_col),
+        tissue = !!sym(tissue_col), #bang bang operator to convert wide format to long
+        count = !!sym(count_col),
         Category = cat,
         Compartment = comp,
         Site = site
       )
   }
   
-  # Create data frames for all categories
+  # Extract the 'Susceptible' values at TP == 1 for each Category
+  susceptible_ref <- obs_summary %>%
+    filter(TP == '01') %>%
+    pivot_longer(cols = c(low.sustiss, moderate.sustiss, high.sustiss, tot.sustiss),
+                 names_to = "Category",
+                 values_to = "tissue_ref") %>%
+    pivot_longer(cols = c(low.susnum, moderate.susnum, high.susnum, tot.susnum),
+                 names_to = "Category_count",
+                 values_to = "count_ref") %>%
+    mutate(
+      Category = case_when(
+        str_detect(Category, "low") ~ "Low",
+        str_detect(Category, "moderate") ~ "Moderate",
+        str_detect(Category, "high") ~ "High",
+        str_detect(Category, "tot") ~ "Total"
+      ),
+      Category_count = case_when(
+        str_detect(Category_count, "low") ~ "Low",
+        str_detect(Category_count, "moderate") ~ "Moderate",
+        str_detect(Category_count, "high") ~ "High",
+        str_detect(Category_count, "tot") ~ "Total"
+      )
+    ) %>%
+    filter(Category == Category_count) %>%
+    select(Site = site, Category, tissue_ref, count_ref)  
+  
+  
+  # Create data frames for all categories, including count columns
   obs_sus <- bind_rows(
-    create_observations(obs_summary, "Susceptible", "low.sustiss", "Low"),
-    create_observations(obs_summary, "Susceptible", "moderate.sustiss", "Moderate"),
-    create_observations(obs_summary, "Susceptible", "high.sustiss", "High"),
-    create_observations(obs_summary, "Susceptible", "tot.sustiss", "Total")
+    create_observations(obs_summary, "Susceptible", "low.sustiss", "low.susnum", "Low"),
+    create_observations(obs_summary, "Susceptible", "moderate.sustiss", "moderate.susnum", "Moderate"),
+    create_observations(obs_summary, "Susceptible", "high.sustiss", "high.susnum", "High"),
+    create_observations(obs_summary, "Susceptible", "tot.sustiss", "tot.susnum", "Total")
   )
   
   obs_inf <- bind_rows(
-    create_observations(obs_summary, "Infected", "low.inftiss", "Low"),
-    create_observations(obs_summary, "Infected", "moderate.inftiss", "Moderate"),
-    create_observations(obs_summary, "Infected", "high.inftiss", "High"),
-    create_observations(obs_summary, "Infected", "tot.inftiss", "Total")
+    create_observations(obs_summary, "Infected", "low.inftiss", "low.infnum", "Low"),
+    create_observations(obs_summary, "Infected", "moderate.inftiss", "moderate.infnum", "Moderate"),
+    create_observations(obs_summary, "Infected", "high.inftiss", "high.infnum", "High"),
+    create_observations(obs_summary, "Infected", "tot.inftiss", "tot.infnum", "Total")
   )
   
   obs_dead <- bind_rows(
-    create_observations(obs_summary, "Dead", "low.deadtiss", "Low"),
-    create_observations(obs_summary, "Dead", "moderate.deadtiss", "Moderate"),
-    create_observations(obs_summary, "Dead", "high.deadtiss", "High"),
-    create_observations(obs_summary, "Dead", "tot.deadtiss", "Total")
+    create_observations(obs_summary, "Dead", "low.deadtiss", "low.deadnum", "Low"),
+    create_observations(obs_summary, "Dead", "moderate.deadtiss", "moderate.deadnum", "Moderate"),
+    create_observations(obs_summary, "Dead", "high.deadtiss", "high.deadnum", "High"),
+    create_observations(obs_summary, "Dead", "tot.deadtiss", "tot.deadnum", "Total")
   )
   
   # Combine all observations into a single data frame
   obs <- bind_rows(obs_sus, obs_inf, obs_dead)
   
-  # Convert to factors
-  obs$Category <- as.factor(obs$Category)
-  obs$Compartment <- as.factor(obs$Compartment)
-  obs$Site <- as.factor(obs$Site)
+  # Add scaled tissue and count columns to the existing 'obs' dataframe
+  obs <- obs %>%
+    left_join(susceptible_ref, by = c("Site", "Category")) %>%
+    mutate(
+      tissue.scaled = tissue / tissue_ref,  # Scale by the reference tissue
+      count.scaled = count / count_ref,     # Scale by the reference count
+      Site = case_when(                     # Map site names to new values
+        Site == "off" ~ "Offshore",
+        Site == "mid" ~ "Midchannel",
+        Site == "near" ~ "Nearshore",
+        TRUE ~ Site
+      )
+    ) %>%
+    select(-tissue_ref, -count_ref)  # Remove the reference columns after scaling
   
+  # Factorize
+  obs <- obs %>%
+    mutate(across(c(TP, Category, Compartment, Site), as.factor))  
   
-  
-  
-  # # development
-  # #
-  # # Create a long format of the summary data for SIR metrics
-  # summary_long <- summary %>%
-  #   select(site, days.survey, 
-  #          low.susnum, moderate.susnum, high.susnum,
-  #          low.infnum, moderate.infnum, high.infnum,
-  #          low.deadnum, moderate.deadnum, high.deadnum) %>%
-  #   pivot_longer(
-  #     cols = -c(site, days.survey), 
-  #     names_to = c("susceptibility", "state"),
-  #     names_pattern = "(.*)\\.(.*)"
-  #   ) %>%
-  #   # Replace state labels with user-friendly names
-  #   mutate(state = recode(state,
-  #                         susnum = "Susceptible",
-  #                         infnum = "Infected",
-  #                         deadnum = "Dead"
-  #   )) %>%
-  #   # Format susceptibility labels with capital letters
-  #   mutate(susceptibility = recode(susceptibility,
-  #                                  low = "Low",
-  #                                  moderate = "Moderate",
-  #                                  high = "High"
-  #   ))
-  # 
-  # # Check the structure of summary_long to ensure correct reshaping
-  # str(summary_long)
-  # 
-  # # Plot using ggplot
-  # ggplot(summary_long, aes(x = days.survey, y = value, color = state, linetype = susceptibility)) +
-  #   geom_line() +
-  #   facet_wrap(~ site, scales = "free_y") +
-  #   labs(title = "SIR Metrics through Time by Site",
-  #        x = "Days since First Infection",
-  #        y = "Count",
-  #        color = "State",
-  #        linetype = "Susceptibility") +
-  #   theme_minimal()  
-  # 
-  # # Update the summary_long to include total counts
-  # tot.summary_long <- summary %>%
-  #   pivot_longer(cols = c(tot.susnum, tot.infnum, tot.deadnum),
-  #                names_to = "state",
-  #                values_to = "value") %>%
-  #   mutate(
-  #     state = case_when(
-  #       state == "tot.susnum" ~ "Susceptible",
-  #       state == "tot.infnum" ~ "Infected",
-  #       state == "tot.deadnum" ~ "Dead"
-  #     )
-  #   ) %>%
-  #   select(site, days.survey, state, value)
-  # 
-  # # Combined plot with coloring by both State and Site
-  # combined_plot <- ggplot(tot.summary_long, aes(x = days.survey, y = value, color = state, group = interaction(state, site))) +
-  #   geom_line(aes(linetype = site)) +
-  #   labs(title = "Combined SIR Metrics for All Sites",
-  #        color = "State",
-  #        linetype = "Site") +
-  #   theme_minimal()
-  
-  
-  
-  # #old
-  # #
-  # ### plots ###
-  # 
-  # #Offshore
-  # site = 'Offshore'
-  # prev.timepoint = 'T5'
-  # sample.day.list = pull(subset(tissue.summary, Site_type==site)[, "tot.infnum"])
-  # indices.offshore = which(sample.day.list > 0) #record indices for timepoints including and after the first infection day
-  # indices.offshore = full_seq(indices.offshore, 1) #ensure that if #/infected dips briefly to 0, that  timepoint is still considered for fitting
-  # days = tissue.summary %>% na.omit() %>% filter(Site_type == site) %>% pull(Day) 
-  # S0.snapshot = subset(tissue.summary, Site_type==site & Timepoint == prev.timepoint)
-  # 
-  # #could edit this to include dates
-  # obs.sus.LS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "LS.sustiss"])[indices.offshore], Category = "LS", Compartment = "Susceptible", Site = site)
-  # obs.sus.MS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "MS.sustiss"])[indices.offshore], Category = "MS", Compartment = "Susceptible", Site = site)
-  # obs.sus.HS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "HS.sustiss"])[indices.offshore], Category = "HS", Compartment = "Susceptible", Site = site)
-  # obs.sus.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "tot.sustiss"])[indices.offshore], Compartment = "Susceptible", Site = site)
-  # 
-  # obs.inf.LS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "LS.inftiss"])[indices.offshore], Category = "LS", Compartment = "Infected", Site = site)
-  # obs.inf.MS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "MS.inftiss"])[indices.offshore], Category = "MS", Compartment = "Infected", Site = site)
-  # obs.inf.HS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "HS.inftiss"])[indices.offshore], Category = "HS", Compartment = "Infected", Site = site)
-  # obs.inf.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "tot.inftiss"])[indices.offshore], Compartment = "Infected", Site = site)
-  # 
-  # obs.rem.LS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "LS.remtiss"])[indices.offshore], Category = "LS", Compartment = "Dead", Site = site)
-  # obs.rem.MS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "MS.remtiss"])[indices.offshore], Category = "MS", Compartment = "Dead", Site = site)
-  # obs.rem.HS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "HS.remtiss"])[indices.offshore], Category = "HS", Compartment = "Dead", Site = site)
-  # obs.rem.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "tot.remtiss"])[indices.offshore], Compartment = "Dead", Site = site)
-  # 
-  # obs.offshore = rbind(obs.sus.LS.tiss, obs.sus.MS.tiss, obs.sus.HS.tiss,
-  #                      obs.inf.LS.tiss, obs.inf.MS.tiss, obs.inf.HS.tiss,
-  #                      obs.rem.LS.tiss, obs.rem.MS.tiss, obs.rem.HS.tiss)
-  # 
-  # obs.offshore.basic = rbind(obs.sus.tiss, obs.inf.tiss, obs.rem.tiss)
-  # 
-  # obs.sus.LS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "LS.sustiss"]/S0.snapshot$LS.sustiss)[indices.offshore], Category = "LS", Compartment = "Susceptible", Site = site)
-  # obs.sus.MS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "MS.sustiss"]/S0.snapshot$MS.sustiss)[indices.offshore], Category = "MS", Compartment = "Susceptible", Site = site)
-  # obs.sus.HS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "HS.sustiss"]/S0.snapshot$HS.sustiss)[indices.offshore], Category = "HS", Compartment = "Susceptible", Site = site)
-  # obs.sus.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "tot.sustiss"]/S0.snapshot$tot.sustiss)[indices.offshore], Compartment = "Susceptible", Site = site)
-  # 
-  # obs.inf.LS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "LS.inftiss"]/S0.snapshot$LS.sustiss)[indices.offshore], Category = "LS", Compartment = "Infected", Site = site)
-  # obs.inf.MS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "MS.inftiss"]/S0.snapshot$MS.sustiss)[indices.offshore], Category = "MS", Compartment = "Infected", Site = site)
-  # obs.inf.HS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "HS.inftiss"]/S0.snapshot$HS.sustiss)[indices.offshore], Category = "HS", Compartment = "Infected", Site = site)
-  # obs.inf.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "tot.inftiss"]/S0.snapshot$tot.sustiss)[indices.offshore], Compartment = "Infected", Site = site)
-  # 
-  # obs.rem.LS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "LS.remtiss"]/S0.snapshot$LS.sustiss)[indices.offshore], Category = "LS", Compartment = "Dead", Site = site)
-  # obs.rem.MS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "MS.remtiss"]/S0.snapshot$MS.sustiss)[indices.offshore], Category = "MS", Compartment = "Dead", Site = site)
-  # obs.rem.HS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "HS.remtiss"]/S0.snapshot$HS.sustiss)[indices.offshore], Category = "HS", Compartment = "Dead", Site = site)
-  # obs.rem.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "tot.remtiss"]/S0.snapshot$tot.sustiss)[indices.offshore], Compartment = "Dead", Site = site)
-  # 
-  # obs.offshore.scale = rbind(obs.sus.LS.tiss.scale, obs.sus.MS.tiss.scale, obs.sus.HS.tiss.scale,
-  #                            obs.inf.LS.tiss.scale, obs.inf.MS.tiss.scale, obs.inf.HS.tiss.scale,
-  #                            obs.rem.LS.tiss.scale, obs.rem.MS.tiss.scale, obs.rem.HS.tiss.scale)
-  # 
-  # obs.offshore.scale.basic = rbind(obs.sus.tiss.scale, obs.inf.tiss.scale, obs.rem.tiss.scale)
-  # 
-  # #Midchannel
-  # site = 'Midchannel'
-  # prev.timepoint = 'T7'
-  # sample.day.list = pull(subset(tissue.summary, Site_type==site)[, "tot.infnum"])
-  # indices.midchannel = which(sample.day.list > 0) #record indices.midchannel for timepoints including and after the first infection day
-  # indices.midchannel = full_seq(indices.midchannel, 1) #ensure that if #/infected dips briefly to 0, that  timepoint is still considered for fitting
-  # days = tissue.summary %>% na.omit() %>% filter(Site_type == site) %>% pull(Day) 
-  # S0.snapshot = subset(tissue.summary, Site_type==site & Timepoint == prev.timepoint)
-  # 
-  # obs.sus.LS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "LS.sustiss"])[indices.midchannel], Category = "LS", Compartment = "Susceptible", Site = site)
-  # obs.sus.MS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "MS.sustiss"])[indices.midchannel], Category = "MS", Compartment = "Susceptible", Site = site)
-  # obs.sus.HS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "HS.sustiss"])[indices.midchannel], Category = "HS", Compartment = "Susceptible", Site = site)
-  # obs.sus.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "tot.sustiss"])[indices.midchannel], Compartment = "Susceptible", Site = site)
-  # 
-  # obs.inf.LS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "LS.inftiss"])[indices.midchannel], Category = "LS", Compartment = "Infected", Site = site)
-  # obs.inf.MS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "MS.inftiss"])[indices.midchannel], Category = "MS", Compartment = "Infected", Site = site)
-  # obs.inf.HS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "HS.inftiss"])[indices.midchannel], Category = "HS", Compartment = "Infected", Site = site)
-  # obs.inf.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "tot.inftiss"])[indices.midchannel], Compartment = "Infected", Site = site)
-  # 
-  # obs.rem.LS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "LS.remtiss"])[indices.midchannel], Category = "LS", Compartment = "Dead", Site = site)
-  # obs.rem.MS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "MS.remtiss"])[indices.midchannel], Category = "MS", Compartment = "Dead", Site = site)
-  # obs.rem.HS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "HS.remtiss"])[indices.midchannel], Category = "HS", Compartment = "Dead", Site = site)
-  # obs.rem.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "tot.remtiss"])[indices.midchannel], Compartment = "Dead", Site = site)
-  # 
-  # obs.midchannel = rbind(obs.sus.LS.tiss, obs.sus.MS.tiss, obs.sus.HS.tiss,
-  #                        obs.inf.LS.tiss, obs.inf.MS.tiss, obs.inf.HS.tiss,
-  #                        obs.rem.LS.tiss, obs.rem.MS.tiss, obs.rem.HS.tiss)
-  # 
-  # obs.midchannel.basic = rbind(obs.sus.tiss, obs.inf.tiss, obs.rem.tiss)
-  # 
-  # obs.sus.LS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "LS.sustiss"]/S0.snapshot$LS.sustiss)[indices.midchannel], Category = "LS", Compartment = "Susceptible", Site = site)
-  # obs.sus.MS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "MS.sustiss"]/S0.snapshot$MS.sustiss)[indices.midchannel], Category = "MS", Compartment = "Susceptible", Site = site)
-  # obs.sus.HS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "HS.sustiss"]/S0.snapshot$HS.sustiss)[indices.midchannel], Category = "HS", Compartment = "Susceptible", Site = site)
-  # obs.sus.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "tot.sustiss"]/S0.snapshot$tot.sustiss)[indices.midchannel], Compartment = "Susceptible", Site = site)
-  # 
-  # obs.inf.LS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "LS.inftiss"]/S0.snapshot$LS.sustiss)[indices.midchannel], Category = "LS", Compartment = "Infected", Site = site)
-  # obs.inf.MS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "MS.inftiss"]/S0.snapshot$MS.sustiss)[indices.midchannel], Category = "MS", Compartment = "Infected", Site = site)
-  # obs.inf.HS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "HS.inftiss"]/S0.snapshot$HS.sustiss)[indices.midchannel], Category = "HS", Compartment = "Infected", Site = site)
-  # obs.inf.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "tot.inftiss"]/S0.snapshot$tot.sustiss)[indices.midchannel], Compartment = "Infected", Site = site)
-  # 
-  # obs.rem.LS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "LS.remtiss"]/S0.snapshot$LS.sustiss)[indices.midchannel], Category = "LS", Compartment = "Dead", Site = site)
-  # obs.rem.MS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "MS.remtiss"]/S0.snapshot$MS.sustiss)[indices.midchannel], Category = "MS", Compartment = "Dead", Site = site)
-  # obs.rem.HS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "HS.remtiss"]/S0.snapshot$HS.sustiss)[indices.midchannel], Category = "HS", Compartment = "Dead", Site = site)
-  # obs.rem.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "tot.remtiss"]/S0.snapshot$tot.sustiss)[indices.midchannel], Compartment = "Dead", Site = site)
-  # 
-  # obs.midchannel.scale = rbind(obs.sus.LS.tiss.scale, obs.sus.MS.tiss.scale, obs.sus.HS.tiss.scale,
-  #                              obs.inf.LS.tiss.scale, obs.inf.MS.tiss.scale, obs.inf.HS.tiss.scale,
-  #                              obs.rem.LS.tiss.scale, obs.rem.MS.tiss.scale, obs.rem.HS.tiss.scale)
-  # 
-  # obs.midchannel.scale.basic = rbind(obs.sus.tiss.scale, obs.inf.tiss.scale, obs.rem.tiss.scale)
-  # 
-  # #Nearshore
-  # site = 'Nearshore'
-  # prev.timepoint = 'T11'
-  # sample.day.list = pull(subset(tissue.summary, Site_type==site)[, "tot.infnum"])
-  # indices.nearshore = which(sample.day.list > 0) #record indices.nearshore for timepoints including and after the first infection day
-  # indices.nearshore = full_seq(indices.nearshore, 1) #ensure that if #/infected dips briefly to 0, that  timepoint is still considered for fitting
-  # days = tissue.summary %>% na.omit() %>% filter(Site_type == site) %>% pull(Day) 
-  # S0.snapshot = subset(tissue.summary, Site_type==site & Timepoint == prev.timepoint)
-  # 
-  # obs.sus.LS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "LS.sustiss"])[indices.nearshore], Category = "LS", Compartment = "Susceptible", Site = site)
-  # obs.sus.MS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "MS.sustiss"])[indices.nearshore], Category = "MS", Compartment = "Susceptible", Site = site)
-  # obs.sus.HS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "HS.sustiss"])[indices.nearshore], Category = "HS", Compartment = "Susceptible", Site = site)
-  # obs.sus.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "tot.sustiss"])[indices.nearshore], Compartment = "Susceptible", Site = site)
-  # 
-  # obs.inf.LS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "LS.inftiss"])[indices.nearshore], Category = "LS", Compartment = "Infected", Site = site)
-  # obs.inf.MS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "MS.inftiss"])[indices.nearshore], Category = "MS", Compartment = "Infected", Site = site)
-  # obs.inf.HS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "HS.inftiss"])[indices.nearshore], Category = "HS", Compartment = "Infected", Site = site)
-  # obs.inf.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "tot.inftiss"])[indices.nearshore], Compartment = "Infected", Site = site)
-  # 
-  # obs.rem.LS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "LS.remtiss"])[indices.nearshore], Category = "LS", Compartment = "Dead", Site = site)
-  # obs.rem.MS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "MS.remtiss"])[indices.nearshore], Category = "MS", Compartment = "Dead", Site = site)
-  # obs.rem.HS.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "HS.remtiss"])[indices.nearshore], Category = "HS", Compartment = "Dead", Site = site)
-  # obs.rem.tiss = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "tot.remtiss"])[indices.nearshore], Compartment = "Dead", Site = site)
-  # 
-  # obs.nearshore = rbind(obs.sus.LS.tiss, obs.sus.MS.tiss, obs.sus.HS.tiss,
-  #                       obs.inf.LS.tiss, obs.inf.MS.tiss, obs.inf.HS.tiss,
-  #                       obs.rem.LS.tiss, obs.rem.MS.tiss, obs.rem.HS.tiss)
-  # 
-  # obs.nearshore.basic = rbind(obs.sus.tiss, obs.inf.tiss, obs.rem.tiss)
-  # 
-  # obs.sus.LS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "LS.sustiss"]/S0.snapshot$LS.sustiss)[indices.nearshore], Category = "LS", Compartment = "Susceptible", Site = site)
-  # obs.sus.MS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "MS.sustiss"]/S0.snapshot$MS.sustiss)[indices.nearshore], Category = "MS", Compartment = "Susceptible", Site = site)
-  # obs.sus.HS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "HS.sustiss"]/S0.snapshot$HS.sustiss)[indices.nearshore], Category = "HS", Compartment = "Susceptible", Site = site)
-  # obs.sus.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "tot.sustiss"]/S0.snapshot$tot.sustiss)[indices.nearshore], Compartment = "Susceptible", Site = site)
-  # 
-  # obs.inf.LS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "LS.inftiss"]/S0.snapshot$LS.sustiss)[indices.nearshore], Category = "LS", Compartment = "Infected", Site = site)
-  # obs.inf.MS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "MS.inftiss"]/S0.snapshot$MS.sustiss)[indices.nearshore], Category = "MS", Compartment = "Infected", Site = site)
-  # obs.inf.HS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "HS.inftiss"]/S0.snapshot$HS.sustiss)[indices.nearshore], Category = "HS", Compartment = "Infected", Site = site)
-  # obs.inf.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "tot.inftiss"]/S0.snapshot$tot.sustiss)[indices.nearshore], Compartment = "Infected", Site = site)
-  # 
-  # obs.rem.LS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "LS.remtiss"]/S0.snapshot$LS.sustiss)[indices.nearshore], Category = "LS", Compartment = "Dead", Site = site)
-  # obs.rem.MS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "MS.remtiss"]/S0.snapshot$MS.sustiss)[indices.nearshore], Category = "MS", Compartment = "Dead", Site = site)
-  # obs.rem.HS.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "HS.remtiss"]/S0.snapshot$HS.sustiss)[indices.nearshore], Category = "HS", Compartment = "Dead", Site = site)
-  # obs.rem.tiss.scale = data.frame(days, prop = pull(subset(tissue.summary, Site_type==site)[, "tot.remtiss"]/S0.snapshot$tot.sustiss)[indices.nearshore], Compartment = "Dead", Site = site)
-  # 
-  # obs.nearshore.scale = rbind(obs.sus.LS.tiss.scale, obs.sus.MS.tiss.scale, obs.sus.HS.tiss.scale,
-  #                             obs.inf.LS.tiss.scale, obs.inf.MS.tiss.scale, obs.inf.HS.tiss.scale,
-  #                             obs.rem.LS.tiss.scale, obs.rem.MS.tiss.scale, obs.rem.HS.tiss.scale)
-  # 
-  # obs.nearshore.scale.basic = rbind(obs.sus.tiss.scale, obs.inf.tiss.scale, obs.rem.tiss.scale)
-  # 
-  # obs = rbind(obs.offshore, obs.midchannel, obs.nearshore)
-  # obs$Category = as.factor(obs$Category)
-  # obs$Compartment = as.factor(obs$Compartment)
-  # obs$Site = as.factor(obs$Site)
-  # 
-  # obs.basic = rbind(obs.offshore.basic, obs.midchannel.basic, obs.nearshore.basic)
-  # obs.basic$Compartment = as.factor(obs.basic$Compartment)
-  # obs.basic$Site = as.factor(obs.basic$Site)
-  # 
-  # obs.scale = rbind(obs.offshore.scale, obs.midchannel.scale, obs.nearshore.scale)
-  # obs.scale$Category = as.factor(obs.scale$Category)
-  # obs.scale$Compartment = as.factor(obs.scale$Compartment)
-  # obs.scale$Site = as.factor(obs.scale$Site)
-  # 
-  # obs.scale.basic = rbind(obs.offshore.scale.basic, obs.midchannel.scale.basic, obs.nearshore.scale.basic)
-  # obs.scale.basic$Compartment = as.factor(obs.scale.basic$Compartment)
-  # obs.scale.basic$Site = as.factor(obs.scale.basic$Site)
-  # 
+  # #save workspace for use in subsequent scripts
+  # save.image(file = here("output", "data_processing_workspace.RData"))
   
