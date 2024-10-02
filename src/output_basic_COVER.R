@@ -4,11 +4,22 @@
 
   library(here)
   library(tidyverse)
-  # library(DEoptim)
-  # library(deSolve)
+  library(DEoptim)
+  library(deSolve)
   
   #import workspace from FLKEYS_data_processing.R
   load(here("output", "data_processing_workspace.RData"))
+  
+  #refactor names in 'obs' to match 'summary'
+  obs.model <- obs %>%
+    mutate(
+      Site = case_when(
+        Site == "Offshore" ~ "off",
+        Site == "Midchannel" ~ "mid",
+        Site == "Nearshore" ~ "near",
+        TRUE ~ Site
+      )
+    )
   
   # #ONLY if intending to exclude degree-heating weeks (DHW or DHWs)
   # DHW.modifier = 8 #10
@@ -73,26 +84,26 @@
     # i = 3
     
     days = summary %>%
-      drop_na(days.survey) %>%
+      # drop_na(days.survey) %>% # NOTE - area to return to after fixing backtracking with patient zero corals. we do want to drop this
       filter(site == site.loop) %>%
       pull(days.survey)
     
-    ###tissue SA & counts of susceptible (healthy) hosts at the start of monitoring
-    # also, selecting the correct starting polyp_SA for later in the loop
-    prev.timepoint = ''
-    if(site == 'near'){
-      prev.timepoint = '07' #timepoint before first documented infection timepoint [site specific]
-      # polyp_SA = polyp_SA.nearshore[[1]]
-      area.site = 200 #meters squared, 2D. this could be changed to reflect available 3D substrate within the site, but we don't have that
-    } else if(site == "mid"){
-      prev.timepoint = '03'
-      # polyp_SA = polyp_SA.midchannel[[1]]
-      area.site = 200
-    } else{ #offshore
-      prev.timepoint = '01'
-      # polyp_SA = polyp_SA.offshore[[1]]
-      area.site = 200
-    }
+    # ###tissue SA & counts of susceptible (healthy) hosts at the start of monitoring
+    # # also, selecting the correct starting polyp_SA for later in the loop
+    # prev.timepoint = ''
+    # if(site.loop == 'near'){
+    #   prev.timepoint = '07' #timepoint before first documented infection timepoint [site specific]
+    #   # polyp_SA = polyp_SA.nearshore[[1]]
+    #   area.site = 200 #meters squared, 2D. this could be changed to reflect available 3D substrate within the site, but we don't have that
+    # } else if(site.loop == "mid"){
+    #   prev.timepoint = '03'
+    #   # polyp_SA = polyp_SA.midchannel[[1]]
+    #   area.site = 200
+    # } else{ #offshore
+    #   prev.timepoint = '01'
+    #   # polyp_SA = polyp_SA.offshore[[1]]
+    #   area.site = 200
+    # }
     
     # STOPPING POINT - 27 SEP 2024
     # - okay, this was pretty intensive. trying to update this code with new dependencies / variable names from data_processing script
@@ -115,23 +126,46 @@
     
     # polyp_SA = 1e-4 #m2 - equivalent to 100 mm2, which is a rough approximation of a fully infected medium-sized coral polyp
     
-    S0.snapshot = subset(summary, site==site & TP == prev.timepoint)
-    N.site = S0.snapshot$tot.sustiss
-    cover.site = N.site / area.site * 0.3 #0.2840909 (~1:3X) is the ratio of our tissue density to CPCe-based cover (Williams et al. 2021)
+    N.site = susceptible_ref %>%
+      filter(Site == site.loop) %>%
+      slice(1) %>% #all values for N.site are the same between categories, so slice first row
+      pull(N.site)
+    cover.site = susceptible_ref %>%
+      filter(Site == site.loop) %>%
+      slice(1) %>% #same as above
+      pull(cover.site)
     
     #sequence of infected & removed SA's for each SusCat within site. remove timepoints before the first infection (zero omit)
-    LS.inftiss = obs %>% filter(Site == site, Category == "LS", Compartment == "Infected") %>% pull(tissue)
-    MS.inftiss = obs %>% filter(Site == site, Category == "MS", Compartment == "Infected") %>% pull(tissue)
-    HS.inftiss = obs %>% filter(Site == site, Category == "HS", Compartment == "Infected") %>% pull(tissue)
+    LS.inftiss = obs.model %>% filter(Site == site.loop, Category == "Low", Compartment == "Infected") %>% pull(tissue)
+    MS.inftiss = obs.model %>% filter(Site == site.loop, Category == "Moderate", Compartment == "Infected") %>% pull(tissue)
+    HS.inftiss = obs.model %>% filter(Site == site.loop, Category == "High", Compartment == "Infected") %>% pull(tissue)
     inftiss = LS.inftiss+MS.inftiss+HS.inftiss
     
+    #STOPPING POINT - 1 OCT 2024
+    #   - establish the even further backtracked amount of tissue surface area that would spark an infection at the site. this seems
+    #       kind of silly though. I already backtracked - why not instead just make patient zero start really small - smaller than I
+    #       am currently?
+    #   - BUT for now, just get this code functioning. from there, can go back and edit patient zero SA as needed.
     # polyp_SA = min(inftiss[1:5])/5
     # polyp_SA = inftiss[1]/1.5
-    polyp_SA = min(inftiss[1:5])/1.5
     
-    LS.remtiss = obs %>% filter(Site == site, Category == "LS", Compartment == "Dead") %>% pull(tissue)
-    MS.remtiss = obs %>% filter(Site == site, Category == "MS", Compartment == "Dead") %>% pull(tissue)
-    HS.remtiss = obs %>% filter(Site == site, Category == "HS", Compartment == "Dead") %>% pull(tissue)
+    
+    # STOPPING POINT - 2 OCT 2024
+    #   just caught up with re-doing the plots after updating polyp_SA in data_processing script - should be just about ready to 
+    #     go with re-running the SIR model now that the beginning of the infections are all primed more or less properly
+    
+    # NOTE - this method, when applied before generating the summary tables, is unable to use the tabled time series to draw a minimum
+    #         infected value from and then divide by for polyp_SA. dividing by 5 ensures, for any of the three sites, that polyp_SA is less
+    #         than the first few 'inftiss' tabled values - but this method could be revised, especially if dividing by 5 isn't fitting well
+    polyp_SA <- inftiss %>%
+      .[. != 0] %>%   # Filter out zero values
+      head(5) %>%     # Select the first five non-zero values
+      # min() / 1.5     # Get the minimum and divide by 1.5
+      min() / 5     # Get the minimum and divide by 5
+    
+    LS.remtiss = obs.model %>% filter(Site == site.loop, Category == "Low", Compartment == "Dead") %>% pull(tissue)
+    MS.remtiss = obs.model %>% filter(Site == site.loop, Category == "Moderate", Compartment == "Dead") %>% pull(tissue)
+    HS.remtiss = obs.model %>% filter(Site == site.loop, Category == "High", Compartment == "Dead") %>% pull(tissue)
     remtiss = LS.remtiss+MS.remtiss+HS.remtiss
     
     #initial conditions
@@ -145,6 +179,15 @@
     initial_state.tiss = c(S.tiss, I.tiss, R.tiss, N.site, cover.site)
     
     objective_function = function(params, data, time, initial_state){
+      
+      # #testing
+      # betas = 2.0
+      # gammas = 1.0
+      # lambdas = 1.0
+      # initial_state = initial_state.tiss
+      # time = days
+      # data = coraldata.tiss
+      
       betas = params[1]
       gammas = params[2]
       lambdas = params[3]
@@ -207,7 +250,7 @@
     
     # Run the optimization
     result.tiss = DEoptim(fn = objective_function, lower = lower_bounds.tiss, upper = upper_bounds.tiss,
-                          data = coraldata.tiss, time = time, initial_state = initial_state.tiss,
+                          data = coraldata.tiss, time = days, initial_state = initial_state.tiss,
                           control = control) # 411: turn this ON for tissue!
     
     # Extract the optimized parameters

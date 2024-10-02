@@ -1,4 +1,12 @@
   
+  # .rs.restartR(clean = TRUE)
+  
+  library(here)
+  library(tidyverse)
+  
+  #import workspace from FLKEYS_data_processing.R
+  load(here("output", "data_processing_workspace.RData"))
+
   # Optimization function
   optimize_SIR <- function(data, time, initial_state, lambda.modifier, offset, lower_bounds, upper_bounds, control){
     # Objective function is left unchanged

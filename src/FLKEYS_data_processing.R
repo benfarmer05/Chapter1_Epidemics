@@ -1,12 +1,12 @@
-
+  
   # .rs.restartR(clean = TRUE)
   rm(list=ls())
-
+  
   library(tidyverse)
   library(mgcv)
   library(gratia)
   library(here)
-
+  
   survey = read.csv(here("data", "SCTLD_END_Vpub_ts.csv"))
   cover = read.csv(here("data", "cover_long.csv"))
   prograte = read.csv(here("data", "SWG_SCTLDprogrates.csv"))
@@ -50,7 +50,7 @@
   #pull middle Florida Keys (Sharp et al. 2020) dataset, which had similar data as 'survey' but measured colonies in 3 dimensions
   #   rather than one. use this dataset to create a statistical association between maximum diameter & colony surface area (SA) by assuming
   #   a hemi-ellipsoid (Holstein et al. 2015), and then predicting SA in 'survey' dataset using maximum diameter alone
-  Sharp2020 <- read.csv(here("data", "Sharp_Maxwell_2020.csv")) %>%
+  Sharp2020 = read.csv(here("data", "Sharp_Maxwell_2020.csv")) %>%
     select(Plot, Transect, Coral, Species, Width, Width_2, Height) %>%
     mutate(across(where(is.numeric), ~na_if(., -99))) %>% #convert -99 fill values to NA
     drop_na() #remove NAs from dataset
@@ -62,7 +62,7 @@
     distinct() #also filter out repeats (not interested in a time series here)
   
   #hemi-ellipsoid estimation. p is a dimensionless constant; all else in square cm
-  Sharp2020 <- Sharp2020 %>%
+  Sharp2020 = Sharp2020 %>%
     # Calculate the surface area
     mutate(
       a = Height,
@@ -76,7 +76,7 @@
   # Construct dataframe of estimated surface area and measured maximum diameter ('Width' in this dataset)
   #   NOTE - ignoring the mortality data from Sharp study, as the attempt is to predict dimensions of the original coral,
   #          including any areas of bare skeleton
-  SA <- Sharp2020 %>%
+  SA = Sharp2020 %>%
     select(x = Width, y = SA) 
   # plot(SA$x, SA$y)
   
@@ -85,38 +85,38 @@
   
   # NOTE - GAM comparisons below. one fitting issue may be differently scaled x and y, and also repeated x values
   #   - values dipping below zero for smallest corals is a problem for GAMs here. Gamma distribution addresses this fairly well
-  SA.linear <- lm(y ~ x + 0, data = SA) #trying to make sure predictions don't go below zero - struggling with this
-  SA.GAM <- gam(y ~ s(x), data = SA, family = gaussian, method = "REML")
+  SA.linear = lm(y ~ x + 0, data = SA) #trying to make sure predictions don't go below zero - struggling with this
+  SA.GAM = gam(y ~ s(x), data = SA, family = gaussian, method = "REML")
   SA.GAM_identity = gam(y ~ s(x, bs = "cr"), data = SA, family = gaussian(link = "identity")) #GAM model with a zero intercept constraint
-  SA.GAM_linear <- gam(y ~ s(x) + x, data = SA, family = gaussian, method = "REML")
-  SA.GAM_cr <- gam(y ~ s(x, bs = "cr", k = 20), data = SA, family = gaussian, method = "REML", gamma = 2.0)
-  SA.GAM_gamma <- gam(y ~ s(x), data = SA, family = Gamma(link = "log"), method = "REML")
-  SA$x_scaled <- scale(SA$x)  # rescale x
-  SA.GAM_scaled <- gam(y ~ s(x_scaled, bs = "cr", k = 20), data = SA, family = gaussian, method = "REML")
+  SA.GAM_linear = gam(y ~ s(x) + x, data = SA, family = gaussian, method = "REML")
+  SA.GAM_cr = gam(y ~ s(x, bs = "cr", k = 20), data = SA, family = gaussian, method = "REML", gamma = 2.0)
+  SA.GAM_gamma = gam(y ~ s(x), data = SA, family = Gamma(link = "log"), method = "REML")
+  SA$x_scaled = scale(SA$x)  # rescale x
+  SA.GAM_scaled = gam(y ~ s(x_scaled, bs = "cr", k = 20), data = SA, family = gaussian, method = "REML")
   
   # More GAM variations with additional smooth terms, penalties, and log adjustments
   #
   # Combination of smooth terms and varying degrees of freedom
-  SA.GAM_complex <- gam(y ~ s(x, bs = "tp", k = 25) + te(x), data = SA, family = gaussian, method = "REML")
-  # SA.GAM_complex <- gam(y ~ s(x, bs = "cr", k = 10) + s(x, bs = "tp", k = 10), data = SA)
+  SA.GAM_complex = gam(y ~ s(x, bs = "tp", k = 25) + te(x), data = SA, family = gaussian, method = "REML")
+  # SA.GAM_complex = gam(y ~ s(x, bs = "cr", k = 10) + s(x, bs = "tp", k = 10), data = SA)
   
   # Penalize large extrapolation (use gamma > 1)
-  SA.GAM_penalized <- gam(y ~ s(x, bs = "tp", k = 25), data = SA, family = gaussian, method = "REML", gamma = 1.4)
+  SA.GAM_penalized = gam(y ~ s(x, bs = "tp", k = 25), data = SA, family = gaussian, method = "REML", gamma = 1.4)
   
   # Applying log transformation to the dependent variable and fitting a model
-  SA.GAM_log_y <- gam(log(y) ~ s(x, bs = "cr", k = 20), data = SA, family = gaussian(link = "identity"), method = "REML")
+  SA.GAM_log_y = gam(log(y) ~ s(x, bs = "cr", k = 20), data = SA, family = gaussian(link = "identity"), method = "REML")
   
   # Introducing additional model with adaptive smooth
-  SA.GAM_adaptive <- gam(y ~ s(x, bs = "ad", k = 25), data = SA, family = gaussian, method = "REML")
+  SA.GAM_adaptive = gam(y ~ s(x, bs = "ad", k = 25), data = SA, family = gaussian, method = "REML")
   
   # Modifying model to use a different number of knots and different basis functions
-  SA.GAM_varying_knots <- gam(y ~ s(x, bs = "cr", k = 30), data = SA, family = gaussian, method = "REML")
+  SA.GAM_varying_knots = gam(y ~ s(x, bs = "cr", k = 30), data = SA, family = gaussian, method = "REML")
   
   #non-wiggly gamma GAMs
-  SA.GAM_gamma <- gam(y ~ s(x), data = SA, family = Gamma(link = "log"), method = "REML")
-  SA.GAM_gamma_1.5 <- gam(y ~ s(x), data = SA, family = Gamma(link = "log"), method = "REML", gamma = 3)
-  SA.GAM_gamma_tp <- gam(y ~ s(x, bs = "tp", k = 20), data = SA, family = Gamma(link = "log"), method = 'REML', gamma = 1.5)
-  SA.GAM_gamma_ps <- gam(y ~ s(x, bs = "ps", k = 20), data = SA, family = Gamma(link = "log"), method = 'REML', gamma = 1.5)
+  SA.GAM_gamma = gam(y ~ s(x), data = SA, family = Gamma(link = "log"), method = "REML")
+  SA.GAM_gamma_1.5 = gam(y ~ s(x), data = SA, family = Gamma(link = "log"), method = "REML", gamma = 3)
+  SA.GAM_gamma_tp = gam(y ~ s(x, bs = "tp", k = 20), data = SA, family = Gamma(link = "log"), method = 'REML', gamma = 1.5)
+  SA.GAM_gamma_ps = gam(y ~ s(x, bs = "ps", k = 20), data = SA, family = Gamma(link = "log"), method = 'REML', gamma = 1.5)
   
   # #diagnostics
   # summary(SA.GAM)
@@ -125,7 +125,7 @@
   # appraise(SA.GAM)
   
   # Generate predictions from each model
-  SA_predictions <- SA %>%
+  SA_predictions = SA %>%
     mutate(
       pred_linear = predict(SA.linear),
       pred_gam = predict(SA.GAM),
@@ -200,24 +200,24 @@
       SA.GAM_gamma_1.5, SA.GAM_gamma_tp, SA.GAM_gamma_ps)
   
   # Create a tibble with model names, degrees of freedom, and AIC values
-  model_names <- c("SA.linear", "SA.GAM", "SA.GAM_identity", "SA.GAM_linear", "SA.GAM_cr", 
+  model_names = c("SA.linear", "SA.GAM", "SA.GAM_identity", "SA.GAM_linear", "SA.GAM_cr", 
                    "SA.GAM_gamma", "SA.GAM_scaled", "SA.GAM_complex", "SA.GAM_penalized", 
                    "SA.GAM_log_y", "SA.GAM_adaptive", "SA.GAM_varying_knots", 
                    "SA.GAM_gamma_1.5", "SA.GAM_gamma_tp", "SA.GAM_gamma_ps")
   
-  aic_df <- tibble(
+  aic_df = tibble(
     Model = model_names,
     df = aic_values$df,
     AIC = aic_values$AIC
   )
   
   # Sort by AIC values in ascending order; view "best" models
-  sorted_aic <- aic_df %>%
+  sorted_aic = aic_df %>%
     arrange(AIC)  
   sorted_aic
   
   # Generate predictions for the survey data
-  survey_predictions <- survey %>%
+  survey_predictions = survey %>%
     mutate(
       pred_gam = predict(SA.GAM, newdata = data.frame(x = Max_width)),
       pred_gam_identity = predict(SA.GAM_identity, newdata = data.frame(x = Max_width)),
@@ -320,16 +320,16 @@
   #       - but, still manually editing the one or two largest extrapolated corals to a reasonable size
   #
   # Retrieve row indices in 'survey' for the two largest corals
-  largest_width_rows <- survey %>%
+  largest_width_rows = survey %>%
     slice_max(Max_width, n = 2, with_ties = FALSE)
-  largest_width_indices <- which(survey$Max_width %in% largest_width_rows$Max_width)
+  largest_width_indices = which(survey$Max_width %in% largest_width_rows$Max_width)
   
   # Update survey with predicted SA from the "best" GAM (gamma with log-link, tensor product). extrapolated values from the two largest
   #   corals as predicted by the simple GAM are pasted in, since a simple GAM does not over-predict as much at the extremes
-  survey <- survey %>%
+  survey = survey %>%
     left_join(survey_predictions %>% select(Coral_ID, pred_gam_gamma_tp, pred_gam), by = "Coral_ID") %>%
     mutate(colony_SA = pred_gam_gamma_tp)
-  survey$colony_SA[largest_width_indices] <- survey_predictions$pred_gam[largest_width_indices]
+  survey$colony_SA[largest_width_indices] = survey_predictions$pred_gam[largest_width_indices]
   survey = survey %>% select(-pred_gam_gamma_tp, -pred_gam)
   
   #incorporate pre-SCTLD old mortality from lower Florida Keys plots (same as the ones in 'survey'). last observation of old mortality
@@ -352,7 +352,7 @@
                                            Health_state_081718, Notes_081718, Found_081718, SCTLD_081718)
   
   # Create a new column indicating total mortality pre-SCTLD
-  old_mortality <- old_mortality %>%
+  old_mortality = old_mortality %>%
     mutate(
       # Replace NA values in 'Old_death_081718' with 0 (NOTE - assume NA actually means no old mortality - only the case for 3 corals)
       #   Those three corals:
@@ -382,10 +382,10 @@
     filter(site == "mid" | site == "off" | site == "near")
   
   #replace ' (1)', ' (2)', or ' (3)' with '' in dataframes. there were some strange coral_ID entries
-  replace_string <- function(data) {
+  replace_string = function(data) {
     for (i in 1:ncol(data)) {
       if (is.character(data[, i])) {  # Check if the column is character
-        data[, i] <- gsub(' \\((1|2|3)\\)', '', data[, i])
+        data[, i] = gsub(' \\((1|2|3)\\)', '', data[, i])
       }
     }
     return(data)
@@ -403,14 +403,14 @@
   mismatches = anti_join(survey, old_mortality)
   
   # Update species and max width for mismatched data
-  survey <- survey %>%
+  survey = survey %>%
     mutate(spp = case_when(
       Coral_ID == '2_p27_t10_s0_c1_OFAV' ~ 'OFAV',
       Coral_ID == '2_p27_t10_s0_c3_OFAV' ~ 'OFAV',
       TRUE ~ spp  # Keep existing values unchanged
     ))
   
-  old_mortality <- old_mortality %>%
+  old_mortality = old_mortality %>%
     mutate(Max_width = case_when(
       Coral_ID == '3_p47_t1_s0_c1_MCAV' ~ 50,
       TRUE ~ Max_width  # Keep existing values unchanged
@@ -432,7 +432,7 @@
   select(-Plot)
   
   # Update tot_mortality for specific errant corals
-  survey <- survey %>%
+  survey = survey %>%
     mutate(percOM = case_when(
       Coral_ID == '2_p28_t4_s5_c8_SINT' ~ 0, #was in 'survey' only, assume started SCTLD outbreak with zero old mortality
       Coral_ID == '3_p47_t5_s0_c24_PAST' ~ 0, #was in 'survey' only, assume started SCTLD outbreak with zero old mortality
@@ -441,7 +441,7 @@
     ))
   
   #pivot survey to long format
-  survey_long <- survey %>%
+  survey_long = survey %>%
     # Filter based on Site_type
     filter(site %in% c("near", "mid", "off")) %>%
     # Pivot to long format
@@ -463,7 +463,7 @@
     select(1:which(names(.) == "D_field"), D_model, everything())  #reorder to place D_model after D_field
   
   #create unique numeric value for each coral
-  survey_long <- survey_long %>%
+  survey_long = survey_long %>%
     group_by(Coral_ID) %>%
     mutate(coral_numID = cur_group_id()) %>%
     ungroup() %>%
@@ -475,12 +475,12 @@
     mutate(coral_numID = survey_long$coral_numID[match(Coral_ID, survey_long$Coral_ID)])
 
   #add index to each dataframe row (standard convention for IDs, but also makes breaking it apart and then merging & joining later easier)
-  survey_long <- survey_long %>%
+  survey_long = survey_long %>%
     mutate(ID = row_number()) %>%
     select(ID, everything())
   
   #format progrates date columns
-  names(prograte)[names(prograte) == 'X'] <- '_X'#this old column happens to start with an X, like the date columns - so, rename it
+  names(prograte)[names(prograte) == 'X'] = '_X'#this old column happens to start with an X, like the date columns - so, rename it
   for(i in 1:ncol(prograte)){
     if(substr(colnames(prograte[i]), start = 1, stop = 1) == "X"){
       newdatename = as.character(as.POSIXct(str_sub(colnames(prograte[i]), 2), format = "%m.%d.%y"))
@@ -489,7 +489,7 @@
   }
 
   #initialize the dataframe with all required columns for calculating tissue loss through time
-  survey_long <- survey_long %>%
+  survey_long = survey_long %>%
     # Initialize columns with NA values and convert to numeric
     mutate(
       start_perctiss = NA_real_, #starting percentage of whole-colony SA that is live tissue
@@ -539,8 +539,6 @@
   # disease
   # note - to find these, filter by 2019-12-06 and D_field = 'N' & status = 'Dead'
   #   - almost all of these corals were small, HS corals which makes sense. important to keep track of their loss between timepoints
-  #   - also, applying this modification now means that a small 11 cm-diameter CNAT  becomes our patient zero - it was already dead before the DSTO on
-  #       October 30th, 2018.
   
   #   - Surprise-dead corals which had 100% old mortality in pre-SCTLD (mortality) dataset (so, are being *removed* entirely before simulation)
   #       - 2_p27_t9_s5_c2_DSTO - Maybe a discrepancy in mortality dataset; it suddenly died 09-17-2019 in new dataset. said 100% recent mortality on 08-17-2018 in old dataset
@@ -551,7 +549,7 @@
   #             _ SW: dead-dead on 8-17-2018. was 75% dead by 5-10-2018, if that is useful
   
   #filter surprise-dead corals (read details above), by their health condition on the last date of surveying (2019-12-06)
-  surprise.dead <- survey_trimmed %>%
+  surprise.dead = survey_trimmed %>%
     group_by(coral_numID) %>%
     filter(D_field == 'N', status_field == 'Dead') %>% #filter the corals that were never marked as being diseased but died unexpectedly
     ungroup() %>%
@@ -581,20 +579,19 @@
     arrange(coral_numID, date)
   
   #backtrack infections
-  # NOTE - the '100' doesn't really make sense now ... rethink?
   for (i in 2:nrow(first.dead.full)) { #start at 2 to accommodate reverse indexing
     if (first.dead.full$date[i] == first.dead.full$dead_date[i]) { #when the date of death is the current date
       
       # Set backtracked %infected to the prior date
-      first.dead.full$percinf[i-1] <- 100 / as.numeric(difftime(first.dead.full$dead_date[i], first.dead.full$date[i-1], units = "days"))
+      first.dead.full$percinf[i-1] = 100 / as.numeric(difftime(first.dead.full$dead_date[i], first.dead.full$date[i-1], units = "days"))
       
       # Set 100% loss to SCTLD for current (dead) date
-      first.dead.full$percloss[i] <- 100
+      first.dead.full$percloss[i] = 100
     }
   }
   
   #calculate accumulated tissue loss percentage
-  first.dead.full <- first.dead.full %>%
+  first.dead.full = first.dead.full %>%
     group_by(coral_numID) %>%
     arrange(date, .by_group = TRUE) %>%
     mutate(cum_percloss = cumsum(replace_na(percloss, 0))) %>%
@@ -602,7 +599,7 @@
     ungroup()
   
   #update backtracked SCTLD-infected status for the timepoint prior to the surprise-dead date
-  first.dead.full <- first.dead.full %>%
+  first.dead.full = first.dead.full %>%
     mutate(
       status_model = ifelse(!is.na(percinf) & percinf > 0, 'backtracked_SCTLD', status_model)
     )
@@ -633,7 +630,7 @@
     arrange(coral_numID, date)
 
   # calculate backtracked instantaneous (tissue loss / sloughing within 24 hours) infected tissue in surprise-dead corals 
-  surprise.dead.infections <- survey_trimmed %>%
+  surprise.dead.infections = survey_trimmed %>%
     filter(coral_numID %in% surprise.dead$coral_numID) %>%
     mutate(
       inftiss = if_else(!is.na(percinf),
@@ -689,7 +686,7 @@
     # i = 5 #first infected coral in dataframe
     
     # Extract values from currIDsdates
-    curr_values <- observed.infected %>%
+    curr_values = observed.infected %>%
       slice(i) %>%
       mutate(
         coral_numID = as.numeric(coral_numID),
@@ -701,7 +698,7 @@
     curr_ID = curr_values$ID
     currdate = curr_values$date
     
-    percloss <- prograte %>%
+    percloss = prograte %>%
       filter(coral_numID == curr_coral_ID) %>%
       select(all_of(curr_values$date)) %>%
       pull() %>%
@@ -715,7 +712,7 @@
     if(percloss > 0 & !is.na(percloss)){
       
       # Update percloss in observed.infected
-      observed.infected[i, "percloss"] <- percloss
+      observed.infected[i, "percloss"] = percloss
 
       # NOTE - the below assumes 'prograte' date columns are in order, which they are. but another approach may pivot
       #         'prograte' to long format earlier in the script for easier sorting
@@ -742,19 +739,19 @@
       
       # Calculate #/days it took for the amount of loss observed to accumulate
       progdays = as.numeric(difftime(currdate, prevdate, units = "days"))
-      observed.infected[i, "progdays"] <- progdays
+      observed.infected[i, "progdays"] = progdays
       
       # Calculate backtracked % of coral tissue that was infected, each day, from prior timepoint until current observation
       percinf = percloss / progdays
-      observed.infected[i-1, "percinf"] <- percinf
+      observed.infected[i-1, "percinf"] = percinf
       
       # Populate backtracked amount of tissue (SA) infected, from percentage value (percinf)
       inftiss = (percinf / 100) * starttiss
-      observed.infected[i-1, "inftiss"] <- inftiss
+      observed.infected[i-1, "inftiss"] = inftiss
       
       # Update backtracked infection status
       if (observed.infected[i-1, "status_model"] == "Healthy") {
-        observed.infected[i-1, "status_model"] <- "backtracked_SCTLD"
+        observed.infected[i-1, "status_model"] = "backtracked_SCTLD"
       }
     }
   }
@@ -787,7 +784,7 @@
     arrange(coral_numID, date)
 
   #calculate accumulated percloss
-  surveydiseased <- surveydiseased %>%
+  surveydiseased = surveydiseased %>%
     group_by(coral_numID) %>%
     arrange(date, .by_group = TRUE) %>%
     mutate(
@@ -797,13 +794,13 @@
     ungroup()
   
   #assign dead dates (first date when accumulated percloss is 100)
-  first_death_dates <- surveydiseased %>%
+  first_death_dates = surveydiseased %>%
     filter(cum_percloss >= 100) %>%
     group_by(coral_numID) %>%
     summarize(dead_date = min(date)) %>%
     ungroup()
   
-  surveydiseased <- surveydiseased %>%
+  surveydiseased = surveydiseased %>%
     left_join(first_death_dates, by = "coral_numID") %>%
     arrange(coral_numID, date)
   
@@ -815,7 +812,7 @@
   # NOTE - 3_p47_t1_s0_c4_MCAV, 3_p47_t6_s0_c17_CNAT, and 2_p28_t4_s0_c5_SSID are useful corals to check to make sure
   #         intermittent/lapsed/recurrent infection statuses are populated correctly
   # NOTE - there may be timepoint-specific bleaching (thermal stress) data for each colony somewhere. can come up later in results revisions
-  survey_tissue <- survey_tissue %>%
+  survey_tissue = survey_tissue %>%
     rename(BL_field = tot_stressed, BL_D_model = tot_both) %>%
     group_by(coral_numID) %>%
     mutate(
@@ -878,7 +875,7 @@
 
   # REMOVED / REMAINING TISSUE CALCULATION
   #
-  survey_tissue <- survey_tissue %>%
+  survey_tissue = survey_tissue %>%
     mutate(
       cum_tissloss = (cum_percloss/100) * starttiss,
       remaintiss = starttiss - ifelse(is.na(inftiss), 0, inftiss) - ifelse(is.na(cum_tissloss), 0, cum_tissloss), #subtract non-NA infected and accumulated dead tissue from starting tissue to get remaining tissue
@@ -887,27 +884,33 @@
   #
   # REMOVED / REMAINING TISSUE CALCULATION
   
-  # PATIENT ZERO SPECIAL CASE
+  # PATIENT ZERO SPECIAL CASES
   #
   #true patient zero is 2_p27_t2_s0_c1_DSTO on 10-30-2018. assume its 90% tissue loss occurred over 14 days since we don't have info
   #   except 3 months prior when colony was healthy
-  progdays.new <- 14
-  reference_date <- ymd('2018-10-30')
-  new_date <- reference_date - days(progdays.new) #backtrack 14 days from surprise-dead day of 10-30-2018
+  progdays.new = 14
+  reference_date = ymd('2018-10-30')
+  new_date = reference_date - days(progdays.new) #backtrack 14 days from surprise-dead day of 10-30-2018
 
   # Calculate percinf (90% percloss over the time difference)
-  percinf.new <- 90 / progdays.new
+  percinf.new = 90 / progdays.new
   
-  # Extract the existing row for the coral with coral_longID '2_p27_t2_s0_c1_DSTO'
-  coral_row <- survey_tissue %>%
+  # Extract the existing row for the offshore coral with coral_longID '2_p27_t2_s0_c1_DSTO'
+  patientzero.offshore.row = survey_tissue %>%
     filter(coral_long_ID == '2_p27_t2_s0_c1_DSTO' & date == reference_date) #%>%
     # select(-date) # Remove the date column to replace it with the new date
   
   # Calculate inftiss
-  inftiss.new <- (percinf.new / 100) * coral_row$starttiss
+  inftiss.new = (percinf.new / 100) * patientzero.offshore.row$starttiss
+  
+  #shrink the patient zero coral's infection surface area considerably, to approximate only a few polyps being infected in the very
+  #   earliest stages of gross lesion presentation. desirable for priming epidemic model
+  #     NOTE - the minimizing scalar is arbitrary, and can be tweaked to whatever works well for initializing the epidemic model runs
+  polyp_SA.minimizer = 66 #this was tweaked to be about 10X less than the smallest inftiss value across patient zero's time series. could (should) be coded in
+  inftiss.new = inftiss.new / polyp_SA.minimizer
   
   # Create the new row with the calculated values
-  new_row <- coral_row %>%
+  new_row = patientzero.offshore.row %>%
     mutate(
       date = new_date,
       status_field = NA_character_,
@@ -920,12 +923,12 @@
       inftiss = inftiss.new,
       remaintiss = starttiss - inftiss,
       cum_tissloss = NA_real_,
-      ID_SIR = coral_row$ID,
+      ID_SIR = patientzero.offshore.row$ID,
       ID = NA  # Set ID to NA for the new row
     )
   
   # Insert the new row into survey_tissue and update `ID_SIR` column to be identical to `ID` and increment the values after the new row
-  survey_tissue <- survey_tissue %>%
+  survey_tissue = survey_tissue %>%
     mutate(ID_SIR = NA) %>%
     add_row(new_row) %>%
     arrange(coral_numID, date) %>%
@@ -940,13 +943,61 @@
                         progdays)
     ) %>%
     select(1:which(names(.) == "ID"), ID_SIR, everything())
+  
+  #similarly update site-specific patient zero corals' infected surface area for the two sites (midchannel and nearshore) which contracted
+  #   SCTLD later on than offshore
+  polyp_SA.minimizer = 25 #25X - did this because the first loss of tissue at midchannel is quite high without a strong dampening applied
+  
+  min_inftiss_midchannel <- survey_tissue %>%
+    filter(coral_long_ID == '1_p25_t2_s0_c22_DSTO') %>%
+    filter(!is.na(inftiss) & inftiss > 0) %>%
+    arrange(date) %>%  # Sort by date to find the earliest entry
+    # # optionally, just take the first infection day instead of a minimum of all days
+    # slice(1) %>%  # Select the first (earliest) row #this was deprecated in favor of pulling the most minimal inftiss value in that patient zero's time series (which sometimes is not the initial value)
+    # pull(ID_SIR)
+    filter(inftiss == min(inftiss)) %>%  # Find the row with the minimum inftiss
+    pull(inftiss)  # Get the minimum inftiss value from the earliest row
+  
+  # Get the earliest date that has valid inftiss values
+  earliest_date_with_valid_inftiss <- survey_tissue %>%
+    filter(coral_long_ID == '1_p25_t2_s0_c22_DSTO' & !is.na(inftiss) & inftiss > 0) %>%
+    summarize(earliest_date = min(date)) %>%
+    pull(earliest_date)
+  
+  # Update only the earliest date row for the specific coral_long_ID
+  survey_tissue <- survey_tissue %>%
+    mutate(inftiss = if_else(coral_long_ID == '1_p25_t2_s0_c22_DSTO' & date == earliest_date_with_valid_inftiss,
+                             min_inftiss_midchannel / polyp_SA.minimizer,
+                             inftiss))  
+  
+  polyp_SA.minimizer = 10 #10X less than the smallest inftiss value across patient zero's time series (NOTE - should be coded in accordance with above)
+  
+  min_inftiss_nearshore = survey_tissue %>%
+    filter(coral_long_ID == '3_p47_t3_s0_c8_PSTR' | coral_long_ID == '3_p47_t4_s5_c15_PSTR') %>% #two patient zero corals
+    filter(!is.na(inftiss) & inftiss > 0) %>%  # Keep rows with non-NA, non-zero 'inftiss'
+    group_by(coral_long_ID) %>%  # Group by coral_long_ID
+    filter(inftiss == min(inftiss)) %>%  # Keep rows with minimum inftiss for each group
+    summarise(inftiss = unique(inftiss), .groups = 'drop') %>%  # Extract unique ID_SIR values since there are two patient zero's here
+    pull(inftiss)
+  
+  # Get the earliest date that has valid inftiss values
+  earliest_date_with_valid_inftiss <- survey_tissue %>%
+    filter((coral_long_ID == '3_p47_t3_s0_c8_PSTR' | coral_long_ID == '3_p47_t4_s5_c15_PSTR') & !is.na(inftiss) & inftiss > 0) %>%
+    summarize(earliest_date = min(date)) %>%
+    pull(earliest_date)
+  
+  # Update only the earliest date row for the specific coral_long_ID
+  survey_tissue <- survey_tissue %>%
+    mutate(inftiss = if_else((coral_long_ID == '3_p47_t3_s0_c8_PSTR' | coral_long_ID == '3_p47_t4_s5_c15_PSTR') & date == earliest_date_with_valid_inftiss,
+                             min_inftiss_midchannel / polyp_SA.minimizer,
+                             inftiss))
   #
-  # PATIENT ZERO SPECIAL CASE
+  # PATIENT ZERO SPECIAL CASES
   
   # AGGREGATE DATA INTO SUMMARY TABLES
   #
   # Add timepoints and compute summaries
-  summary_grouped <- survey_tissue %>%
+  summary_grouped = survey_tissue %>%
     mutate(TP = sprintf("%02d", dense_rank(date))) %>%
     group_by(site, date, TP, susc) %>%
     mutate(
@@ -1010,7 +1061,7 @@
   # NOTE - the above '02' and '03 hard-coding is not ideal, and this is an area to look to if there are bugs in the future
   
   #populate dates for patient zero timepoint
-  summary_grouped$date[summary_grouped$TP == "02"] <- as.POSIXct("2018-10-16")
+  summary_grouped$date[summary_grouped$TP == "02"] = as.POSIXct(toString(new_date))
   
   #further summary
   # NOTE - infections are always zero for the final timepoint of the study. this is because there is no further timepoint with which to
@@ -1057,7 +1108,7 @@
     )
   
   #easily legible table
-  tot.summary <- summary %>%
+  tot.summary = summary %>%
     select(site, date, TP, tot.sustiss, tot.inftiss, tot.deadtiss, tot.susnum, tot.infnum, tot.deadnum) %>%
     mutate(
       perc.prevalence.tiss = (tot.inftiss / tot.sustiss) * 100,
@@ -1071,30 +1122,30 @@
   # TRACK DAYS SINCE FIRST INFECTION(S)
   #
   # Identify the first timepoint and first infection date for each site
-  summary <- summary %>%
+  summary = summary %>%
     group_by(site) %>%
     mutate( 
       first.infTP = TP[which(tot.infnum > 0)[1]], # Find the first 'TP' (timepoint) where 'tot.infnum' is non-zero
-      first.infdate = min(date[tot.infnum > 0], na.rm = TRUE), # Get the date of the first infection occurrence for this site
-      days.inf.site = as.numeric(difftime(date, first.infdate, units = "days")) # Calculate days since the first infection for this specific site (days.inf.site)
+      first.infdate.site = min(date[tot.infnum > 0], na.rm = TRUE), # Get the date of the first infection occurrence for this site
+      days.inf.site = as.numeric(difftime(date, first.infdate.site, units = "days")) # Calculate days since the first infection for this specific site (days.inf.site)
     ) %>%
     ungroup()
   
   # Calculate the earliest infection date across all sites
-  global_first_infection_date <- summary %>%
+  global_first_infection_date = summary %>%
     filter(tot.infnum > 0) %>%
     summarise(first_infection = min(date, na.rm = TRUE)) %>%
     pull(first_infection)
   
   # Calculate the 'days.inf' column, which tracks days since the first infection across all sites
-  summary <- summary %>%
+  summary = summary %>%
     mutate(
       # Calculate the number of days since the very first infection across any site
       days.survey = as.numeric(difftime(date, global_first_infection_date, units = "days"))
     )
   
   # Clean up: round both 'days.inf' and 'days.inf.site', and set any small values to NA
-  summary <- summary %>%
+  summary = summary %>%
     mutate(
       days.survey = round(days.survey),
       days.inf.site = round(days.inf.site),
@@ -1112,41 +1163,35 @@
   #
   # TRACK DAYS SINCE FIRST INFECTION(S)
 
-  
-  
-  
-
-  
-
-  ### PLOT
+  ### PLOTTING PREPARATIONS
   #
   # Get the list of infected counts for all sites
-  sample_day_list <- summary %>%
+  sample_day_list = summary %>%
     group_by(site) %>%
     summarize(inf_count = list(tot.infnum), .groups = 'drop')
   
   # Create a list to store the indices for each site
-  indices__list <- sample_day_list %>%
+  indices__list = sample_day_list %>%
     mutate(indices = map(inf_count, ~ which(.x > 0))) %>%
     ungroup()
   
   #ensure the final timepoint is included, even though the model assumes no infections there (to account for newly removed tissue)
-  indices__list <- indices__list %>%
+  indices__list = indices__list %>%
     mutate(indices = map2(inf_count, indices, ~ {
-      first_nonzero <- min(which(.x > 0))  # Find the index of the first non-zero
-      subsequent_zeros <- which(.x == 0 & seq_along(.x) >= first_nonzero)  # Keep zeros after the first non-zero
+      first_nonzero = min(which(.x > 0))  # Find the index of the first non-zero
+      subsequent_zeros = which(.x == 0 & seq_along(.x) >= first_nonzero)  # Keep zeros after the first non-zero
       full_seq(c(.y, subsequent_zeros), 1)  # Extend the sequence
     }))
   
   # Merge back into summary to prepare for observation creation
-  obs_summary <- summary %>%
+  obs_summary = summary %>%
     left_join(indices__list %>% select(site, indices), by = "site") %>%
     group_by(site) %>%
     mutate(valid_rows = list(slice(., indices[[1]]))) %>%
     ungroup()
   
   # Create a function to generate the observations
-  create_observations <- function(data, comp, tissue_col, count_col, cat) {
+  create_observations = function(data, comp, tissue_col, count_col, cat) {
     data %>%
       transmute(
         TP = TP,
@@ -1160,7 +1205,7 @@
   }
   
   # Extract the 'Susceptible' values at TP == 1 for each Category
-  susceptible_ref <- obs_summary %>%
+  susceptible_ref = obs_summary %>%
     filter(TP == '01') %>%
     pivot_longer(cols = c(low.sustiss, moderate.sustiss, high.sustiss, tot.sustiss),
                  names_to = "Category",
@@ -1183,25 +1228,36 @@
       )
     ) %>%
     filter(Category == Category_count) %>%
-    select(Site = site, Category, tissue_ref, count_ref)  
+    select(Site = site, Category, tissue_ref, count_ref)
+    
+  #NOTE / STOPPING POINT - double check if this cover conversion still makes sense and document it better
+  #calculate site-level coral tissue area, "rectangle area", and coral cover
+  site_ref = susceptible_ref %>%
+    filter(Category == "Total") %>%
+    select(Site, tissue_ref) %>%
+    rename(N.site = tissue_ref)
   
+  susceptible_ref = susceptible_ref %>%
+    left_join(site_ref, by = "Site") %>%
+    mutate(area.site = 200, #each site had two 10 x 10 m quadrats (Williams et al. 2021)
+           cover.site = N.site / area.site * 0.3) #0.2840909 (~1:3X) is the ratio of our tissue density to CPCe-based cover (Williams et al. 2021))
   
   # Create data frames for all categories, including count columns
-  obs_sus <- bind_rows(
+  obs_sus = bind_rows(
     create_observations(obs_summary, "Susceptible", "low.sustiss", "low.susnum", "Low"),
     create_observations(obs_summary, "Susceptible", "moderate.sustiss", "moderate.susnum", "Moderate"),
     create_observations(obs_summary, "Susceptible", "high.sustiss", "high.susnum", "High"),
     create_observations(obs_summary, "Susceptible", "tot.sustiss", "tot.susnum", "Total")
   )
   
-  obs_inf <- bind_rows(
+  obs_inf = bind_rows(
     create_observations(obs_summary, "Infected", "low.inftiss", "low.infnum", "Low"),
     create_observations(obs_summary, "Infected", "moderate.inftiss", "moderate.infnum", "Moderate"),
     create_observations(obs_summary, "Infected", "high.inftiss", "high.infnum", "High"),
     create_observations(obs_summary, "Infected", "tot.inftiss", "tot.infnum", "Total")
   )
   
-  obs_dead <- bind_rows(
+  obs_dead = bind_rows(
     create_observations(obs_summary, "Dead", "low.deadtiss", "low.deadnum", "Low"),
     create_observations(obs_summary, "Dead", "moderate.deadtiss", "moderate.deadnum", "Moderate"),
     create_observations(obs_summary, "Dead", "high.deadtiss", "high.deadnum", "High"),
@@ -1209,10 +1265,10 @@
   )
   
   # Combine all observations into a single data frame
-  obs <- bind_rows(obs_sus, obs_inf, obs_dead)
+  obs = bind_rows(obs_sus, obs_inf, obs_dead)
   
   # Add scaled tissue and count columns to the existing 'obs' dataframe
-  obs <- obs %>%
+  obs = obs %>%
     left_join(susceptible_ref, by = c("Site", "Category")) %>%
     mutate(
       tissue.scaled = tissue / tissue_ref,  # Scale by the reference tissue
@@ -1227,7 +1283,7 @@
     select(-tissue_ref, -count_ref)  # Remove the reference columns after scaling
   
   # Factorize
-  obs <- obs %>%
+  obs = obs %>%
     mutate(across(c(TP, Category, Compartment, Site), as.factor))  
   
   # #save workspace for use in subsequent scripts

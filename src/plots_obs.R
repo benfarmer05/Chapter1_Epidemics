@@ -1,6 +1,7 @@
   
   # .rs.restartR(clean = TRUE)
-  
+  rm(list=ls())
+
   library(here)
   library(ggplot2)
   library(dplyr)
@@ -70,7 +71,10 @@
     theme_classic()
   
   #Nearshore
-  p.SIR.nearshore.scale = ggplot(data = obs %>% filter(Site == "Nearshore"), aes(days, tissue.scaled, colour = Compartment, linetype = Category)) +
+  p.SIR.nearshore.scale = ggplot(data = obs %>%
+                                   filter(Site == "Nearshore"),
+                                   # filter(Site == "Nearshore", Category == 'High'),
+                                 aes(days, tissue.scaled, colour = Compartment, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Proportion of tissue.scaled") +
     ggtitle(paste(c("", 'Nearshore'), collapse="")) +
@@ -95,7 +99,10 @@
   # unscaled plots
   #Offshore
   # display.brewer.all(colorblindFriendly = TRUE)
-  p.SIR.offshore = ggplot(data = obs %>% filter(Site == "Offshore"), aes(days, tissue, colour = Compartment, linetype = Category)) +
+  p.SIR.offshore = ggplot(data = obs %>%
+                            # filter(Site == "Offshore"),
+                            filter(Site == "Offshore", Category == 'High'),
+                          aes(days, tissue, colour = Compartment, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Offshore'), collapse="")) +
@@ -155,7 +162,10 @@
     theme_classic()
   
   #Nearshore
-  p.SIR.nearshore = ggplot(data = obs %>% filter(Site == "Nearshore"), aes(days, tissue, colour = Compartment, linetype = Category)) +
+  p.SIR.nearshore = ggplot(data = obs %>%
+                             filter(Site == "Nearshore"),
+                             # filter(Site == "Nearshore", Category == 'High'),
+                           aes(days, tissue, colour = Compartment, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Nearshore'), collapse="")) +
