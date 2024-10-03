@@ -2,10 +2,10 @@
   # .rs.restartR(clean = TRUE)
   rm(list=ls())
   
+  library(here)
   library(tidyverse)
   library(mgcv)
   library(gratia)
-  library(here)
   
   survey = read.csv(here("data", "SCTLD_END_Vpub_ts.csv"))
   cover = read.csv(here("data", "cover_long.csv"))
@@ -25,6 +25,17 @@
   #   - Offshore: 2_p27_t2_s0_c1_DSTO, 10-30-2018, 90% loss. backtrack a week? this is only a 5 inch coral
   #   - Midchannel: 1_p25_t2_s0_c22_DSTO, 11-29-2018, 10% loss
   #   - Nearshore: 3_p47_t3_s0_c8_PSTR (10% loss) and 3_p47_t4_s5_c15_PSTR (5% loss), 2019-02-08
+  
+  #define scalars to minimize starting infection amounts (for patient zeros) downstream
+  # NOTE - a better solution may be seeing if the models can use a standard amount of starting tissue (e.g., 1e-4) so that R0 is
+  #         more standardized and can be better projected onto different populations
+  polyp_SA.minimizer.nearshore = 1
+  # polyp_SA.minimizer.nearshore = 0.2 #a test to actually amplify polyp_SA since nearshore is having issues
+  # polyp_SA.minimizer.nearshore = 10 #10X less than the smallest inftiss value across patient zero's time series (NOTE - should be coded in accordance with above)
+  polyp_SA.minimizer.midchannel = 3
+  # polyp_SA.minimizer.midchannel = 25 #25X - did this because the first loss of tissue at midchannel is quite high without a strong dampening applied
+  polyp_SA.minimizer.offshore = 5
+  # polyp_SA.minimizer.offshore = 66 #this was tweaked to be about 10X less than the smallest inftiss value across patient zero's time series. could (should) be coded in
   
   #pull wide-format temporal data from lower Florida Keys (Williams et al. 2021), which recorded individual coral colonies; categorize species
   #   by susceptibility group
@@ -906,8 +917,7 @@
   #shrink the patient zero coral's infection surface area considerably, to approximate only a few polyps being infected in the very
   #   earliest stages of gross lesion presentation. desirable for priming epidemic model
   #     NOTE - the minimizing scalar is arbitrary, and can be tweaked to whatever works well for initializing the epidemic model runs
-  polyp_SA.minimizer = 66 #this was tweaked to be about 10X less than the smallest inftiss value across patient zero's time series. could (should) be coded in
-  inftiss.new = inftiss.new / polyp_SA.minimizer
+  inftiss.new = inftiss.new / polyp_SA.minimizer.offshore
   
   # Create the new row with the calculated values
   new_row = patientzero.offshore.row %>%
@@ -946,8 +956,6 @@
   
   #similarly update site-specific patient zero corals' infected surface area for the two sites (midchannel and nearshore) which contracted
   #   SCTLD later on than offshore
-  polyp_SA.minimizer = 25 #25X - did this because the first loss of tissue at midchannel is quite high without a strong dampening applied
-  
   min_inftiss_midchannel <- survey_tissue %>%
     filter(coral_long_ID == '1_p25_t2_s0_c22_DSTO') %>%
     filter(!is.na(inftiss) & inftiss > 0) %>%
@@ -967,30 +975,32 @@
   # Update only the earliest date row for the specific coral_long_ID
   survey_tissue <- survey_tissue %>%
     mutate(inftiss = if_else(coral_long_ID == '1_p25_t2_s0_c22_DSTO' & date == earliest_date_with_valid_inftiss,
-                             min_inftiss_midchannel / polyp_SA.minimizer,
+                             min_inftiss_midchannel / polyp_SA.minimizer.midchannel,
                              inftiss))  
   
-  polyp_SA.minimizer = 10 #10X less than the smallest inftiss value across patient zero's time series (NOTE - should be coded in accordance with above)
-  
-  min_inftiss_nearshore = survey_tissue %>%
-    filter(coral_long_ID == '3_p47_t3_s0_c8_PSTR' | coral_long_ID == '3_p47_t4_s5_c15_PSTR') %>% #two patient zero corals
+  #the same as above, for nearshore site
+  min_inftiss_nearshore <- survey_tissue %>%
+    filter(coral_long_ID %in% c('3_p47_t3_s0_c8_PSTR', '3_p47_t4_s5_c15_PSTR')) %>%  # two patient zero corals
     filter(!is.na(inftiss) & inftiss > 0) %>%  # Keep rows with non-NA, non-zero 'inftiss'
     group_by(coral_long_ID) %>%  # Group by coral_long_ID
-    filter(inftiss == min(inftiss)) %>%  # Keep rows with minimum inftiss for each group
-    summarise(inftiss = unique(inftiss), .groups = 'drop') %>%  # Extract unique ID_SIR values since there are two patient zero's here
-    pull(inftiss)
+    summarise(min_inftiss = min(inftiss), .groups = 'drop')  # Get the minimum inftiss for each group
   
   # Get the earliest date that has valid inftiss values
   earliest_date_with_valid_inftiss <- survey_tissue %>%
-    filter((coral_long_ID == '3_p47_t3_s0_c8_PSTR' | coral_long_ID == '3_p47_t4_s5_c15_PSTR') & !is.na(inftiss) & inftiss > 0) %>%
-    summarize(earliest_date = min(date)) %>%
-    pull(earliest_date)
+    filter(coral_long_ID %in% c('3_p47_t3_s0_c8_PSTR', '3_p47_t4_s5_c15_PSTR') & !is.na(inftiss) & inftiss > 0) %>%
+    group_by(coral_long_ID) %>%
+    summarise(earliest_date = min(date), .groups = 'drop')
   
   # Update only the earliest date row for the specific coral_long_ID
   survey_tissue <- survey_tissue %>%
-    mutate(inftiss = if_else((coral_long_ID == '3_p47_t3_s0_c8_PSTR' | coral_long_ID == '3_p47_t4_s5_c15_PSTR') & date == earliest_date_with_valid_inftiss,
-                             min_inftiss_midchannel / polyp_SA.minimizer,
-                             inftiss))
+    left_join(min_inftiss_nearshore, by = "coral_long_ID") %>%  # Join to get the min_inftiss for each coral
+    left_join(earliest_date_with_valid_inftiss, by = "coral_long_ID") %>%  # Join to get the earliest_date for each coral
+    mutate(inftiss = case_when(
+      coral_long_ID == '3_p47_t3_s0_c8_PSTR' & date == earliest_date ~ min_inftiss / polyp_SA.minimizer.nearshore,
+      coral_long_ID == '3_p47_t4_s5_c15_PSTR' & date == earliest_date ~ min_inftiss / polyp_SA.minimizer.nearshore,
+      TRUE ~ inftiss  # Keep the original inftiss if conditions don't match
+    )) %>%
+    select(-min_inftiss, -earliest_date)  # Remove the joined columns after use
   #
   # PATIENT ZERO SPECIAL CASES
   
@@ -1195,7 +1205,8 @@
     data %>%
       transmute(
         TP = TP,
-        days = days.survey,
+        days.inf.site = days.inf.site,
+        days.survey = days.survey,
         tissue = !!sym(tissue_col), #bang bang operator to convert wide format to long
         count = !!sym(count_col),
         Category = cat,
@@ -1282,10 +1293,15 @@
     ) %>%
     select(-tissue_ref, -count_ref)  # Remove the reference columns after scaling
   
-  # Factorize
+  # Factorize and add dates
+  summary_unique = summary %>%
+    group_by(TP) %>%
+    summarize(date = first(date), .groups = "drop")
   obs = obs %>%
-    mutate(across(c(TP, Category, Compartment, Site), as.factor))  
+    mutate(across(c(TP, Category, Compartment, Site), as.factor)) %>%
+    left_join(summary_unique, by = "TP") %>%
+    select(TP, date, everything())  # This will put 'date' as the second column
   
-  # #save workspace for use in subsequent scripts
-  # save.image(file = here("output", "data_processing_workspace.RData"))
+  #save workspace for use in subsequent scripts
+  save.image(file = here("output", "data_processing_workspace.RData"))
   

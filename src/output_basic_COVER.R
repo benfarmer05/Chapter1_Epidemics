@@ -21,17 +21,11 @@
       )
     )
   
-  # #ONLY if intending to exclude degree-heating weeks (DHW or DHWs)
-  # DHW.modifier = 8 #10
-  # tissue.summary = tissue.summary %>%
-  #   group_by(Site_type) %>%
-  #   slice(head(row_number(), n()-DHW.modifier)) #group_size()
-  # obs = obs %>%
-  #   group_by(Site, Compartment, Category) %>%
-  #   slice(head(row_number(), n()-DHW.modifier))
-  # obs.basic = obs.basic %>%
-  #   group_by(Site, Compartment) %>%
-  #   slice(head(row_number(), n()-DHW.modifier))
+  #ONLY if intending to exclude degree-heating weeks (DHW or DHWs)
+  DHW.onset.date = as.Date("2019-07-01")
+  DHW.modifier = summary_unique %>%
+    filter(date > DHW.onset.date) %>%
+    nrow()
   
   # # Scenario 1 [maximum transmission modifier of 1.0, with 100% coral cover]
   #lambda of 3: R0 is extremely low (0.8 or something), no outbreak in Midchannel
@@ -74,6 +68,7 @@
   params = vector('list', length(sites))
   
   for(i in 1:length(sites)){
+    
     site.loop = sites[i]
   
     # site.loop = "mid" #for testing purposes
@@ -86,90 +81,46 @@
     days = summary %>%
       # drop_na(days.survey) %>% # NOTE - area to return to after fixing backtracking with patient zero corals. we do want to drop this
       filter(site == site.loop) %>%
-      pull(days.survey)
+      pull(days.inf.site)
     
-    # ###tissue SA & counts of susceptible (healthy) hosts at the start of monitoring
-    # # also, selecting the correct starting polyp_SA for later in the loop
-    # prev.timepoint = ''
-    # if(site.loop == 'near'){
-    #   prev.timepoint = '07' #timepoint before first documented infection timepoint [site specific]
-    #   # polyp_SA = polyp_SA.nearshore[[1]]
-    #   area.site = 200 #meters squared, 2D. this could be changed to reflect available 3D substrate within the site, but we don't have that
-    # } else if(site.loop == "mid"){
-    #   prev.timepoint = '03'
-    #   # polyp_SA = polyp_SA.midchannel[[1]]
-    #   area.site = 200
-    # } else{ #offshore
-    #   prev.timepoint = '01'
-    #   # polyp_SA = polyp_SA.offshore[[1]]
-    #   area.site = 200
-    # }
+    #adjust days to chop off observations after onset of Degree Heating Weeks
+    days = days[1:(length(days) - DHW.modifier)]
     
-    # STOPPING POINT - 27 SEP 2024
-    # - okay, this was pretty intensive. trying to update this code with new dependencies / variable names from data_processing script
-    # - need to get this old version working again, which involves figuring out 'days' / 'time' and 'poly_SA'. once that is squared away,
-    #     I think it would be smart to start migrating everything over to the style set up in 'temp.R'. this should make it easier to
-    #     build off of main list of functions from which to pull and edit for basic SIR vs grouped SIR. that was always an issue before
-    # - and then it's a matter of making sure the SIR output still makes sense! assuming it does, make sure it looks good for the grouped
-    #     SIR as well
-    # - from there, need to bring in effect of DHWs. consider writing 1-2 hr/day M/T/W to get the bones together, and then really work
-    #     hard on Thursday to get a narrative together for the discussion section
-    #
-    # - other general thoughts:
-    #     - would be nice to return to the plots of varying coral covers and compositions. confused about where that went
-    #     - try to fit all three sites with one algorithm?
-    #     - more than anything, focus on simplicity and what will get a paper out. can always add more analyses down the road, but it is
-    #         critical to get this submitted to Ecology ASAP
+    # Find the first non-NA index in 'days'
+    first_valid_idx <- which(!is.na(days))[1]
     
-    
-    # time = time_list[[i]]
-    
-    # polyp_SA = 1e-4 #m2 - equivalent to 100 mm2, which is a rough approximation of a fully infected medium-sized coral polyp
+    # Trim 'days' starting from the first non-NA value
+    days.obs = days[first_valid_idx:length(days)]
+    days.model = seq(from = min(days.obs), to = max(days.obs), by = 1)
     
     N.site = susceptible_ref %>%
       filter(Site == site.loop) %>%
       slice(1) %>% #all values for N.site are the same between categories, so slice first row
       pull(N.site)
+    
     cover.site = susceptible_ref %>%
       filter(Site == site.loop) %>%
       slice(1) %>% #same as above
       pull(cover.site)
     
     #sequence of infected & removed SA's for each SusCat within site. remove timepoints before the first infection (zero omit)
-    LS.inftiss = obs.model %>% filter(Site == site.loop, Category == "Low", Compartment == "Infected") %>% pull(tissue)
-    MS.inftiss = obs.model %>% filter(Site == site.loop, Category == "Moderate", Compartment == "Infected") %>% pull(tissue)
-    HS.inftiss = obs.model %>% filter(Site == site.loop, Category == "High", Compartment == "Infected") %>% pull(tissue)
-    inftiss = LS.inftiss+MS.inftiss+HS.inftiss
+    inftiss = obs.model %>%
+      filter(Site == site.loop, Category == "Total", Compartment == "Infected") %>%
+      slice(head(row_number(), n()-DHW.modifier)) %>%
+      pull(tissue)    
+
+    remtiss = obs.model %>%
+      filter(Site == site.loop, Category == "Total", Compartment == "Dead") %>%
+      slice(head(row_number(), n()-DHW.modifier)) %>%
+      pull(tissue)
     
-    #STOPPING POINT - 1 OCT 2024
-    #   - establish the even further backtracked amount of tissue surface area that would spark an infection at the site. this seems
-    #       kind of silly though. I already backtracked - why not instead just make patient zero start really small - smaller than I
-    #       am currently?
-    #   - BUT for now, just get this code functioning. from there, can go back and edit patient zero SA as needed.
-    # polyp_SA = min(inftiss[1:5])/5
-    # polyp_SA = inftiss[1]/1.5
-    
-    
-    # STOPPING POINT - 2 OCT 2024
-    #   just caught up with re-doing the plots after updating polyp_SA in data_processing script - should be just about ready to 
-    #     go with re-running the SIR model now that the beginning of the infections are all primed more or less properly
-    
-    # NOTE - this method, when applied before generating the summary tables, is unable to use the tabled time series to draw a minimum
-    #         infected value from and then divide by for polyp_SA. dividing by 5 ensures, for any of the three sites, that polyp_SA is less
-    #         than the first few 'inftiss' tabled values - but this method could be revised, especially if dividing by 5 isn't fitting well
-    polyp_SA <- inftiss %>%
-      .[. != 0] %>%   # Filter out zero values
-      head(5) %>%     # Select the first five non-zero values
-      # min() / 1.5     # Get the minimum and divide by 1.5
-      min() / 5     # Get the minimum and divide by 5
-    
-    LS.remtiss = obs.model %>% filter(Site == site.loop, Category == "Low", Compartment == "Dead") %>% pull(tissue)
-    MS.remtiss = obs.model %>% filter(Site == site.loop, Category == "Moderate", Compartment == "Dead") %>% pull(tissue)
-    HS.remtiss = obs.model %>% filter(Site == site.loop, Category == "High", Compartment == "Dead") %>% pull(tissue)
-    remtiss = LS.remtiss+MS.remtiss+HS.remtiss
+    # Trim 'inftiss' and 'remtiss' using the same indices as 'days'
+    inftiss <- inftiss[first_valid_idx:length(inftiss)]
+    remtiss <- remtiss[first_valid_idx:length(remtiss)]
     
     #initial conditions
-    I.tiss = polyp_SA
+    I.tiss = inftiss[1] #first non-NA & non-zero infection entry
+    # I.tiss = 1e-4 #m2 - equivalent to 100 mm2, which is a rough approximation of a fully infected medium-sized coral polyp
     S.tiss = N.site - I.tiss
     R.tiss = 0
     
@@ -185,22 +136,39 @@
       # gammas = 1.0
       # lambdas = 1.0
       # initial_state = initial_state.tiss
-      # time = days
+      # time = days.model
       # data = coraldata.tiss
-      
+
       betas = params[1]
       gammas = params[2]
       lambdas = params[3]
       
-      SIR.out = data.frame(ode(c(S = initial_state[1], I = initial_state[2], R = initial_state[3]),
-                               time, SIR, c(b = betas, g = gammas,
-                                            N = initial_state[4],
-                                            l = lambdas,
-                                            C = initial_state[5])))
+      # SIR.out = data.frame(ode(c(S = initial_state[1], I = initial_state[2], R = initial_state[3]),
+      #                          time, SIR, c(b = betas, g = gammas,
+      #                                       N = initial_state[4],
+      #                                       l = lambdas,
+      #                                       C = initial_state[5])))
+      
+      SIR.out = tryCatch({
+        data.frame(ode(c(S = initial_state[1], I = initial_state[2], R = initial_state[3]),
+                       time, SIR, c(b = betas, g = gammas,
+                                    N = initial_state[4],
+                                    l = lambdas,
+                                    C = initial_state[5])))
+      }, error = function(e) {
+        print("Error in ODE:")
+        print(e)
+        return(NA)
+      })
+      
+      # # Handle cases where the ODE solver failed
+      # if (is.na(SIR.out)) {
+      #   return(Inf)  # Return a large number to force DEoptim to move away from these params
+      # }
       
       #extract simulated values at time points matching observations
-      sim.inf = SIR.out[which(SIR.out$time %in% days), which(colnames(SIR.out) %in% 'I')]
-      sim.rem = SIR.out[which(SIR.out$time %in% days), which(colnames(SIR.out) %in% 'R')]
+      sim.inf = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'I')]
+      sim.rem = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R')]
       
       #extract observed values [repetitive code, but works]
       obs.inf = unlist(data[1])
@@ -250,7 +218,7 @@
     
     # Run the optimization
     result.tiss = DEoptim(fn = objective_function, lower = lower_bounds.tiss, upper = upper_bounds.tiss,
-                          data = coraldata.tiss, time = days, initial_state = initial_state.tiss,
+                          data = coraldata.tiss, time = days.model, initial_state = initial_state.tiss,
                           control = control) # 411: turn this ON for tissue!
     
     # Extract the optimized parameters
@@ -265,7 +233,7 @@
     # min.beta.tiss.adj = (min.beta.tiss * (1 + min.lambda.tiss * sqrt(cover.site)))
     # min.beta.tiss.adj = (min.beta.tiss * (min.lambda.tiss * sqrt(cover.site)))
     R0 = min.beta.tiss.adj / min.gamma.tiss
-    cat("Optimized Tissue Model Parameters for", site, " site:\n")
+    cat("Optimized Tissue Model Parameters for", site.loop, " site:\n")
     cat("Beta:", min.beta.tiss, "\n")
     cat("Cover-adjusted beta:", min.beta.tiss.adj, "\n")
     cat("Gamma:", min.gamma.tiss, "\n")
@@ -276,7 +244,7 @@
     
     #simulation using initial state variables and best-fit beta/gamma parameters
     SIR.out.tiss = data.frame(ode(c(S = initial_state.tiss[1], I = initial_state.tiss[2], R = initial_state.tiss[3]),
-                                  time, SIR, c(b = min.beta.tiss, g = min.gamma.tiss,
+                                  days.model, SIR, c(b = min.beta.tiss, g = min.gamma.tiss,
                                                N = initial_state.tiss[4],
                                                l = min.lambda.tiss,
                                                C = initial_state.tiss[5])))
@@ -284,6 +252,6 @@
     
   }
   
-  # # Save/load workspace
-  # save.image(file = "output_basic_COVER_1.0_workspace.RData")
+  #save workspace for use in subsequent scripts
+  save.image(file = here("output", "basic_SIR_workspace.RData"))
   

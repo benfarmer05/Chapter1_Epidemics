@@ -1,12 +1,31 @@
   
   # .rs.restartR(clean = TRUE)
+  rm(list=ls())
   
   library(here)
   library(tidyverse)
+  library(DEoptim)
+  library(deSolve)
   
   #import workspace from FLKEYS_data_processing.R
   load(here("output", "data_processing_workspace.RData"))
-
+  
+  # Function to refactor site names
+  refactor_site_names <- function(data) {
+    data %>%
+      mutate(
+        Site = case_when(
+          Site == "Offshore" ~ "off",
+          Site == "Midchannel" ~ "mid",
+          Site == "Nearshore" ~ "near",
+          TRUE ~ Site
+        )
+      )
+  }
+  
+  
+  
+  
   # Optimization function
   optimize_SIR <- function(data, time, initial_state, lambda.modifier, offset, lower_bounds, upper_bounds, control){
     # Objective function is left unchanged

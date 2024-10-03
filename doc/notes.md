@@ -26,3 +26,49 @@
   #         - part of the problem is that when I change lambda, it's changing the relationship of ALL sites to cover, but also
   #             their relationship with each other
   
+    #     I think it would be smart to start migrating everything over to the style set up in 'temp.R'. this should make it easier to
+    #     build off of main list of functions from which to pull and edit for basic SIR vs grouped SIR. that was always an issue before
+    # - and then it's a matter of making sure the SIR output still makes sense! assuming it does, make sure it looks good for the grouped
+    #     SIR as well
+    # - from there, need to bring in effect of DHWs. consider writing 1-2 hr/day M/T/W to get the bones together, and then really work
+    #     hard on Thursday to get a narrative together for the discussion section
+    #
+    # - other general thoughts:
+    #     - would be nice to return to the plots of varying coral covers and compositions. confused about where that went
+    #     - try to fit all three sites with one algorithm?
+    #     - more than anything, focus on simplicity and what will get a paper out. can always add more analyses down the road, but it is
+    #         critical to get this submitted to Ecology ASAP
+
+
+
+
+- from plots_basic_COVER script:
+  #to-do:
+  # - optimize the prediction of nearshore parameters onto offshore. and vice versa probably
+  # - keep testing effect of simply not fitting to infections at all in the first optimization step
+  # - also, thinking about the Dobbelaere approach. I could try a fit that accounts for all site.loops summed together (or averaged)
+  #     - what would the prediction look like? similar to the 2020 paper? there are important differences in how they accounted for area
+  #     - could allow beta to do whatever it wants, and then calculate a gamma that a constant R0 dictates...does this make sense?
+  #         - might allow the actual shape of the curve to change between site.loops
+  #         - could also always test that more with the multi-scale models or a UVI-specific wheels study...eventually
+  #         - also though, my theory is really that only transmission (beta) itself should change with site.loop density. so I like what I did, too
+  #
+  #     - our model is tissue-based too - which is a huge plus. while its predictions aren't perfect, it's probably a much closer reality
+  #         than just assuming a bunch of whole coral colonies die
+  #         - and ours is multi-species!
+  #   - last thought: why not throw together a simple statistical model relating initial cover (& SA) with final remaining tissue? this
+  #         could be a pretty interesting natural extension of the work, and prove whether what we set out to do could simply be replicated
+  #         with something like a GAM
+  
+    - on that point, there are some good sources to consider (got these from chatGPT):
+        - Miller, J. et al. (2009). "Coral disease: A potential link between ecological degradation and disease susceptibility." Disease of Aquatic Organisms, 87(2), 119-128.
+        - Eakin, C. M., et al. (2010). "Coral bleaching: Patterns, processes, and causes." Coral Reefs, 29(2), 307-317.
+        - De La Torre, C. et al. (2018). "Bayesian hierarchical modeling for disease dynamics in coral reefs." PLoS ONE, 13(2), e0192808.
+        -Giri, K. et al. (2021). "Machine learning models for assessing coral health using remote sensing data." Marine Ecology Progress Series, 663, 139-153.
+        - Ainsworth, T. D., et al. (2016). "Climate change disables coral bleaching protection on the Great Barrier Reef." Nature Climate Change, 6(1), 82-87.
+        
+        
+        
+        
+# note for paper:
+#I accidentally was starting the epidemic at Nearshore with a polyp_SA associated with midchannel instead - and I think it caused the epidemic to start with too little tissue. and it's really interesting, the model will still "fit" but it takes way too long for infections to start really kicking off exponentially, and also too long for removal to kick in. a reminder that classic SIR models are very very sensitive to the amount of starting infection when used with a system like coral tissue

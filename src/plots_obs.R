@@ -358,15 +358,8 @@
     geom_line() +
     theme_classic()
   
-  # # Save workspace
-  # save.image(file = "FLKEYS_workspace.RData")
-  
-  
-  
-  
-  
-  
-  
+  # #save workspace for returning to plots
+  # save.image(file = here("output", "plots_obs_workspace.RData"))
   
   # # development
   # #
