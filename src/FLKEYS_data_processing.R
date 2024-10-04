@@ -1240,7 +1240,7 @@
     ) %>%
     filter(Category == Category_count) %>%
     select(Site = site, Category, tissue_ref, count_ref)
-    
+  
   #NOTE / STOPPING POINT - double check if this cover conversion still makes sense and document it better
   #calculate site-level coral tissue area, "rectangle area", and coral cover
   site_ref = susceptible_ref %>%
@@ -1284,12 +1284,6 @@
     mutate(
       tissue.scaled = tissue / tissue_ref,  # Scale by the reference tissue
       count.scaled = count / count_ref,     # Scale by the reference count
-      Site = case_when(                     # Map site names to new values
-        Site == "off" ~ "Offshore",
-        Site == "mid" ~ "Midchannel",
-        Site == "near" ~ "Nearshore",
-        TRUE ~ Site
-      )
     ) %>%
     select(-tissue_ref, -count_ref)  # Remove the reference columns after scaling
   
@@ -1301,6 +1295,35 @@
     mutate(across(c(TP, Category, Compartment, Site), as.factor)) %>%
     left_join(summary_unique, by = "TP") %>%
     select(TP, date, everything())  # This will put 'date' as the second column
+  
+  # Identify patient zero tissue and count in 'obs' (Compartment == 'Infected')
+  patient_zero = obs %>%
+    filter(Compartment == 'Infected' & !is.na(tissue) & tissue > 0 & !is.na(count) & count > 0) %>%
+    group_by(Site, Category) %>%
+    arrange(date) %>%
+    summarize(
+      patientzero_tissue = first(tissue),
+      patientzero_count = first(count),
+      .groups = 'drop'
+    ) %>%
+    mutate(
+      patientzero_tissue = ifelse(Category %in% c('Low', 'Moderate'), NA, patientzero_tissue),
+      patientzero_count = ifelse(Category %in% c('Low', 'Moderate'), NA, patientzero_count)
+    )
+  
+  # Join patient zero information to 'susceptible_ref'
+  susceptible_ref = susceptible_ref %>%
+    left_join(patient_zero, by = c("Site", "Category"))
+  
+  obs = obs %>%
+    mutate(
+      Site = case_when( # Map site names to new values
+        Site == "off" ~ "Offshore",
+        Site == "mid" ~ "Midchannel",
+        Site == "near" ~ "Nearshore",
+        TRUE ~ Site
+      )
+    )
   
   #save workspace for use in subsequent scripts
   save.image(file = here("output", "data_processing_workspace.RData"))
