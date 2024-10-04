@@ -1325,6 +1325,11 @@
       )
     )
   
+  # STOPPING POINT - 4 OCT 2024
+  #   - now storing patient zero tissue and counts. this should help with understanding which initial conditions allow a model to "work"
+  #   - would still be ideal to zero in on a standard initial condition, but may just not be possible with how SCTLD functions. might
+  #       require using cover and N.site as scalars to define patient zero starting values
+  
   #save workspace for use in subsequent scripts
   save.image(file = here("output", "data_processing_workspace.RData"))
   
