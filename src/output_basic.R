@@ -1,14 +1,14 @@
   
   # .rs.restartR(clean = TRUE)
   rm(list=ls())
-
+  
   library(here)
   library(tidyverse)
   library(DEoptim)
   library(deSolve)
   
-  #import workspace from FLKEYS_data_processing.R
-  load(here("output", "data_processing_workspace.RData"))
+  #import workspace from upstream script
+  load(here("output", "plots_obs_workspace.RData"))
   
   #refactor names in 'obs' to match 'summary'
   obs.model <- obs %>%
@@ -21,11 +21,12 @@
       )
     )
   
-  #ONLY if intending to exclude degree-heating weeks (DHW or DHWs)
+  #parameters for adjusting modeled outbreak based on Degree Heating Weeks (DHWs)
   DHW.onset.date = as.Date("2019-07-01")
-  DHW.modifier = summary_unique %>%
-    filter(date > DHW.onset.date) %>%
-    nrow()
+  # DHW.modifier = summary_unique %>%
+  #   filter(date > DHW.onset.date) %>%
+  #   nrow()
+  DHW.modifier = 0 #null model where DHWs do not matter
   
   # # Scenario 1 [maximum transmission modifier of 1.0, with 100% coral cover]
   #lambda of 3: R0 is extremely low (0.8 or something), no outbreak in Midchannel
@@ -64,8 +65,8 @@
   sites = unique(summary$site)
   # list(time_list <- vector("list", length = length(sites)))
   
-  my.SIRS = vector('list', length(sites))
-  params = vector('list', length(sites))
+  my.SIRS.basic = vector('list', length(sites))
+  params.basic = vector('list', length(sites))
   
   for(i in 1:length(sites)){
     
@@ -138,7 +139,7 @@
       # initial_state = initial_state.tiss
       # time = days.model
       # data = coraldata.tiss
-
+  
       betas = params[1]
       gammas = params[2]
       lambdas = params[3]
@@ -240,7 +241,7 @@
     cat("Lambda:", min.lambda.tiss, "\n")
     cat("R0:", R0, '\n')
     
-    params[[i]] = c(min.beta.tiss, min.beta.tiss.adj, min.gamma.tiss, min.lambda.tiss, R0, cover.site)
+    params.basic[[i]] = c(min.beta.tiss, min.beta.tiss.adj, min.gamma.tiss, min.lambda.tiss, R0, cover.site)
     
     #simulation using initial state variables and best-fit beta/gamma parameters
     SIR.out.tiss = data.frame(ode(c(S = initial_state.tiss[1], I = initial_state.tiss[2], R = initial_state.tiss[3]),
@@ -248,10 +249,10 @@
                                                N = initial_state.tiss[4],
                                                l = min.lambda.tiss,
                                                C = initial_state.tiss[5])))
-    my.SIRS[[i]] = SIR.out.tiss
+    my.SIRS.basic[[i]] = SIR.out.tiss
     
   }
   
-  #save workspace for use in subsequent scripts
+  #pass workspace to downstream script
   save.image(file = here("output", "basic_SIR_workspace.RData"))
   

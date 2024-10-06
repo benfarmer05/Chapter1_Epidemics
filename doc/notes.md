@@ -1,3 +1,13 @@
+# Chain sequence for running scripts:
+#   - FLKEYS_data_processing.R
+#   - plots_obs.R
+#   - output_basic.R
+#   - plots_basic.R
+#   - output_multi.R
+
+
+
+
 27 Sep 2024
 
 - where did the code I used to create a range of simulated output from different coral cover scenarios go? would be very helpful to track down that script. can check chatgpt conversations, Box history, etc.
@@ -70,9 +80,11 @@
         
         
         
-# note for paper:
-#I accidentally was starting the epidemic at Nearshore with a polyp_SA associated with midchannel instead - and I think it caused the epidemic to start with too little tissue. and it's really interesting, the model will still "fit" but it takes way too long for infections to start really kicking off exponentially, and also too long for removal to kick in. a reminder that classic SIR models are very very sensitive to the amount of starting infection when used with a system like coral tissue
-
+# notes for paper:
+#   - I accidentally was starting the epidemic at Nearshore with a polyp_SA associated with midchannel instead - and I think it caused the epidemic to start with too little tissue. and it's really interesting, the model will still "fit" but it takes way too long for infections to start really kicking off exponentially, and also too long for removal to kick in. a reminder that classic SIR models are very very sensitive to the amount of starting infection when used with a system like coral tissue
+#   - The way I am predicting outbreaks from initial conditions, the *shape* of the outbreak is not dynamic. this probably is okay not to worry about when publishing, but it's probably an area that future work should zero in on. because it seems like the shape of the
+#       outbreak really *should* be changing site to site
+#           - Sort of along the lines of the "simple" statistical model I proposed above. my method may get us fairly close to a crude solution for predicted tissue lost to SCTLD - but is it really helping us understand the outbreak dynamics? I would say only a little
 
 
 # plotting consideration:

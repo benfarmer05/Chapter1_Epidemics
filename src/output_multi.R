@@ -1,24 +1,21 @@
   
+  # .rs.restartR(clean = TRUE)
   rm(list=ls())
-
-  # Load workspace from FLKEYS data-processing script
-  load("FLKEYS_workspace.RData")
   
+  library(here)
   library(tidyverse)
-  library(DEoptim)
-  library(deSolve)
+  # library(DEoptim)
+  # library(deSolve)
   
-  # #ONLY if you want to exclude degree-heating weeks (DHW or DHWs)
-  # DHW.modifier = 6 #8 #10
-  # tissue.summary = tissue.summary %>%
-  #   group_by(Site_type) %>%
-  #   slice(head(row_number(), n()-DHW.modifier)) #group_size()
-  # obs = obs %>%
-  #   group_by(Site, Compartment, Category) %>%
-  #   slice(head(row_number(), n()-DHW.modifier))
-  # obs.basic = obs.basic %>%
-  #   group_by(Site, Compartment) %>%
-  #   slice(head(row_number(), n()-DHW.modifier))
+  #import workspace from upstream script
+  load(here("output/plots_basic_workspace.RData"))
+  
+  susceptible_ref = susceptible_ref %>%
+    mutate(Site = case_when(
+      Site == "Offshore" ~ "off",
+      Site == 'Midchannel' ~ 'mid',
+      Site == 'Nearshore' ~ 'near'
+    ))
   
   # # Scenario 1 [maximum transmission modifier of 1.0, with 100% coral cover; uniform lambda].
   #lambda of 0.0: no effect of cover; overpredicted outbreaks. [Nearshore -> Offshore/Midchannel]
@@ -92,51 +89,61 @@
     })
   }
   
-  my.SIRS = vector('list', length(sites))
-  params = vector('list', length(sites))
+  my.SIRS.multi = vector('list', length(sites))
+  params.multi = vector('list', length(sites))
   
   for(i in 1:length(sites)){
-    site = sites[i]
-  
-    # site = "Midchannel" #for testing purposes
-    # i = 1
-    # site = "Nearshore" #for testing purposes
+    
+    site.loop = sites[i]
+# 
+#     site.loop = "mid" #for testing purposes
+#     i = 1
+    # site.loop = "near" #for testing purposes
     # i = 2
-    # site = "Offshore" #for testing purposes
+    # site.loop = "off" #for testing purposes
     # i = 3
     
-    days = tissue.summary %>% na.omit() %>% filter(Site_type == site) %>% pull(Day)
+    days = summary %>%
+      # drop_na(days.survey) %>% # NOTE - area to return to after fixing backtracking with patient zero corals. we do want to drop this
+      filter(site == site.loop) %>%
+      pull(days.inf.site)
     
-    ###tissue SA & counts of susceptible (healthy) hosts at the start of monitoring
-    # also, selecting the correct starting polyp_SA for later in the loop
-    prev.timepoint = ''
-    if(site == 'Nearshore'){
-      prev.timepoint = 'T11' #timepoint before first documented infection timepoint [site specific]
-      polyp_SA = polyp_SA.nearshore[[1]]
-      area.site = 200 #meters squared. this could be changed to reflect available 3D substrate within the site, but we don't have that
-    } else if(site == "Midchannel"){
-      prev.timepoint = 'T7'
-      polyp_SA = polyp_SA.midchannel[[1]]
-      area.site = 200
-    } else{ #offshore
-      prev.timepoint = 'T5'
-      polyp_SA = polyp_SA.offshore[[1]]
-      area.site = 200
-    }
+    #adjust days to chop off observations after onset of Degree Heating Weeks
+    days = days[1:(length(days) - DHW.modifier)]
     
-    time = time_list[[i]]
+    # Find the first non-NA index in 'days'
+    first_valid_idx <- which(!is.na(days))[1]
     
-    polyp_SA = 1e-4 #m2 - equivalent to 100 mm2, which is a rough approximation of a fully infected medium-sized coral polyp
+    # Trim 'days' starting from the first non-NA value
+    days.obs = days[first_valid_idx:length(days)]
+    days.model = seq(from = min(days.obs), to = max(days.obs), by = 1)
     
-    S0.snapshot = subset(tissue.summary, Site_type==site & Timepoint == prev.timepoint)
-    N.site = S0.snapshot$tot.sustiss
-    N.LS.site = S0.snapshot$LS.sustiss
-    N.MS.site = S0.snapshot$MS.sustiss
-    N.HS.site = S0.snapshot$HS.sustiss
-    cover.site = N.site / area.site * 0.33 #(~1:3X) is the approximate ratio of our tissue density to CPCe-based cover (Williams et al. 2021)
-    cover.LS.site = N.LS.site / area.site * 0.33
-    cover.MS.site = N.MS.site / area.site * 0.33
-    cover.HS.site = N.HS.site / area.site * 0.33
+    N.site = susceptible_ref %>%
+      filter(Site == site.loop) %>%
+      slice(1) %>% #all values for N.site are the same between categories, so slice first row
+      pull(N.site)
+    
+    cover.site = susceptible_ref %>%
+      filter(Site == site.loop) %>%
+      slice(1) %>% #same as above
+      pull(cover.site)
+    
+    N.LS.site = susceptible_ref %>%
+      filter(Site == site.loop, Category == 'Low') %>%
+      pull(tissue_ref)
+    N.MS.site = susceptible_ref %>%
+      filter(Site == site.loop, Category == 'Moderate') %>%
+      pull(tissue_ref)
+    N.HS.site = susceptible_ref %>%
+      filter(Site == site.loop, Category == 'High') %>%
+      pull(tissue_ref)
+    
+    cover.LS.site = susceptible_ref %>%
+      filter(Site == site.loop, Category == 'Low') %>%
+      pull(cover.site) # STOPPING POINT - 6 OCT 2024. Need to go back to processing script and add a 'cover_ref'. easy fix
+    # cover.LS.site = N.LS.site / area.site * 0.33
+    # cover.MS.site = N.MS.site / area.site * 0.33
+    # cover.HS.site = N.HS.site / area.site * 0.33
     
     #sequence of infected & removed SA's for each SusCat within site. remove timepoints before the first infection (zero omit)
     LS.inftiss = obs %>% filter(Site == site, Category == "LS", Compartment == "Infected") %>% pull(prop)
@@ -426,6 +433,6 @@
     
   }
   
-  # # Save workspace
-  # save.image(file = "output_multi_COVER_0-0-0_workspace.RData")
-    
+  #pass workspace to downstream script
+  save.image(file = "multi_SIR_workspace.RData")
+  
