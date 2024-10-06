@@ -18,7 +18,7 @@
   # scaled plots
   #Offshore
   # display.brewer.all(colorblindFriendly = TRUE)
-  p.SIR.offshore.scale = ggplot(data = obs %>% filter(Site == "Offshore"), aes(days, tissue.scaled, colour = Compartment, linetype = Category)) +
+  p.SIR.offshore.scale = ggplot(data = obs %>% filter(Site == "Offshore"), aes(days.inf.site, tissue.scaled, colour = Compartment, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Proportion of tissue.scaled") +
     ggtitle(paste(c("", 'Offshore'), collapse="")) +
@@ -26,14 +26,14 @@
     scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
     theme_classic()
   
-  p.I.offshore.scale = ggplot(data = obs %>% filter(Site == "Offshore", Compartment == "Infected"), aes(days, tissue.scaled, linetype = Category)) +
+  p.I.offshore.scale = ggplot(data = obs %>% filter(Site == "Offshore", Compartment == "Infected"), aes(days.inf.site, tissue.scaled, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Proportion of tissue.scaled") +
     ggtitle(paste(c("", 'Offshore'), collapse="")) +
     geom_line() +
     theme_classic()
   
-  p.R.offshore.scale = ggplot(data = obs %>% filter(Site == "Offshore", Compartment == "Dead"), aes(days, tissue.scaled, linetype = Category)) +
+  p.R.offshore.scale = ggplot(data = obs %>% filter(Site == "Offshore", Compartment == "Dead"), aes(days.inf.site, tissue.scaled, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Proportion of tissue.scaled") +
     ggtitle(paste(c("", 'Offshore'), collapse="")) +
@@ -41,7 +41,7 @@
     theme_classic()
   
   #Midchannel
-  p.SIR.midchannel.scale = ggplot(data = obs %>% filter(Site == "Midchannel"), aes(days, tissue.scaled, colour = Compartment, linetype = Category)) +
+  p.SIR.midchannel.scale = ggplot(data = obs %>% filter(Site == "Midchannel"), aes(days.inf.site, tissue.scaled, colour = Compartment, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Proportion of tissue.scaled") +
     ggtitle(paste(c("", 'Midchannel'), collapse="")) +
@@ -49,21 +49,21 @@
     scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
     theme_classic()
   
-  p.S.midchannel.scale = ggplot(data = obs %>% filter(Site == "Midchannel", Compartment == "Susceptible"), aes(days, tissue.scaled, linetype = Category)) +
+  p.S.midchannel.scale = ggplot(data = obs %>% filter(Site == "Midchannel", Compartment == "Susceptible"), aes(days.inf.site, tissue.scaled, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Proportion of tissue.scaled") +
     ggtitle(paste(c("", 'Midchannel'), collapse="")) +
     geom_line() +
     theme_classic()
   
-  p.I.midchannel.scale = ggplot(data = obs %>% filter(Site == "Midchannel", Compartment == "Infected"), aes(days, tissue.scaled, linetype = Category)) +
+  p.I.midchannel.scale = ggplot(data = obs %>% filter(Site == "Midchannel", Compartment == "Infected"), aes(days.inf.site, tissue.scaled, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Proportion of tissue.scaled") +
     ggtitle(paste(c("", 'Midchannel'), collapse="")) +
     geom_line() +
     theme_classic()
   
-  p.R.midchannel.scale = ggplot(data = obs %>% filter(Site == "Midchannel", Compartment == "Dead"), aes(days, tissue.scaled, linetype = Category)) +
+  p.R.midchannel.scale = ggplot(data = obs %>% filter(Site == "Midchannel", Compartment == "Dead"), aes(days.inf.site, tissue.scaled, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Proportion of tissue.scaled") +
     ggtitle(paste(c("", 'Midchannel'), collapse="")) +
@@ -74,7 +74,7 @@
   p.SIR.nearshore.scale = ggplot(data = obs %>%
                                    filter(Site == "Nearshore"),
                                    # filter(Site == "Nearshore", Category == 'High'),
-                                 aes(days, tissue.scaled, colour = Compartment, linetype = Category)) +
+                                 aes(days.inf.site, tissue.scaled, colour = Compartment, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Proportion of tissue.scaled") +
     ggtitle(paste(c("", 'Nearshore'), collapse="")) +
@@ -82,14 +82,14 @@
     scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
     theme_classic()
   
-  p.I.nearshore.scale = ggplot(data = obs %>% filter(Site == "Nearshore", Compartment == "Infected"), aes(days, tissue.scaled, linetype = Category)) +
+  p.I.nearshore.scale = ggplot(data = obs %>% filter(Site == "Nearshore", Compartment == "Infected"), aes(days.inf.site, tissue.scaled, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Proportion of tissue.scaled") +
     ggtitle(paste(c("", 'Nearshore'), collapse="")) +
     geom_line() +
     theme_classic()
   
-  p.R.nearshore.scale = ggplot(data = obs %>% filter(Site == "Nearshore", Compartment == "Dead"), aes(days, tissue.scaled, linetype = Category)) +
+  p.R.nearshore.scale = ggplot(data = obs %>% filter(Site == "Nearshore", Compartment == "Dead"), aes(days.inf.site, tissue.scaled, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Proportion of tissue.scaled") +
     ggtitle(paste(c("", 'Nearshore'), collapse="")) +
@@ -100,9 +100,9 @@
   #Offshore
   # display.brewer.all(colorblindFriendly = TRUE)
   p.SIR.offshore = ggplot(data = obs %>%
-                            # filter(Site == "Offshore"),
-                            filter(Site == "Offshore", Category == 'High'),
-                          aes(days, tissue, colour = Compartment, linetype = Category)) +
+                            filter(Site == "Offshore"),
+                            # filter(Site == "Offshore", Category == 'High'),
+                          aes(days.inf.site, tissue, colour = Compartment, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Offshore'), collapse="")) +
@@ -110,21 +110,21 @@
     scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
     theme_classic()
   
-  p.S.offshore = ggplot(data = obs %>% filter(Site == "Offshore", Compartment == "Susceptible"), aes(days, tissue, linetype = Category)) +
+  p.S.offshore = ggplot(data = obs %>% filter(Site == "Offshore", Compartment == "Susceptible"), aes(days.inf.site, tissue, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Offshore'), collapse="")) +
     geom_line() +
     theme_classic()
   
-  p.I.offshore = ggplot(data = obs %>% filter(Site == "Offshore", Compartment == "Infected"), aes(days, tissue, linetype = Category)) +
+  p.I.offshore = ggplot(data = obs %>% filter(Site == "Offshore", Compartment == "Infected"), aes(days.inf.site, tissue, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Offshore'), collapse="")) +
     geom_line() +
     theme_classic()
   
-  p.R.offshore = ggplot(data = obs %>% filter(Site == "Offshore", Compartment == "Dead"), aes(days, tissue, linetype = Category)) +
+  p.R.offshore = ggplot(data = obs %>% filter(Site == "Offshore", Compartment == "Dead"), aes(days.inf.site, tissue, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Offshore'), collapse="")) +
@@ -132,7 +132,7 @@
     theme_classic()
   
   #Midchannel
-  p.SIR.midchannel = ggplot(data = obs %>% filter(Site == "Midchannel"), aes(days, tissue, colour = Compartment, linetype = Category)) +
+  p.SIR.midchannel = ggplot(data = obs %>% filter(Site == "Midchannel"), aes(days.inf.site, tissue, colour = Compartment, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Midchannel'), collapse="")) +
@@ -140,21 +140,21 @@
     scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
     theme_classic()
   
-  p.S.midchannel = ggplot(data = obs %>% filter(Site == "Midchannel", Compartment == "Susceptible"), aes(days, tissue, linetype = Category)) +
+  p.S.midchannel = ggplot(data = obs %>% filter(Site == "Midchannel", Compartment == "Susceptible"), aes(days.inf.site, tissue, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Midchannel'), collapse="")) +
     geom_line() +
     theme_classic()
   
-  p.I.midchannel = ggplot(data = obs %>% filter(Site == "Midchannel", Compartment == "Infected"), aes(days, tissue, linetype = Category)) +
+  p.I.midchannel = ggplot(data = obs %>% filter(Site == "Midchannel", Compartment == "Infected"), aes(days.inf.site, tissue, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Midchannel'), collapse="")) +
     geom_line() +
     theme_classic()
   
-  p.R.midchannel = ggplot(data = obs %>% filter(Site == "Midchannel", Compartment == "Dead"), aes(days, tissue, linetype = Category)) +
+  p.R.midchannel = ggplot(data = obs %>% filter(Site == "Midchannel", Compartment == "Dead"), aes(days.inf.site, tissue, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Midchannel'), collapse="")) +
@@ -165,7 +165,7 @@
   p.SIR.nearshore = ggplot(data = obs %>%
                              filter(Site == "Nearshore"),
                              # filter(Site == "Nearshore", Category == 'High'),
-                           aes(days, tissue, colour = Compartment, linetype = Category)) +
+                           aes(days.inf.site, tissue, colour = Compartment, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Nearshore'), collapse="")) +
@@ -173,21 +173,21 @@
     scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
     theme_classic()
   
-  p.S.nearshore = ggplot(data = obs %>% filter(Site == "Nearshore", Compartment == "Susceptible"), aes(days, tissue, linetype = Category)) +
+  p.S.nearshore = ggplot(data = obs %>% filter(Site == "Nearshore", Compartment == "Susceptible"), aes(days.inf.site, tissue, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Nearshore'), collapse="")) +
     geom_line() +
     theme_classic()
   
-  p.I.nearshore = ggplot(data = obs %>% filter(Site == "Nearshore", Compartment == "Infected"), aes(days, tissue, linetype = Category)) +
+  p.I.nearshore = ggplot(data = obs %>% filter(Site == "Nearshore", Compartment == "Infected"), aes(days.inf.site, tissue, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Nearshore'), collapse="")) +
     geom_line() +
     theme_classic()
   
-  p.R.nearshore = ggplot(data = obs %>% filter(Site == "Nearshore", Compartment == "Dead"), aes(days, tissue, linetype = Category)) +
+  p.R.nearshore = ggplot(data = obs %>% filter(Site == "Nearshore", Compartment == "Dead"), aes(days.inf.site, tissue, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Nearshore'), collapse="")) +
@@ -198,7 +198,7 @@
   # scaled plots
   #Offshore
   # display.brewer.all(colorblindFriendly = TRUE)
-  p.SIR.offshore.scale.basic = ggplot(data = obs.total %>% filter(Site == "Offshore"), aes(days, tissue.scaled, colour = Compartment)) +
+  p.SIR.offshore.scale.basic = ggplot(data = obs.total %>% filter(Site == "Offshore"), aes(days.inf.site, tissue.scaled, colour = Compartment)) +
     xlab("Day of observation period") +
     ylab("Proportion of tissue") +
     ggtitle(paste(c("", 'Offshore'), collapse="")) +
@@ -206,14 +206,14 @@
     scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
     theme_classic()
   
-  p.I.offshore.scale.basic = ggplot(data = obs.total %>% filter(Site == "Offshore", Compartment == "Infected"), aes(days, tissue.scaled)) +
+  p.I.offshore.scale.basic = ggplot(data = obs.total %>% filter(Site == "Offshore", Compartment == "Infected"), aes(days.inf.site, tissue.scaled)) +
     xlab("Day of observation period") +
     ylab("Proportion of tissue") +
     ggtitle(paste(c("", 'Offshore'), collapse="")) +
     geom_line() +
     theme_classic()
   
-  p.R.offshore.scale.basic = ggplot(data = obs.total %>% filter(Site == "Offshore", Compartment == "Dead"), aes(days, tissue.scaled)) +
+  p.R.offshore.scale.basic = ggplot(data = obs.total %>% filter(Site == "Offshore", Compartment == "Dead"), aes(days.inf.site, tissue.scaled)) +
     xlab("Day of observation period") +
     ylab("Proportion of tissue") +
     ggtitle(paste(c("", 'Offshore'), collapse="")) +
@@ -221,7 +221,7 @@
     theme_classic()
   
   #Midchannel
-  p.SIR.midchannel.scale.basic = ggplot(data = obs.total %>% filter(Site == "Midchannel"), aes(days, tissue.scaled, colour = Compartment)) +
+  p.SIR.midchannel.scale.basic = ggplot(data = obs.total %>% filter(Site == "Midchannel"), aes(days.inf.site, tissue.scaled, colour = Compartment)) +
     xlab("Day of observation period") +
     ylab("Proportion of tissue") +
     ggtitle(paste(c("", 'Midchannel'), collapse="")) +
@@ -229,14 +229,14 @@
     scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
     theme_classic()
   
-  p.I.midchannel.scale.basic = ggplot(data = obs.total %>% filter(Site == "Midchannel", Compartment == "Infected"), aes(days, tissue.scaled)) +
+  p.I.midchannel.scale.basic = ggplot(data = obs.total %>% filter(Site == "Midchannel", Compartment == "Infected"), aes(days.inf.site, tissue.scaled)) +
     xlab("Day of observation period") +
     ylab("Proportion of tissue") +
     ggtitle(paste(c("", 'Midchannel'), collapse="")) +
     geom_line() +
     theme_classic()
   
-  p.R.midchannel.scale.basic = ggplot(data = obs.total %>% filter(Site == "Midchannel", Compartment == "Dead"), aes(days, tissue.scaled)) +
+  p.R.midchannel.scale.basic = ggplot(data = obs.total %>% filter(Site == "Midchannel", Compartment == "Dead"), aes(days.inf.site, tissue.scaled)) +
     xlab("Day of observation period") +
     ylab("Proportion of tissue") +
     ggtitle(paste(c("", 'Midchannel'), collapse="")) +
@@ -244,7 +244,7 @@
     theme_classic()
   
   #Nearshore
-  p.SIR.nearshore.scale.basic = ggplot(data = obs.total %>% filter(Site == "Nearshore"), aes(days, tissue.scaled, colour = Compartment)) +
+  p.SIR.nearshore.scale.basic = ggplot(data = obs.total %>% filter(Site == "Nearshore"), aes(days.inf.site, tissue.scaled, colour = Compartment)) +
     xlab("Day of observation period") +
     ylab("Proportion of tissue") +
     ggtitle(paste(c("", 'Nearshore'), collapse="")) +
@@ -252,14 +252,14 @@
     scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
     theme_classic()
   
-  p.I.nearshore.scale.basic = ggplot(data = obs.total %>% filter(Site == "Nearshore", Compartment == "Infected"), aes(days, tissue.scaled)) +
+  p.I.nearshore.scale.basic = ggplot(data = obs.total %>% filter(Site == "Nearshore", Compartment == "Infected"), aes(days.inf.site, tissue.scaled)) +
     xlab("Day of observation period") +
     ylab("Proportion of tissue") +
     ggtitle(paste(c("", 'Nearshore'), collapse="")) +
     geom_line() +
     theme_classic()
   
-  p.R.nearshore.scale.basic = ggplot(data = obs.total %>% filter(Site == "Nearshore", Compartment == "Dead"), aes(days, tissue.scaled)) +
+  p.R.nearshore.scale.basic = ggplot(data = obs.total %>% filter(Site == "Nearshore", Compartment == "Dead"), aes(days.inf.site, tissue.scaled)) +
     xlab("Day of observation period") +
     ylab("Proportion of tissue") +
     ggtitle(paste(c("", 'Nearshore'), collapse="")) +
@@ -269,7 +269,7 @@
   # unscaled plots
   #Offshore
   # display.brewer.all(colorblindFriendly = TRUE)
-  p.SIR.offshore.basic = ggplot(data = obs.total %>% filter(Site == "Offshore"), aes(days, tissue, colour = Compartment)) +
+  p.SIR.offshore.basic = ggplot(data = obs.total %>% filter(Site == "Offshore"), aes(days.inf.site, tissue, colour = Compartment)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Offshore'), collapse="")) +
@@ -277,21 +277,21 @@
     scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
     theme_classic()
   
-  p.S.offshore.basic = ggplot(data = obs.total %>% filter(Site == "Offshore", Compartment == "Susceptible"), aes(days, tissue)) +
+  p.S.offshore.basic = ggplot(data = obs.total %>% filter(Site == "Offshore", Compartment == "Susceptible"), aes(days.inf.site, tissue)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Offshore'), collapse="")) +
     geom_line() +
     theme_classic()
   
-  p.I.offshore.basic = ggplot(data = obs.total %>% filter(Site == "Offshore", Compartment == "Infected"), aes(days, tissue)) +
+  p.I.offshore.basic = ggplot(data = obs.total %>% filter(Site == "Offshore", Compartment == "Infected"), aes(days.inf.site, tissue)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Offshore'), collapse="")) +
     geom_line() +
     theme_classic()
   
-  p.R.offshore.basic = ggplot(data = obs.total %>% filter(Site == "Offshore", Compartment == "Dead"), aes(days, tissue)) +
+  p.R.offshore.basic = ggplot(data = obs.total %>% filter(Site == "Offshore", Compartment == "Dead"), aes(days.inf.site, tissue)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Offshore'), collapse="")) +
@@ -299,7 +299,7 @@
     theme_classic()
   
   #Midchannel
-  p.SIR.midchannel.basic = ggplot(data = obs.total %>% filter(Site == "Midchannel"), aes(days, tissue, colour = Compartment)) +
+  p.SIR.midchannel.basic = ggplot(data = obs.total %>% filter(Site == "Midchannel"), aes(days.inf.site, tissue, colour = Compartment)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Midchannel'), collapse="")) +
@@ -307,21 +307,21 @@
     scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
     theme_classic()
   
-  p.S.midchannel.basic = ggplot(data = obs.total %>% filter(Site == "Midchannel", Compartment == "Susceptible"), aes(days, tissue)) +
+  p.S.midchannel.basic = ggplot(data = obs.total %>% filter(Site == "Midchannel", Compartment == "Susceptible"), aes(days.inf.site, tissue)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Midchannel'), collapse="")) +
     geom_line() +
     theme_classic()
   
-  p.I.midchannel.basic = ggplot(data = obs.total %>% filter(Site == "Midchannel", Compartment == "Infected"), aes(days, tissue)) +
+  p.I.midchannel.basic = ggplot(data = obs.total %>% filter(Site == "Midchannel", Compartment == "Infected"), aes(days.inf.site, tissue)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Midchannel'), collapse="")) +
     geom_line() +
     theme_classic()
   
-  p.R.midchannel.basic = ggplot(data = obs.total %>% filter(Site == "Midchannel", Compartment == "Dead"), aes(days, tissue)) +
+  p.R.midchannel.basic = ggplot(data = obs.total %>% filter(Site == "Midchannel", Compartment == "Dead"), aes(days.inf.site, tissue)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Midchannel'), collapse="")) +
@@ -329,7 +329,7 @@
     theme_classic()
   
   #Nearshore
-  p.SIR.nearshore.basic = ggplot(data = obs.total %>% filter(Site == "Nearshore"), aes(days, tissue, colour = Compartment)) +
+  p.SIR.nearshore.basic = ggplot(data = obs.total %>% filter(Site == "Nearshore"), aes(days.inf.site, tissue, colour = Compartment)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Nearshore'), collapse="")) +
@@ -337,40 +337,40 @@
     scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
     theme_classic()
   
-  p.S.nearshore.basic = ggplot(data = obs.total %>% filter(Site == "Nearshore", Compartment == "Susceptible"), aes(days, tissue)) +
+  p.S.nearshore.basic = ggplot(data = obs.total %>% filter(Site == "Nearshore", Compartment == "Susceptible"), aes(days.inf.site, tissue)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Nearshore'), collapse="")) +
     geom_line() +
     theme_classic()
   
-  p.I.nearshore.basic = ggplot(data = obs.total %>% filter(Site == "Nearshore", Compartment == "Infected"), aes(days, tissue)) +
+  p.I.nearshore.basic = ggplot(data = obs.total %>% filter(Site == "Nearshore", Compartment == "Infected"), aes(days.inf.site, tissue)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Nearshore'), collapse="")) +
     geom_line() +
     theme_classic()
   
-  p.R.nearshore.basic = ggplot(data = obs.total %>% filter(Site == "Nearshore", Compartment == "Dead"), aes(days, tissue)) +
+  p.R.nearshore.basic = ggplot(data = obs.total %>% filter(Site == "Nearshore", Compartment == "Dead"), aes(days.inf.site, tissue)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
     ggtitle(paste(c("", 'Nearshore'), collapse="")) +
     geom_line() +
     theme_classic()
   
-  # #save workspace for returning to plots
-  # save.image(file = here("output", "plots_obs_workspace.RData"))
+  #save workspace for returning to plots
+  save.image(file = here("output", "plots_obs_workspace.RData"))
   
   # # development
   # #
   # # Create a long format of the summary data for SIR metrics
   # summary_long <- summary %>%
-  #   select(site, days.survey, 
+  #   select(site, days.inf.site.survey, 
   #          low.susnum, moderate.susnum, high.susnum,
   #          low.infnum, moderate.infnum, high.infnum,
   #          low.deadnum, moderate.deadnum, high.deadnum) %>%
   #   pivot_longer(
-  #     cols = -c(site, days.survey), 
+  #     cols = -c(site, days.inf.site.survey), 
   #     names_to = c("susceptibility", "state"),
   #     names_pattern = "(.*)\\.(.*)"
   #   ) %>%
@@ -391,7 +391,7 @@
   # str(summary_long)
   # 
   # # Plot using ggplot
-  # ggplot(summary_long, aes(x = days.survey, y = value, color = state, linetype = susceptibility)) +
+  # ggplot(summary_long, aes(x = days.inf.site.survey, y = value, color = state, linetype = susceptibility)) +
   #   geom_line() +
   #   facet_wrap(~ site, scales = "free_y") +
   #   labs(title = "SIR Metrics through Time by Site",
@@ -413,10 +413,10 @@
   #       state == "tot.deadnum" ~ "Dead"
   #     )
   #   ) %>%
-  #   select(site, days.survey, state, value)
+  #   select(site, days.inf.site.survey, state, value)
   # 
   # # Combined plot with coloring by both State and Site
-  # combined_plot <- ggplot(tot.summary_long, aes(x = days.survey, y = value, color = state, group = interaction(state, site))) +
+  # combined_plot <- ggplot(tot.summary_long, aes(x = days.inf.site.survey, y = value, color = state, group = interaction(state, site))) +
   #   geom_line(aes(linetype = site)) +
   #   labs(title = "Combined SIR Metrics for All Sites",
   #        color = "State",

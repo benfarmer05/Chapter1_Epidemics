@@ -72,3 +72,11 @@
         
 # note for paper:
 #I accidentally was starting the epidemic at Nearshore with a polyp_SA associated with midchannel instead - and I think it caused the epidemic to start with too little tissue. and it's really interesting, the model will still "fit" but it takes way too long for infections to start really kicking off exponentially, and also too long for removal to kick in. a reminder that classic SIR models are very very sensitive to the amount of starting infection when used with a system like coral tissue
+
+
+
+# plotting consideration:
+# - Make a plot showing all of the coral-level "SIR"s (but maybe just the infection curve? or a separate plot with the dead lines?), with the x-axis being days from 0 to max number of days a coral was infected for. this would maybe just be a nice way to visualize 
+#       all of the distributions of infection, and show off the internal workings of the model and data preparation
+# - And maybe a similar plot, but the x-axis being survey dates, so you can see visualize the rise and fall of every coral's infection curves throughout time. could plot everything and maybe color map by site
+# - These could be nice accompanying figures to ones showing a range of simulations of predicted outbreaks
