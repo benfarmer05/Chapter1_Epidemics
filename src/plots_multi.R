@@ -1,13 +1,16 @@
   
+  # .rs.restartR(clean = TRUE)
   rm(list=ls())
   
-  load("output_multi_COVER_0-0-0_workspace.RData")
-  
-  library(tidyverse)
-  library(patchwork)
-  library(ggpmisc)
+  library(here)
   library(ggplot2)
-  library(deSolve)
+  # library(tidyverse)
+  # library(patchwork)
+  # library(ggpmisc)
+  # library(deSolve)
+  
+  #import workspace from upstream script
+  load(here("output/multi_SIR_workspace.RData"))
   
   #ensure all 'geom_text' portions of plots are in the same font as theme_classic ('Arial' in this case)
   theme_set(theme_classic(base_family = "Arial"))
@@ -16,7 +19,7 @@
   # display.brewer.all(colorblindFriendly = TRUE)
   
   # Nearshore
-  site = 'Nearshore'
+  site.loop = 'Nearshore'
   order = 2
   
   output.nearshore = my.SIRS[[order]]

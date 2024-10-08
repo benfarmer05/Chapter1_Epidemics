@@ -1251,7 +1251,8 @@
   susceptible_ref = susceptible_ref %>%
     left_join(site_ref, by = "Site") %>%
     mutate(area.site = 200, #each site had two 10 x 10 m quadrats (Williams et al. 2021)
-           cover.site = N.site / area.site * 0.3) #0.2840909 (~1:3X) is the ratio of our tissue density to CPCe-based cover (Williams et al. 2021))
+           cover.site = N.site / area.site * 0.3, #0.2840909 (~1:3X) is the ratio of our tissue density to CPCe-based cover (Williams et al. 2021))
+           cover_ref = tissue_ref / area.site * 0.3)
   
   # Create data frames for all categories, including count columns
   obs_sus = bind_rows(

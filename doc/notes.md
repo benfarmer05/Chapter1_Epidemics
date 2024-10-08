@@ -6,6 +6,21 @@
 #   - output_multi.R
 
 
+#           Consider:
+
+# Master script (e.g., master_script.R)
+
+# Source the first script
+source("script1.R")
+
+# Source the second script
+source("script2.R")
+
+# Source the third script
+source("script3.R")
+
+# Continue with additional scripts as needed
+
 
 
 27 Sep 2024
@@ -92,3 +107,9 @@
 #       all of the distributions of infection, and show off the internal workings of the model and data preparation
 # - And maybe a similar plot, but the x-axis being survey dates, so you can see visualize the rise and fall of every coral's infection curves throughout time. could plot everything and maybe color map by site
 # - These could be nice accompanying figures to ones showing a range of simulations of predicted outbreaks
+
+
+# considerations for code I need to dredge up:
+#   - the SIR testing scripts - for multi, basic, tissue vs count, "human population", etc. there were a ton of these kinds of scripts at one point --> *this is in /archive*
+#   - the code to run a range of simulations with my fitted values (or maybe other values ?) --> *at least some of this is in /archive*. this made nice plots. there is one plot version that may be missing; can visit Teams chat history from last December
+#   - the code to test different curves for lambda --> *these might be on Box archive /archive/Chapter1_Epidemics/FLKEYS_SIR/misc/old_scripts*. Go through and systematically archive these properly!

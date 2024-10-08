@@ -220,10 +220,10 @@
     # Run the optimization
     result.tiss = DEoptim(fn = objective_function, lower = lower_bounds.tiss, upper = upper_bounds.tiss,
                           data = coraldata.tiss, time = days.model, initial_state = initial_state.tiss,
-                          control = control) # 411: turn this ON for tissue!
+                          control = control)
     
     # Extract the optimized parameters
-    optimized_params.tiss = result.tiss$optim$bestmem  # 411: turn this ON for tissue!
+    optimized_params.tiss = result.tiss$optim$bestmem
     
     # Print the optimized parameters
     min.beta.tiss = as.numeric(optimized_params.tiss[1])
