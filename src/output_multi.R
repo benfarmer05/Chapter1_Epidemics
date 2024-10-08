@@ -31,13 +31,18 @@
   #lambdas of 12.0, 12.0, 8.0: effect of cover at LS & MS is too great (going both directions)
   #lambdas of 3.0, 3.0, 8.0: effect of cover at LS & MS is too great (going both directions)
   
+  # Scenario 3 [transmission modifier of 8.0, varying lambda]
+  
   # lambda = as.numeric(8.0) #0.7 worked well for basic SIR, 2.0 for multi-group [other script] - but likely needs to be higher here
   # offset = 1 - 1 / (1 + exp(-lambda * 1.0))
   
-  lambda = 8.0
-  lambda.LS = 0.0 # 4.0
-  lambda.MS = 0.0 #5.0
-  lambda.HS = 0.0 #10.0
+  lambda = 8.0 # NOTE - return to this; will be important to clearly define lambda parameters
+  # lambda.LS = 4.0
+  # lambda.MS = 5.0
+  # lambda.HS = 10.0
+  lambda.LS = 0.0
+  lambda.MS = 0.0
+  lambda.HS = 0.0
   offset.LS = 1 - 1 / (1 + exp(-lambda.LS * 1.0))
   offset.MS = 1 - 1 / (1 + exp(-lambda.MS * 1.0))
   offset.HS = 1 - 1 / (1 + exp(-lambda.HS * 1.0))
