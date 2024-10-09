@@ -31,18 +31,49 @@
   #lambdas of 12.0, 12.0, 8.0: effect of cover at LS & MS is too great (going both directions)
   #lambdas of 3.0, 3.0, 8.0: effect of cover at LS & MS is too great (going both directions)
   
-  # Scenario 3 [transmission modifier of 8.0, varying lambda]
-  
   # lambda = as.numeric(8.0) #0.7 worked well for basic SIR, 2.0 for multi-group [other script] - but likely needs to be higher here
   # offset = 1 - 1 / (1 + exp(-lambda * 1.0))
   
   lambda = 8.0 # NOTE - return to this; will be important to clearly define lambda parameters
-  # lambda.LS = 4.0
-  # lambda.MS = 5.0
-  # lambda.HS = 10.0
+  
+  # # 4/5/10 experiment
+  # #   - focusing on the ability to predict removal here - not necessarily infection [and that is what is described in inline comments]
+  # #   - "overprediction" means relative to the 2/2/5 simulation. closeness to reality is relative to 2/2/5 simulation as well
+  # lambda.LS = 4.0 # overpredicted off.to.near (and farther from reality; underpredicted near.to.off (and farther from reality)
+  # lambda.MS = 5.0 # overpredicted off.to.near (and farther from reality; underpredicted near.to.off (and farther from reality)
+  # lambda.HS = 10.0 # underpredicted off.to.near (but closer to reality); underpredicted near.to.off (and farther from reality)
+  # #so, LS should go even lower, MS should go even lower, and HS should go ... I don't know? maybe stay the same?
+  
+  # # 2/2/5 experiment - the "original one"
+  # lambda.LS = 2.0 # overpredicted off.to.near (by a lot); underpredicted near.to.off (by a lot)
+  # lambda.MS = 2.5 # overpredicted off.to.near (by a little); underpredicted near.to.off (by a lot)
+  # lambda.HS = 5.0 # underpredicted off.to.near (by a lot); underpredicted near.to.off (by a little)
+  
+  # 0/0/0 experiment
+  #   - haven't tested these yet. NOTE / STOPPING POINT - 8 OCT 2024:
+  #       what exactly are the null conditions for effect of coral cover? should figure that out
   lambda.LS = 0.0
   lambda.MS = 0.0
   lambda.HS = 0.0
+  
+  # # 05/125/5 experiment
+  # # comparing to 2/2/5 experiment above, trying something new
+  # lambda.LS = 0.5 # overpredicted off.to.near (still kind of bad but better); no change near.to.off (still quite bad)
+  # lambda.MS = 1.25 # quite good off.to.near (closer to reality); no change near.to.off (still quite bad)
+  # lambda.HS = 5.0 # underpredicted off.to.near (even worse); about right near.to.off (closer to reality)
+  
+  # # 01/125/15 experiment
+  # # comparing to 05/125/5 experiment above
+  # lambda.LS = 0.1 # overpredicted off.to.near (got worse); no change near.to.off (still quite bad)
+  # lambda.MS = 1.25 # overpredicted off.to.near (a bit worse but still good); underpredicted near.to.off (bad but better)
+  # lambda.HS = 15.0 # underpredicted off.to.near (still bad but a lot better); shape changed near.to.off (still pretty good)
+  
+  # # 0/05/20 experiment
+  # # comparing to 01/125/15 experiment above
+  # lambda.LS = 0 # overpredicted off.to.near (still bad and got worse); no change near.to.off (still quite bad)
+  # lambda.MS = 0.5 # overpredicted off.to.near (not pretty good but got worse); underpredicted near.to.of (still bad but slightly better)
+  # lambda.HS = 20.0 # underpredicted off.to.near (off but still getting better); shape changed near.to.off (still pretty good)
+  
   offset.LS = 1 - 1 / (1 + exp(-lambda.LS * 1.0))
   offset.MS = 1 - 1 / (1 + exp(-lambda.MS * 1.0))
   offset.HS = 1 - 1 / (1 + exp(-lambda.HS * 1.0))

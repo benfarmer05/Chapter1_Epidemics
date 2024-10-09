@@ -253,6 +253,6 @@
     
   }
   
-  #pass workspace to downstream script
-  save.image(file = here("output", "basic_SIR_workspace.RData"))
+  # #pass workspace to downstream script
+  # save.image(file = here("output", "basic_SIR_workspace.RData"))
   

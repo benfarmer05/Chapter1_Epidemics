@@ -525,7 +525,27 @@
     # filter(date >= as.Date("2018-10-30")) %>% #remove pre-SCTLD timepoints
     arrange(coral_numID, date) #sort by coral ID/date to ensure proper temporal analysis downstream
   
-  #filter down to post-SCTLD introduction (October 30th 2018) infections
+  #feed DHW data into survey data
+  #this data comes from: https://coralreefwatch.noaa.gov/product/index.php
+  # - specifically, 'florida_keys.txt' is Regional Virtual Station data, specific to the Florida region
+  # - from link above, navigate to point 3 (Regional Virtual Stations and Bleaching Alert Emails), and then click 'home page' for
+  #     'Regional Virtual Stations (5km)'. this will open a page with a world map.
+  # - navigate on the map to Florida Keys region (not Southeast Florida region). click 'Time Series Graphs & Data' on the prompt, which will open a new page
+  # - click 'Time Series Data' for Florida Keys. this will open the 'florida_keys.txt' ASCII data directly for viewing
+  # - you can go back and right click the link itself to save the link as a text file to your local directory
+  file_content = readLines(here("data", "florida_keys.txt"))
+  data_lines = file_content[22:length(file_content)]
+  DHW.CRW = read.table(text = data_lines, header = TRUE)
+  DHW.CRW = DHW.CRW %>%
+    mutate(date = as.Date(paste(YYYY, MM, DD, sep = "-"))) %>%
+    # filter(date >= as.Date("2018-05-01") & date <= as.Date("2019-12-06")) %>% #include first day of surveying in the field
+    filter(date >= as.Date("2018-08-17") & date <= as.Date("2019-12-06")) %>% #skip to first SCTLD day
+    select(-YYYY, -MM, -DD) %>%
+    select(date, everything())
+  survey_long <- survey_long %>%
+    left_join(DHW.CRW, by = "date")
+  
+  #prepare dataframe for calculating infections of confirmed-diseased corals
   # NOTE / STOPPING POINT - make sure this doesn't mess up the backtracking
   surveydiseased = survey_long %>%
     filter(
@@ -1073,10 +1093,14 @@
   #populate dates for patient zero timepoint
   summary_grouped$date[summary_grouped$TP == "02"] = as.POSIXct(toString(new_date))
   
+  #include DHW data
+  summary_grouped = summary_grouped %>%
+    left_join(DHW.CRW, by = "date")
+  
   #further summary
   # NOTE - infections are always zero for the final timepoint of the study. this is because there is no further timepoint with which to
   #         backtrack infections to. it is a limitation of the approach, but I think the best choice for the available data
-  summary = summary_grouped %>%
+  summary2 = summary_grouped %>%
     group_by(site, date, TP) %>%
     summarize(
       
@@ -1114,7 +1138,16 @@
       
       tot.susnum = low.susnum + moderate.susnum + high.susnum,
       tot.infnum = low.infnum + moderate.infnum + high.infnum,
-      tot.deadnum = low.deadnum + moderate.deadnum + high.deadnum
+      tot.deadnum = low.deadnum + moderate.deadnum + high.deadnum,
+      
+      #retain DHW data
+      SST_MIN = first(SST_MIN),
+      SST_MAX = first(SST_MAX),
+      SST.90th_HS = first(SST.90th_HS),
+      SSTA.90th_HS = first(SSTA.90th_HS),
+      X90th_HS.0 = first(X90th_HS.0),
+      DHW_from_90th_HS.1 = first(DHW_from_90th_HS.1),
+      BAA_7day_max = first(BAA_7day_max)
     )
   
   #easily legible table

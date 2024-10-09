@@ -10,7 +10,7 @@
   library(deSolve)
   
   #import workspace from upstream script
-  load(here("output/multi_SIR_workspace.RData"))
+  load(here("output/multi_SIR_workspace_0_0_0.RData"))
   
   obs.multi = obs.multi %>%
     mutate(Category = case_when(
@@ -802,6 +802,6 @@
     axis_titles = 'collect') &
     theme(legend.position = 'bottom') #& xlim(0, 325)
   
-  #pass workspace to downstream script
-  save.image(file = here("output", "plots_multi_workspace_4_5_10.RData"))
+  # #pass workspace to downstream script
+  # save.image(file = here("output", "plots_multi_workspace.RData"))
   

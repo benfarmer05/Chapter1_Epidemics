@@ -101,6 +101,7 @@ source("script3.R")
 #   - The way I am predicting outbreaks from initial conditions, the *shape* of the outbreak is not dynamic. this probably is okay not to worry about when publishing, but it's probably an area that future work should zero in on. because it seems like the shape of the
 #       outbreak really *should* be changing site to site
 #           - Sort of along the lines of the "simple" statistical model I proposed above. my method may get us fairly close to a crude solution for predicted tissue lost to SCTLD - but is it really helping us understand the outbreak dynamics? I would say only a little
+#   - The DHW data provides a unique opportunity to run some simple ancillary stats that test the effect of DHWs / SST on aspects of individuals corals' infection trajectories. not sure if this is worth it or not
 
 
 # plotting consideration:
