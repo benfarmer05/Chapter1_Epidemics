@@ -26,6 +26,33 @@
     scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
     theme_classic()
   
+  # #attempt at plotting SST
+  # # Adjust the scaling_factor for plotting SST with epidemics
+  # scaling_factor <- max(obs.multi$tissue) / max(obs.multi$SST_90th_HS, na.rm = TRUE)
+  # scaling_factor.scaled <- max(obs.multi$tissue.scaled) / max(obs.multi$SST_90th_HS, na.rm = TRUE)
+  # 
+  # p.SIR.offshore.scale.multi2 = ggplot(data = obs.multi %>% filter(Site == "Offshore"), aes(x = days.inf.site)) +
+  #   xlab("Day of observation period") +
+  #   ylab("Proportion of tissue.scaled") +
+  #   ggtitle('Offshore') +
+  # 
+  #   # Epidemic outbreak lines
+  #   geom_line(aes(y = tissue.scaled, colour = Compartment, linetype = Category)) +
+  # 
+  #   # SST line, transformed by the scaling factor
+  #   geom_line(aes(y = SST_90th_HS * scaling_factor), color = "red", linetype = "dashed", size = 1.2, show.legend = TRUE) +
+  # 
+  #   scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
+  # 
+  #   # Theme adjustments
+  #   theme_classic() +
+  # 
+  #   # Adjust the primary y-axis without forcing it to match the secondary axis
+  #   scale_y_continuous(
+  #     name = "Proportion of tissue.scaled",
+  #     sec.axis = sec_axis(~ . / scaling_factor, name = "Sea Surface Temperature (SST)")
+  #   )
+  
   p.I.offshore.scale.multi = ggplot(data = obs.multi %>% filter(Site == "Offshore", Compartment == "Infected"), aes(days.inf.site, tissue.scaled, linetype = Category)) +
     xlab("Day of observation period") +
     ylab("Proportion of tissue.scaled") +
@@ -314,6 +341,24 @@
     geom_line() +
     theme_classic()
   
+  # #attempt at plotting SST
+  # scaling_factor <- max(obs.multi %>% filter(Site == "Midchannel", Compartment == "Infected") %>% pull(tissue)) /
+  #   max(obs.multi$SST_90th_HS, na.rm = TRUE)
+  # 
+  # p.I.midchannel.basic = ggplot(data = obs.total %>% filter(Site == "Midchannel", Compartment == "Infected"), aes(days.inf.site, tissue)) +
+  #   xlab("Day of observation period") +
+  #   ylab("Tissue Surface Area (m2)") +
+  #   ggtitle(paste(c("", 'Midchannel'), collapse="")) +
+  #   geom_line(aes(y = tissue, colour = Compartment, linetype = Category)) +
+  #   geom_line(aes(y = SST_90th_HS * scaling_factor), color = "red", linetype = "dashed", linewidth = 1.2, show.legend = TRUE) +
+  #   geom_hline(yintercept = 30 * scaling_factor, linetype = "dashed", color = "red", linewidth = 0.5, alpha = 0.5) +
+  #   scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
+  #   theme_classic() +
+  #   scale_y_continuous(
+  #     name = "Proportion of tissue.scaled",
+  #     sec.axis = sec_axis(~ . / scaling_factor, name = "Sea Surface Temperature (SST)")
+  #   )
+  
   p.I.midchannel.basic = ggplot(data = obs.total %>% filter(Site == "Midchannel", Compartment == "Infected"), aes(days.inf.site, tissue)) +
     xlab("Day of observation period") +
     ylab("Tissue Surface Area (m2)") +
@@ -361,64 +406,3 @@
   #save workspace for returning to plots
   save.image(file = here("output", "plots_obs_workspace.RData"))
   
-  # # development
-  # #
-  # # Create a long format of the summary data for SIR metrics
-  # summary_long <- summary %>%
-  #   select(site, days.inf.site.survey, 
-  #          low.susnum, moderate.susnum, high.susnum,
-  #          low.infnum, moderate.infnum, high.infnum,
-  #          low.deadnum, moderate.deadnum, high.deadnum) %>%
-  #   pivot_longer(
-  #     cols = -c(site, days.inf.site.survey), 
-  #     names_to = c("susceptibility", "state"),
-  #     names_pattern = "(.*)\\.(.*)"
-  #   ) %>%
-  #   # Replace state labels with user-friendly names
-  #   mutate(state = recode(state,
-  #                         susnum = "Susceptible",
-  #                         infnum = "Infected",
-  #                         deadnum = "Dead"
-  #   )) %>%
-  #   # Format susceptibility labels with capital letters
-  #   mutate(susceptibility = recode(susceptibility,
-  #                                  low = "Low",
-  #                                  moderate = "Moderate",
-  #                                  high = "High"
-  #   ))
-  # 
-  # # Check the structure of summary_long to ensure correct reshaping
-  # str(summary_long)
-  # 
-  # # Plot using ggplot
-  # ggplot(summary_long, aes(x = days.inf.site.survey, y = value, color = state, linetype = susceptibility)) +
-  #   geom_line() +
-  #   facet_wrap(~ site, scales = "free_y") +
-  #   labs(title = "SIR Metrics through Time by Site",
-  #        x = "Days since First Infection",
-  #        y = "Count",
-  #        color = "State",
-  #        linetype = "Susceptibility") +
-  #   theme_minimal()  
-  # 
-  # # Update the summary_long to include total counts
-  # tot.summary_long <- summary %>%
-  #   pivot_longer(cols = c(tot.susnum, tot.infnum, tot.deadnum),
-  #                names_to = "state",
-  #                values_to = "value") %>%
-  #   mutate(
-  #     state = case_when(
-  #       state == "tot.susnum" ~ "Susceptible",
-  #       state == "tot.infnum" ~ "Infected",
-  #       state == "tot.deadnum" ~ "Dead"
-  #     )
-  #   ) %>%
-  #   select(site, days.inf.site.survey, state, value)
-  # 
-  # # Combined plot with coloring by both State and Site
-  # combined_plot <- ggplot(tot.summary_long, aes(x = days.inf.site.survey, y = value, color = state, group = interaction(state, site))) +
-  #   geom_line(aes(linetype = site)) +
-  #   labs(title = "Combined SIR Metrics for All Sites",
-  #        color = "State",
-  #        linetype = "Site") +
-  #   theme_minimal()

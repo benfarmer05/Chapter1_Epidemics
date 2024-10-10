@@ -10,6 +10,7 @@
   survey = read.csv(here("data", "SCTLD_END_Vpub_ts.csv"))
   cover = read.csv(here("data", "cover_long.csv"))
   prograte = read.csv(here("data", "SWG_SCTLDprogrates.csv"))
+  cover = read.csv(here("data/cover_long.csv"))
   
   #   LOW SUSCEPTIBILITY (LS)
   #         - Slow onset/slow tissue loss [SSID] -> high cover
@@ -55,9 +56,22 @@
         spp %in% c('AAGA', 'ACER', 'OCUL', 'ODIF', 'PAST', 'PDIV', 'PPOR', 'SRAD') ~ 'Unaffected'
       )
     ) %>%
-    filter(!grepl('Unaffected', susc)) %>% #remove presumed SCTLD-unaffected corals, mainly PAST
+    # filter(!grepl('Unaffected', susc)) %>% #remove presumed SCTLD-unaffected corals, mainly PAST
     select(-coords_x, -coords_y, -total, -total_bin, -days_dis, -weeks_dis) # NOTE - could further analyze days/weeks diseased for stats
 
+  #my understanding from Williams 2021 is that there are 100 photos per site, with CPCe-based % cover being the value associated with
+  #   each photo. so, below I have taken the mean, per site, of all 100 photos to get site-level % cover
+  cover = cover %>%
+    mutate(Site = case_when(
+      Site == "Midchannel" ~ "mid",
+      Site == "Nearshore"  ~ "near",
+      Site == "Offshore"   ~ "off"
+    )) %>%
+    filter(timept == 't1') %>% #filter to pre-SCTLD assessment of coral cover
+    filter(plotnum %in% c('p23', 'p25', 'p27', 'p28', 'p45', 'p47')) %>%  #filter to only plots included in SCTLD monitoring
+    group_by(Site) %>%
+    summarize(mean.percent.cover = mean(percent.cover, na.rm = TRUE), .groups = 'drop')
+  
   #pull middle Florida Keys (Sharp et al. 2020) dataset, which had similar data as 'survey' but measured colonies in 3 dimensions
   #   rather than one. use this dataset to create a statistical association between maximum diameter & colony surface area (SA) by assuming
   #   a hemi-ellipsoid (Holstein et al. 2015), and then predicting SA in 'survey' dataset using maximum diameter alone
@@ -1026,8 +1040,8 @@
   
   # AGGREGATE DATA INTO SUMMARY TABLES
   #
-  # Add timepoints and compute summaries
   summary_grouped = survey_tissue %>%
+    # filter(!grepl('Unaffected', susc)) %>% #remove presumed SCTLD-unaffected corals, mainly PAST
     mutate(TP = sprintf("%02d", dense_rank(date))) %>%
     group_by(site, date, TP, susc) %>%
     mutate(
@@ -1089,18 +1103,33 @@
                       infnum)
     )
   # NOTE - the above '02' and '03 hard-coding is not ideal, and this is an area to look to if there are bugs in the future
-  
+
   #populate dates for patient zero timepoint
   summary_grouped$date[summary_grouped$TP == "02"] = as.POSIXct(toString(new_date))
+
+  #include DHW data, with days that match the surveying dates (this is important for meshing with the SIR model downstream)
+  days.DHW <- survey_tissue %>%
+    filter(!is.na(inftiss) & inftiss > 0) %>%
+    arrange(date) %>%
+    slice(1) %>%
+    pull(date) %>%
+    { tibble(date = seq(., max(survey_tissue$date, na.rm = TRUE), by = "day"),
+             day = seq(0, as.numeric(max(survey_tissue$date, na.rm = TRUE) - .))) } %>%
+    mutate(
+      date = as.Date(date)
+    )
   
-  #include DHW data
+  DHW.CRW = DHW.CRW %>%
+    left_join(days.DHW, by = 'date') %>%
+    select(date, day, everything())
+
   summary_grouped = summary_grouped %>%
     left_join(DHW.CRW, by = "date")
   
   #further summary
   # NOTE - infections are always zero for the final timepoint of the study. this is because there is no further timepoint with which to
   #         backtrack infections to. it is a limitation of the approach, but I think the best choice for the available data
-  summary2 = summary_grouped %>%
+  summary = summary_grouped %>%
     group_by(site, date, TP) %>%
     summarize(
       
@@ -1126,10 +1155,14 @@
       high.sustiss = sum(sustiss[susc=="high"]),
       high.inftiss = sum(inftiss[susc=="high"]),
       high.deadtiss = sum(deadtiss[susc=="high"]),
-
+      
       high.susnum = sum(susnum[susc=="high"]),
       high.infnum = sum(infnum[susc=="high"]),
       high.deadnum = sum(deadnum[susc=="high"]),
+      
+      #unaffected
+      unaffected.tiss = sum(sustiss[susc=="Unaffected"]),
+      unaffected.num = sum(susnum[susc=="Unaffected"]),
       
       #total
       tot.sustiss = low.sustiss + moderate.sustiss + high.sustiss,
@@ -1140,7 +1173,10 @@
       tot.infnum = low.infnum + moderate.infnum + high.infnum,
       tot.deadnum = low.deadnum + moderate.deadnum + high.deadnum,
       
-      #retain DHW data
+      SA.with.unaffected = low.sustiss + moderate.sustiss + high.sustiss + unaffected.tiss,
+      count.with.unaffected = low.susnum + moderate.susnum + high.susnum + unaffected.num,
+      
+      #DHW data
       SST_MIN = first(SST_MIN),
       SST_MAX = first(SST_MAX),
       SST.90th_HS = first(SST.90th_HS),
@@ -1150,9 +1186,9 @@
       BAA_7day_max = first(BAA_7day_max)
     )
   
-  #easily legible table
+  #easily legible table for SCTLD-affected corals
   tot.summary = summary %>%
-    select(site, date, TP, tot.sustiss, tot.inftiss, tot.deadtiss, tot.susnum, tot.infnum, tot.deadnum) %>%
+    select(site, date, TP, tot.sustiss, tot.inftiss, tot.deadtiss, tot.susnum, tot.infnum, tot.deadnum, SA.with.unaffected, count.with.unaffected) %>%
     mutate(
       perc.prevalence.tiss = (tot.inftiss / tot.sustiss) * 100,
       perc.prevalence.num = (tot.infnum / tot.susnum) * 100,
@@ -1187,12 +1223,12 @@
       days.survey = as.numeric(difftime(date, global_first_infection_date, units = "days"))
     )
   
-  # Clean up: round both 'days.inf' and 'days.inf.site', and set any small values to NA
+  # Clean up: round both 'days.inf' and 'days.inf.site', and set any negative values to NA
   summary = summary %>%
     mutate(
       days.survey = round(days.survey),
       days.inf.site = round(days.inf.site),
-      # Optional: Replace negative or very small values with NA if necessary
+      # Optional: Replace negative values with NA if necessary
       days.survey = ifelse(days.survey < 0, NA, days.survey),
       days.inf.site = ifelse(days.inf.site < 0, NA, days.inf.site)
     )
@@ -1233,6 +1269,80 @@
     mutate(valid_rows = list(slice(., indices[[1]]))) %>%
     ungroup()
   
+  # Extract the 'Susceptible' values at TP == 1 for each Category
+  susceptible_ref = obs_summary %>%
+    filter(TP == '01') %>%
+    pivot_longer(cols = c(low.sustiss, moderate.sustiss, high.sustiss, tot.sustiss, SA.with.unaffected),
+                 names_to = "Category",
+                 values_to = "tissue_ref") %>%
+    pivot_longer(cols = c(low.susnum, moderate.susnum, high.susnum, tot.susnum, count.with.unaffected),
+                 names_to = "Category_count",
+                 values_to = "count_ref") %>%
+    mutate(
+      Category = case_when(
+        str_detect(Category, "low") ~ "Low",
+        str_detect(Category, "moderate") ~ "Moderate",
+        str_detect(Category, "high") ~ "High",
+        str_detect(Category, "tot") ~ "Total",
+        str_detect(Category, "unaffected") ~ "Total_with_Unaffected"
+      ),
+      Category_count = case_when(
+        str_detect(Category_count, "low") ~ "Low",
+        str_detect(Category_count, "moderate") ~ "Moderate",
+        str_detect(Category_count, "high") ~ "High",
+        str_detect(Category_count, "tot") ~ "Total",
+        str_detect(Category_count, "unaffected") ~ "Total_with_Unaffected"
+      )
+    ) %>%
+    filter(Category == Category_count) %>%
+    select(Site = site, Category, tissue_ref, count_ref)
+
+  ### ESTIMATION OF SITE AND GROUP-LEVEL PERCENT COVER
+  #
+  # here, the CPCe-derived observations of coral cover from Williams et al. (2021) are used to estimate percent cover
+  #   - Williams' cover values included all corals at the site, including those unaffected by SCTLD. it also is not provided by species,
+  #     but at a site-level
+  #   - so, we create a relationship (simple ratio), for each site, between site-level 2-dimensional coral cover and site-level 
+  #       3-dimensional surface area. this ratio is assumed to be applicable to, and identical for, any given species of coral
+  #   - this assumption is not taking into account the differing morphologies and sizes inherent to each coral among susceptibility groups,
+  #       which in reality may modify that SA:cover ratio, but we are okay with that since the differences may not be that large
+  #   - with that assumption in mind, the ratio (which is pretty similar but varies a bit for each site) is applied to
+  #       susceptibility-group-level 3-D surface area to produce an estimated group-level cover for SCTLD-susceptible corals
+  #   - this same process is applied at the site level, excluding only the SCTLD-unaffected corals
+  site_ref = susceptible_ref %>%
+    filter(Category == "Total") %>%
+    select(Site, tissue_ref) %>%
+    rename(N.site = tissue_ref)
+  
+  site_ref_unaffected = susceptible_ref %>%
+    filter(Category == "Total_with_Unaffected") %>%
+    select(Site, tissue_ref) %>%
+    rename(N.site.with.unaffected = tissue_ref) 
+  
+  # Join the cover data into susceptible_ref
+  susceptible_ref <- susceptible_ref %>%
+    left_join(cover, by = "Site") %>%
+    rename(site.cover.Williams = mean.percent.cover) #%>%
+
+  susceptible_ref = susceptible_ref %>%
+    left_join(site_ref, by = "Site") %>%
+    left_join(site_ref_unaffected, by = "Site") %>%
+    mutate(rectangle.area.site = 200) %>% #each site had two 10 x 10 m quadrats (Williams et al. 2021). so, 200 m2 2-dimensional area
+    group_by(Site) %>%
+    mutate(SA.cover.ratio = tissue_ref[Category == "Total_with_Unaffected"] / site.cover.Williams) %>% #SA is the 3-dimensional GAM-estimated surface area of all corals in each site
+    # mutate(SA.cover.ratio.prior = 3.0) %>% #before, I was simply using a crude 3:1 ratio which happened to approximate cover well for all three sites compared to Williams 2021
+    ungroup() %>%
+    mutate(
+      cover.site = N.site / SA.cover.ratio / 100,
+      # cover.site.prior = N.site / rectangle.area.site / SA.cover.ratio.prior,
+      cover_ref = tissue_ref / SA.cover.ratio / 100,
+      # cover_ref.prior = tissue_ref / rectangle.area.site / SA.cover.ratio.prior
+    )
+  #
+  ### ESTIMATION OF SITE AND GROUP-LEVEL PERCENT COVER
+  
+  ### LAST STEPS TO PREP FOR PLOTTING AND DOWNSTREAM MODELING SCRIPTS
+  #
   # Create a function to generate the observations
   create_observations = function(data, comp, tissue_col, count_col, cat) {
     data %>%
@@ -1244,48 +1354,16 @@
         count = !!sym(count_col),
         Category = cat,
         Compartment = comp,
-        Site = site
+        Site = site,
+        SST_MIN = SST_MIN,
+        SST_MAX = SST_MAX,
+        SST_90th_HS = SST.90th_HS,
+        SSTA_90th_HS = SSTA.90th_HS,
+        X90th_HS_0 = X90th_HS.0,
+        DHW_from_90th_HS_1 = DHW_from_90th_HS.1,
+        BAA_7day_max = BAA_7day_max
       )
   }
-  
-  # Extract the 'Susceptible' values at TP == 1 for each Category
-  susceptible_ref = obs_summary %>%
-    filter(TP == '01') %>%
-    pivot_longer(cols = c(low.sustiss, moderate.sustiss, high.sustiss, tot.sustiss),
-                 names_to = "Category",
-                 values_to = "tissue_ref") %>%
-    pivot_longer(cols = c(low.susnum, moderate.susnum, high.susnum, tot.susnum),
-                 names_to = "Category_count",
-                 values_to = "count_ref") %>%
-    mutate(
-      Category = case_when(
-        str_detect(Category, "low") ~ "Low",
-        str_detect(Category, "moderate") ~ "Moderate",
-        str_detect(Category, "high") ~ "High",
-        str_detect(Category, "tot") ~ "Total"
-      ),
-      Category_count = case_when(
-        str_detect(Category_count, "low") ~ "Low",
-        str_detect(Category_count, "moderate") ~ "Moderate",
-        str_detect(Category_count, "high") ~ "High",
-        str_detect(Category_count, "tot") ~ "Total"
-      )
-    ) %>%
-    filter(Category == Category_count) %>%
-    select(Site = site, Category, tissue_ref, count_ref)
-  
-  #NOTE / STOPPING POINT - double check if this cover conversion still makes sense and document it better
-  #calculate site-level coral tissue area, "rectangle area", and coral cover
-  site_ref = susceptible_ref %>%
-    filter(Category == "Total") %>%
-    select(Site, tissue_ref) %>%
-    rename(N.site = tissue_ref)
-  
-  susceptible_ref = susceptible_ref %>%
-    left_join(site_ref, by = "Site") %>%
-    mutate(area.site = 200, #each site had two 10 x 10 m quadrats (Williams et al. 2021)
-           cover.site = N.site / area.site * 0.3, #0.2840909 (~1:3X) is the ratio of our tissue density to CPCe-based cover (Williams et al. 2021))
-           cover_ref = tissue_ref / area.site * 0.3)
   
   # Create data frames for all categories, including count columns
   obs_sus = bind_rows(
@@ -1358,11 +1436,8 @@
         TRUE ~ Site
       )
     )
-  
-  # STOPPING POINT - 4 OCT 2024
-  #   - now storing patient zero tissue and counts. this should help with understanding which initial conditions allow a model to "work"
-  #   - would still be ideal to zero in on a standard initial condition, but may just not be possible with how SCTLD functions. might
-  #       require using cover and N.site as scalars to define patient zero starting values
+  #
+  ### LAST STEPS TO PREP FOR PLOTTING AND DOWNSTREAM MODELING SCRIPTS
   
   #save workspace for use in subsequent scripts
   save.image(file = here("output", "data_processing_workspace.RData"))

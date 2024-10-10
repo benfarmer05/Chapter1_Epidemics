@@ -109,7 +109,7 @@
       filter(Site == site.loop, Category == "Total", Compartment == "Infected") %>%
       slice(head(row_number(), n()-DHW.modifier)) %>%
       pull(tissue)    
-
+    
     remtiss = obs.model %>%
       filter(Site == site.loop, Category == "Total", Compartment == "Dead") %>%
       slice(head(row_number(), n()-DHW.modifier)) %>%
@@ -250,8 +250,287 @@
                                                l = min.lambda.tiss,
                                                C = initial_state.tiss[5])))
     my.SIRS.basic[[i]] = SIR.out.tiss
-    
   }
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  ################ RUN SECOND FITTING FOR EFFECT OF SEA SURFACE TEMPERATURE ################
+  #
+  SIR.DHW = function(t,y,p,SST){ # 'p' is parameters or params
+    {
+      S = y[1]
+      I = y[2]
+      R = y[3]
+    }
+    with(as.list(p),{
+
+      # Find the closest index for t in the SST data and fetch the associated SST
+      closest_index <- which.min(abs(SST$time - t))
+      if (closest_index < 1 || closest_index > nrow(SST)) {
+        stop("Closest index is out of bounds for SST.")
+      }
+      current_SST <- SST$SST[closest_index]
+      
+      # Introduce a non-linear effect of cover on the transmission rate
+      # transmission_rate = b * (1 + l * sqrt(C)) #setting lambda to zero nullifies the effect of cover and reverts the model to a basic SIR
+      # transmission_rate = b * (l * sqrt(C))
+      # transmission_rate = b * (l * (1-exp(-130*(C)))) #20
+      transmission_rate = b * (1 / (1 + exp(-l * (C))) + offset)
+      
+      
+      # attempt using a 30C threshold
+      #
+      # # #testing
+      # transmission_rate = 1.4
+      # z = 1.2
+      # current_SST = 30.35345
+      # SST_threshold = 30
+      # transmission_rate
+      # transmission_rate * (1 - z * (current_SST - SST_threshold))  # Decrease beta as SST increases
+
+      # # Adjust transmission rate based on sea surface temperature
+      # if (current_SST > SST_threshold) {
+      # 
+      #   # # Quadratic decrease in transmission rate as SST increases
+      #   # transmission_rate <- transmission_rate * (1 - z * (current_SST - SST_threshold)^2)  # Non-linear adjustment
+      # 
+      #   # Gradual decrease in transmission rate above the SST threshold
+      #   transmission_rate <- transmission_rate * (1 / (1 + exp(-z * (current_SST - SST_threshold))))
+      # 
+      # 
+      #   transmission_rate[transmission_rate < 0] <- 0  # Ensure transmission_rate doesn't go negative
+      # }
+      
+      # Adjust transmission rate based on sea surface temperature
+      if (current_SST < SST_threshold) {
+        # Increase transmission rate as SST decreases below the threshold (linear)
+        transmission_rate <- transmission_rate * (1 + z * (SST_threshold - current_SST))
+        
+      } else {
+        # Decrease transmission rate as SST increases above the threshold (non-linear)
+        transmission_rate <- transmission_rate * (1 / (1 + exp(-z * (current_SST - SST_threshold))))
+      }
+      
+      # Ensure transmission_rate doesn't go negative
+      transmission_rate[transmission_rate < 0] <- 0  
+      
+      
+      
+
+      # # Attempt at gradual decrease in transmission rate with increasing SST; no threshold SST value
+      # SST_min = min(SST)
+      # SST_max = max(SST)
+      # transmission_rate <- transmission_rate * (1 - z * (current_SST - SST_min) / (SST_max - SST_min))
+      # transmission_rate[transmission_rate < 0] <- 0  # Ensure transmission_rate doesn't go negative
+      
+      
+      dS.dt = -transmission_rate * S * I / N 
+      dI.dt = transmission_rate * S * I / N - g * I
+      dR.dt = g * I
+      
+      return(list(c(dS.dt, dI.dt, dR.dt)))
+    })
+  }
+  
+  my.SIRS.basic.DHW = vector('list', length(sites))
+  params.basic.DHW = vector('list', length(sites))
+  
+  for(i in 1:length(sites)){
+    
+    site.loop = sites[i]
+    
+    # site.loop = "mid" #for testing purposes
+    # i = 1
+    # site.loop = "near" #for testing purposes
+    # i = 2
+    # site.loop = "off" #for testing purposes
+    # i = 3
+    
+    days = summary %>%
+      # drop_na(days.survey) %>% # NOTE - area to return to after fixing backtracking with patient zero corals. we do want to drop this
+      filter(site == site.loop) %>%
+      pull(days.inf.site)
+    
+    #adjust days to chop off observations after onset of Degree Heating Weeks
+    days = days[1:(length(days) - DHW.modifier)]
+    
+    # Find the first non-NA index in 'days'
+    first_valid_idx <- which(!is.na(days))[1]
+    
+    # Trim 'days' starting from the first non-NA value
+    days.obs = days[first_valid_idx:length(days)]
+    days.model = seq(from = min(days.obs), to = max(days.obs), by = 1)
+    
+    # Extract SST values corresponding to the days in days.model
+    SST_values <- DHW.CRW %>%
+      filter(day %in% days.model) %>%
+      pull(SST.90th_HS)
+    
+    # Create a data frame from your SST values with corresponding time indices
+    SST_df <- data.frame(
+      time = seq(0, length(days.model) - 1),  # Assuming your SST starts at day 0 and is sequential
+      SST = SST_values
+    )
+    # current_SST_value = SST_values[as.integer(days.model) + 1]
+    # current_SST_value2 = SST_values[days.model]
+
+
+    
+    
+    # Ensure that the length of SST_values matches the length of days.model
+    #   NOTE - this error checker really should be verifying dates, not the sequence - would likely require comparing to summary
+    if (length(SST_values) != length(days.model)) {
+      stop("Length of SST_values does not match length of days.model.")
+    }
+    
+    N.site = susceptible_ref %>%
+      filter(Site == site.loop) %>%
+      slice(1) %>% #all values for N.site are the same between categories, so slice first row
+      pull(N.site)
+    
+    cover.site = susceptible_ref %>%
+      filter(Site == site.loop) %>%
+      slice(1) %>% #same as above
+      pull(cover.site)
+    
+    #sequence of infected & removed SA's for each SusCat within site. remove timepoints before the first infection (zero omit)
+    inftiss = obs.model %>%
+      filter(Site == site.loop, Category == "Total", Compartment == "Infected") %>%
+      slice(head(row_number(), n()-DHW.modifier)) %>%
+      pull(tissue)    
+    
+    remtiss = obs.model %>%
+      filter(Site == site.loop, Category == "Total", Compartment == "Dead") %>%
+      slice(head(row_number(), n()-DHW.modifier)) %>%
+      pull(tissue)
+    
+    # Trim 'inftiss' and 'remtiss' using the same indices as 'days'
+    inftiss <- inftiss[first_valid_idx:length(inftiss)]
+    remtiss <- remtiss[first_valid_idx:length(remtiss)]
+    
+    #initial conditions
+    I.tiss = inftiss[1] #first non-NA & non-zero infection entry
+    # I.tiss = 1e-4 #m2 - equivalent to 100 mm2, which is a rough approximation of a fully infected medium-sized coral polyp
+    S.tiss = N.site - I.tiss
+    R.tiss = 0
+    
+    ############################## optimize parameters ##############################
+    # Set up the data and initial conditions
+    coraldata.tiss = list(inftiss, remtiss)
+    initial_state.tiss = c(S.tiss, I.tiss, R.tiss, N.site, cover.site)
+    SST_threshold_value = 29.5
+    
+    pre.fitted.params = params.basic[[i]] # NOTE - relies on hard-coding params.basic & could be revised. works fine now, but check here if bugs
+    betas = pre.fitted.params[1]
+    gammas = pre.fitted.params[3]
+    lambdas = pre.fitted.params[4]
+    
+    objective_function = function(params, data, time, initial_state){
+      
+      # #testing
+      # z = 1.0
+
+      zetas = params[1]
+      # SST_threshold_value = params[2]
+      
+      SIR.out = tryCatch({
+        data.frame(ode(c(S = initial_state[1], I = initial_state[2], R = initial_state[3]),
+                       time, SIR.DHW, c(b = betas, g = gammas,
+                                    N = initial_state[4],
+                                    z = zetas,
+                                    l = lambdas,
+                                    C = initial_state[5],
+                                    SST_threshold = SST_threshold_value), # NOTE - hard-coded
+                       SST = SST_df)) # NOTE - this is also hard-coded right now, ideally would not be
+      }, error = function(e) {
+        print("Error in ODE:")
+        print(e)
+        return(NA)
+      })
+      
+      # # Handle cases where the ODE solver failed
+      # if (is.na(SIR.out)) {
+      #   return(Inf)  # Return a large number to force DEoptim to move away from these params
+      # }
+      
+      #extract simulated values at time points matching observations
+      sim.inf = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'I')]
+      sim.rem = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R')]
+      
+      #extract observed values [repetitive code, but works]
+      obs.inf = unlist(data[1])
+      obs.rem = unlist(data[2])
+      
+      #use ratio of maximum removed value to maximum infected value to rescale removed. fits the 'I' curve better this way
+      max_obs_inf = max(obs.inf)
+      max_obs_rem = max(obs.rem)
+      rem.inf.ratio = max_obs_rem/max_obs_inf
+      obs.rem = obs.rem/rem.inf.ratio
+      sim.rem = sim.rem/rem.inf.ratio
+      
+      # #test to separately rescale removed simulated curve
+      # max_sim_inf = max(sim.inf)
+      # max_sim_rem = max(sim.rem)
+      # rem.inf.ratio = max_sim_rem/max_sim_inf
+      # sim.rem = sim.rem/rem.inf.ratio
+      
+      # Calculate differences after normalization
+      diff.inf = (sim.inf - obs.inf)
+      diff.rem = (sim.rem - obs.rem)
+      
+      #minimize using sum of absolute differences
+      sum_squared_diff_I = sum(sum(abs(diff.inf))) #can multiply this by 2 or similar to weight it extra
+      sum_squared_diff_R = sum(sum(abs(diff.rem)))
+      # sum_squared_diff = sum_squared_diff_I + sum_squared_diff_R
+      sum_squared_diff = sum_squared_diff_R
+      
+      # #minimize using sum of squared differences
+      # sum_squared_diff_I = sum(sum(diff.inf^2))
+      # sum_squared_diff_R = sum(sum(diff.rem^2))
+      # sum_squared_diff = sum_squared_diff_I + sum_squared_diff_R
+      
+      return(sum_squared_diff) #minimized error
+    }
+    ############################## OPTIMIZE PARAMETERS ############################################################
+    
+    lower_bounds.tiss = c(0.00001)  # Lower bounds for zeta, SST threshold
+    upper_bounds.tiss = c(.01)    # Upper bounds for zeta, SST threshold
+    
+    control = list(itermax = 100)  # Maximum number of iterations. 200 is default
+    
+    # Run the optimization
+    result.tiss = DEoptim(fn = objective_function, lower = lower_bounds.tiss, upper = upper_bounds.tiss,
+                          data = coraldata.tiss, time = days.model, initial_state = initial_state.tiss,
+                          control = control)
+    
+    # Extract the optimized parameters
+    optimized_params.tiss = result.tiss$optim$bestmem
+    
+    # Print the optimized parameters
+    min.zeta.tiss = as.numeric(optimized_params.tiss[1])
+
+    params.basic.DHW[[i]] = c(min.zeta.tiss)
+    
+    #simulation using initial state variables and best-fit beta/gamma (and now zeta) parameters
+    SIR.out.tiss = data.frame(ode(c(S = initial_state.tiss[1], I = initial_state.tiss[2], R = initial_state.tiss[3]),
+                                  days.model, SIR.DHW, c(b = betas, g = gammas,
+                                                     N = initial_state.tiss[4],
+                                                     z = min.zeta.tiss,
+                                                     l = lambdas,
+                                                     C = initial_state.tiss[5],
+                                                     SST_threshold = SST_threshold_value),
+                                  SST = SST_df))
+    my.SIRS.basic.DHW[[i]] = SIR.out.tiss
+  }
+  #
+  ################ RUN SECOND FITTING FOR EFFECT OF SEA SURFACE TEMPERATURE ################
   
   # #pass workspace to downstream script
   # save.image(file = here("output", "basic_SIR_workspace.RData"))

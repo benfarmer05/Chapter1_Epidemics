@@ -24,6 +24,11 @@ source("script3.R")
 
 
 
+- from processing script:
+  #   - now storing patient zero tissue and counts. this should help with understanding which initial conditions allow a model to "work"
+  #   - would still be ideal to zero in on a standard initial condition, but may just not be possible with how SCTLD functions. might
+  #       require using cover and N.site as scalars to define patient zero starting values
+
 27 Sep 2024
 
 - where did the code I used to create a range of simulated output from different coral cover scenarios go? would be very helpful to track down that script. can check chatgpt conversations, Box history, etc.
@@ -102,7 +107,10 @@ source("script3.R")
 #       outbreak really *should* be changing site to site
 #           - Sort of along the lines of the "simple" statistical model I proposed above. my method may get us fairly close to a crude solution for predicted tissue lost to SCTLD - but is it really helping us understand the outbreak dynamics? I would say only a little
 #   - The DHW data provides a unique opportunity to run some simple ancillary stats that test the effect of DHWs / SST on aspects of individuals corals' infection trajectories. not sure if this is worth it or not
-
+#   - It will be nice to go back to the 'cover.csv' data and compare model-predicted loss of cover with that which was observed. we could make the assumption that no SCTLD-unaffected coral tissue was lost, and add that SA back into the output data before a final
+#           conversion with the 1:3 ratio
+#   - worth remembering that while susceptible tissue can only go down in my model, susceptible hosts as a whole can rise - may be worth plotting this. even though those hosts didn't really "recover" and theoretically any host is still susceptible even as it is
+#           actively infected, because of the nature of multifocal lesions
 
 # plotting consideration:
 # - Make a plot showing all of the coral-level "SIR"s (but maybe just the infection curve? or a separate plot with the dead lines?), with the x-axis being days from 0 to max number of days a coral was infected for. this would maybe just be a nice way to visualize 
