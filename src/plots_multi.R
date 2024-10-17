@@ -10,7 +10,7 @@
   library(deSolve)
   
   #import workspace from upstream script
-  load(here("output/multi_SIR_workspace_0_0_0.RData"))
+  load(here("output/pre_DHW_integration_and_cover_ratio_9Oct2024/multi_SIR_workspace_01_125_15.RData"))
   
   obs.multi = obs.multi %>%
     mutate(Category = case_when(

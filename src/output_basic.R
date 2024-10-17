@@ -532,6 +532,6 @@
   #
   ################ RUN SECOND FITTING FOR EFFECT OF SEA SURFACE TEMPERATURE ################
   
-  # #pass workspace to downstream script
-  # save.image(file = here("output", "basic_SIR_workspace.RData"))
+  #pass workspace to downstream script
+  save.image(file = here("output", "basic_SIR_workspace.RData"))
   

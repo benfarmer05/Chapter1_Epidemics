@@ -512,7 +512,7 @@
       colnames(prograte)[i] = newdatename
     }
   }
-
+  
   #initialize the dataframe with all required columns for calculating tissue loss through time
   survey_long = survey_long %>%
     # Initialize columns with NA values and convert to numeric
