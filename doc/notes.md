@@ -9,7 +9,7 @@
 
 #           Consider:
 
-# Master script (e.g., master_script.R)
+# Main script (e.g., main_script.R)
 
 # Source the first script
 source("script1.R")

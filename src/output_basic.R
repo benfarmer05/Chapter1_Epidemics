@@ -308,22 +308,35 @@
       #   transmission_rate[transmission_rate < 0] <- 0  # Ensure transmission_rate doesn't go negative
       # }
       
-      # Adjust transmission rate based on sea surface temperature
+      # Adjust transmission and removal rates based on sea surface temperature
       if (current_SST < SST_threshold) {
-        # Increase transmission rate as SST decreases below the threshold (linear)
+        # Increase rates as SST decreases below the threshold (linear)
         transmission_rate <- transmission_rate * (1 + z * (SST_threshold - current_SST))
-        
+        # removal_rate <- g * (1 + e * (SST_threshold - current_SST))
+        removal_rate = g
       } else {
-        # Decrease transmission rate as SST increases above the threshold (non-linear)
+        # Decrease rates as SST increases above the threshold (non-linear)
         transmission_rate <- transmission_rate * (1 / (1 + exp(-z * (current_SST - SST_threshold))))
+        # removal_rate <- g * (1 / (1 + exp(-e * (current_SST - SST_threshold))))
+        removal_rate = g
       }
       
-      # Ensure transmission_rate doesn't go negative
+      # STOPPING POINT - 22 OCT 2024
+      #   - I accidentally started fitting a compensatory gamma to the fitted effect of temperature on transmission (removal_rate = g)
+      #   - not really sure what this will mean ???
+      #   - look more at the plots for this vs. null model vs. fitting both independently (or more independently ?)
+      #   - okay a quick look is telling me this is basically the same as just fitting the effect on transmission alone (bad and looks
+      #       strange in the output). so ... maybe just need to go further down the path of fitting *both* but just make it somehow more
+      #       pronounced? change threshold to 30? only let it happen past the period we actually want a second wave to happen ?
+      #   - and really that's the question. how do you get a second wave to happen? not letting the first one ever really die out totally?
+      #       actually sparking new infection with a stimulus? like Dan said, similar to SEIR and/or recovery-reinfection dynamics
+      
+      # Ensure rates don't go negative
       transmission_rate[transmission_rate < 0] <- 0  
+      # removal_rate[removal_rate < 0] <- 0
       
       
       
-
       # # Attempt at gradual decrease in transmission rate with increasing SST; no threshold SST value
       # SST_min = min(SST)
       # SST_max = max(SST)
@@ -332,8 +345,8 @@
       
       
       dS.dt = -transmission_rate * S * I / N 
-      dI.dt = transmission_rate * S * I / N - g * I
-      dR.dt = g * I
+      dI.dt = transmission_rate * S * I / N - removal_rate * I
+      dR.dt = removal_rate * I
       
       return(list(c(dS.dt, dI.dt, dR.dt)))
     })
@@ -438,13 +451,15 @@
       # z = 1.0
 
       zetas = params[1]
-      # SST_threshold_value = params[2]
+      etas = params[2]
+      # SST_threshold_value = params[3]
       
       SIR.out = tryCatch({
         data.frame(ode(c(S = initial_state[1], I = initial_state[2], R = initial_state[3]),
                        time, SIR.DHW, c(b = betas, g = gammas,
                                     N = initial_state[4],
                                     z = zetas,
+                                    e = etas,
                                     l = lambdas,
                                     C = initial_state[5],
                                     SST_threshold = SST_threshold_value), # NOTE - hard-coded
@@ -500,8 +515,13 @@
     }
     ############################## OPTIMIZE PARAMETERS ############################################################
     
-    lower_bounds.tiss = c(0.00001)  # Lower bounds for zeta, SST threshold
-    upper_bounds.tiss = c(.01)    # Upper bounds for zeta, SST threshold
+    # lower_bounds.tiss = c(0.00001)  # Lower bounds for zeta, SST threshold
+    # upper_bounds.tiss = c(.01)    # Upper bounds for zeta, SST threshold
+    # lower_bounds.tiss = c(0.00001, 0.00001)  # Lower bounds for zeta and eta
+    # upper_bounds.tiss = c(.01, .01)          # Upper bounds for zeta and eta
+    lower_bounds.tiss = c(0.000001, 0.000001)  # Lower bounds for zeta and eta
+    upper_bounds.tiss = c(1.0, 1.0)          # Upper bounds for zeta and eta
+    
     
     control = list(itermax = 100)  # Maximum number of iterations. 200 is default
     
@@ -515,14 +535,16 @@
     
     # Print the optimized parameters
     min.zeta.tiss = as.numeric(optimized_params.tiss[1])
-
-    params.basic.DHW[[i]] = c(min.zeta.tiss)
+    min.eta.tiss = as.numeric(optimized_params.tiss[2])
+    
+    params.basic.DHW[[i]] = c(min.zeta.tiss, min.eta.tiss)
     
     #simulation using initial state variables and best-fit beta/gamma (and now zeta) parameters
     SIR.out.tiss = data.frame(ode(c(S = initial_state.tiss[1], I = initial_state.tiss[2], R = initial_state.tiss[3]),
                                   days.model, SIR.DHW, c(b = betas, g = gammas,
                                                      N = initial_state.tiss[4],
                                                      z = min.zeta.tiss,
+                                                     e = min.eta.tiss,
                                                      l = lambdas,
                                                      C = initial_state.tiss[5],
                                                      SST_threshold = SST_threshold_value),
