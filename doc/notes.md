@@ -123,3 +123,20 @@ source("script3.R")
 #   - the SIR testing scripts - for multi, basic, tissue vs count, "human population", etc. there were a ton of these kinds of scripts at one point --> *this is in /archive*
 #   - the code to run a range of simulations with my fitted values (or maybe other values ?) --> *at least some of this is in /archive*. this made nice plots. there is one plot version that may be missing; can visit Teams chat history from last December
 #   - the code to test different curves for lambda --> *these might be on Box archive /archive/Chapter1_Epidemics/FLKEYS_SIR/misc/old_scripts*. Go through and systematically archive these properly!
+
+
+# Dan discussion notes 23 Oct 2024:
+#       - try letting the scalars fit when interacting with JUST sst (no threshold etc.). but let the baseline be the temperatures around when      #           SCTLD first hit Offshore site (like 29C). below that baseline, transmission can increase (non-linearly? who knows but try it),
+#           and above that baseline, transmission crawls slower. can even try some extreme tests like turning beta and/or gamma to zero
+#           under certain conditions, but for now just see if this approach alone can "improve" on what we have. I have a feeling it will
+#           do the same thing I've already tried honestly, but worth a shot
+#       - can still also test DHW - this would be directly address the idea that bleaching and symbiont expulsion is involved. DHW = 4 is #     #             bleaching, and may be an interesting value to test
+#        - think about observation-informed modeling - we know that SCTLD could start at Offshore at 29C, so assume that is our baseline.
+#               kind of arbitrary, but it shows that we acknowledge SCTLD is capable of being active at that temperature OR higher
+#        - Dan had some concerns about fitting with all the data available, including the "second wave" - that said, I think this approach makes sense because it still fits about the same as not doing so (but check this again), and that further shows that given a null hypothesis of no effect of temperature, the SIR model will produce a first wave that roughly matches the observations - can go from there to explicitly build in the effect of temperature and bleaching
+
+
+
+
+
+

@@ -308,18 +308,34 @@
       #   transmission_rate[transmission_rate < 0] <- 0  # Ensure transmission_rate doesn't go negative
       # }
       
-      # Adjust transmission and removal rates based on sea surface temperature
-      if (current_SST < SST_threshold) {
-        # Increase rates as SST decreases below the threshold (linear)
-        transmission_rate <- transmission_rate * (1 + z * (SST_threshold - current_SST))
-        # removal_rate <- g * (1 + e * (SST_threshold - current_SST))
-        removal_rate = g
+      # # Adjust transmission and removal rates based on sea surface temperature
+      # if (current_SST < SST_threshold) {
+      #   # # Increase rates as SST decreases below the threshold (linear)
+      #   # transmission_rate <- transmission_rate * (1 + z * (SST_threshold - current_SST))
+      #   # removal_rate <- g * (1 + e * (SST_threshold - current_SST))
+      #   # # removal_rate = g #do nothing to either rate when SST is below threshold
+      #   transmission_rate <- transmission_rate * z
+      #   removal_rate <- g * e
+      # } else {
+      #   # Decrease rates as SST increases above the threshold (non-linear)
+      #   # transmission_rate <- transmission_rate * (1 / (1 + exp(-z * (current_SST - SST_threshold))))
+      #   # removal_rate <- g * (1 / (1 + exp(-e * (current_SST - SST_threshold))))
+      #   removal_rate = g #do nothing to either rate when SST is below threshold
+      # }
+      
+      # Adjust transmission and removal rates based on SST and day threshold
+      if (t >= 332 && current_SST < SST_threshold) {  
+        # Apply modification to rates only after day 332 and when SST is below threshold
+        transmission_rate <- transmission_rate * z
+        removal_rate <- g * e
+      } else if (t >= 332 && current_SST >= SST_threshold) {
+        # Keep rates unaffected when SST is above threshold, after day 332
+        removal_rate <- g
       } else {
-        # Decrease rates as SST increases above the threshold (non-linear)
-        transmission_rate <- transmission_rate * (1 / (1 + exp(-z * (current_SST - SST_threshold))))
-        # removal_rate <- g * (1 / (1 + exp(-e * (current_SST - SST_threshold))))
-        removal_rate = g
+        # For t < 332, do nothing to the rates (keep them unaffected by SST)
+        removal_rate <- g
       }
+      
       
       # STOPPING POINT - 22 OCT 2024
       #   - I accidentally started fitting a compensatory gamma to the fitted effect of temperature on transmission (removal_rate = g)
@@ -330,6 +346,13 @@
       #       pronounced? change threshold to 30? only let it happen past the period we actually want a second wave to happen ?
       #   - and really that's the question. how do you get a second wave to happen? not letting the first one ever really die out totally?
       #       actually sparking new infection with a stimulus? like Dan said, similar to SEIR and/or recovery-reinfection dynamics
+      
+      # STOPPING POINT - 23 OCT 2024
+      #   - I just remembered that the last observation day always has 0 for infected. this is probably skewing the fit down. may want to
+      #       consider re-running fit with last timepoint, specifically for infected compartment is not fitted
+      #   - I was able to get a "bump" in infection/mortality to happen with a second wave, but only by really boosting the rates. this
+      #       a little silly, and obviously not biologically accurate so I don't love it. not sure how to work in a bump without
+      #       compromising the integrity of the model-wide rates
       
       # Ensure rates don't go negative
       transmission_rate[transmission_rate < 0] <- 0  
@@ -438,7 +461,7 @@
     # Set up the data and initial conditions
     coraldata.tiss = list(inftiss, remtiss)
     initial_state.tiss = c(S.tiss, I.tiss, R.tiss, N.site, cover.site)
-    SST_threshold_value = 29.5
+    SST_threshold_value = 30
     
     pre.fitted.params = params.basic[[i]] # NOTE - relies on hard-coding params.basic & could be revised. works fine now, but check here if bugs
     betas = pre.fitted.params[1]
@@ -519,8 +542,10 @@
     # upper_bounds.tiss = c(.01)    # Upper bounds for zeta, SST threshold
     # lower_bounds.tiss = c(0.00001, 0.00001)  # Lower bounds for zeta and eta
     # upper_bounds.tiss = c(.01, .01)          # Upper bounds for zeta and eta
-    lower_bounds.tiss = c(0.000001, 0.000001)  # Lower bounds for zeta and eta
-    upper_bounds.tiss = c(1.0, 1.0)          # Upper bounds for zeta and eta
+    # lower_bounds.tiss = c(0.000001, 0.000001)  # Lower bounds for zeta and eta
+    # upper_bounds.tiss = c(1.0, 1.0)          # Upper bounds for zeta and eta
+    lower_bounds.tiss = c(1.1, 1.1)  # Lower bounds for zeta and eta
+    upper_bounds.tiss = c(1.5, 1.5)          # Upper bounds for zeta and eta
     
     
     control = list(itermax = 100)  # Maximum number of iterations. 200 is default
