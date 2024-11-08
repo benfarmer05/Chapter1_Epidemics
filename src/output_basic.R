@@ -167,12 +167,20 @@
       #   return(Inf)  # Return a large number to force DEoptim to move away from these params
       # }
       
+      # #extract simulated values at time points matching observations
+      # sim.inf = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'I')]
+      # sim.rem = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R')]
+      # 
+      # #extract observed values [repetitive code, but works]
+      # obs.inf = unlist(data[1])
+      # obs.rem = unlist(data[2])
+      
       #extract simulated values at time points matching observations
-      sim.inf = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'I')]
+      sim.inf = SIR.out[which(SIR.out$time %in% head(days.obs, -1)), which(colnames(SIR.out) %in% 'I')] # NOTE - remove final timepoint for infecteds (because of backtracking, see processing script)
       sim.rem = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R')]
       
       #extract observed values [repetitive code, but works]
-      obs.inf = unlist(data[1])
+      obs.inf = unlist(data[[1]])[-length(data[[1]])] # NOTE - remove final timepoint for infecteds (because of backtracking, see processing script)
       obs.rem = unlist(data[2])
       
       #use ratio of maximum removed value to maximum infected value to rescale removed. fits the 'I' curve better this way
@@ -213,7 +221,6 @@
     # upper_bounds.tiss = c(1, 1, 0.3)  #upper bounds for beta, gamma and lambda
     upper_bounds.tiss = c(4, 4, lambda.modifier)  #upper bounds for beta, gamma and lambda
     # upper_bounds.tiss = c(5, 5, 1)  #upper bounds for beta, gamma and lambda
-    
     
     control = list(itermax = 100)  # Maximum number of iterations. 200 is default
     
@@ -263,110 +270,58 @@
   
   ################ RUN SECOND FITTING FOR EFFECT OF SEA SURFACE TEMPERATURE ################
   #
-  SIR.DHW = function(t,y,p,SST){ # 'p' is parameters or params
+  SIR.DHW = function(t,y,p,SST,DHW){ # 'p' is parameters or params
     {
       S = y[1]
       I = y[2]
       R = y[3]
     }
     with(as.list(p),{
-
-      # Find the closest index for t in the SST data and fetch the associated SST
+      
+      # Find the closest index for t in the SST data and fetch the associated SST and DHW
       closest_index <- which.min(abs(SST$time - t))
       if (closest_index < 1 || closest_index > nrow(SST)) {
         stop("Closest index is out of bounds for SST.")
       }
-      current_SST <- SST$SST[closest_index]
+      current_SST = SST$SST[closest_index]
+      current_DHW = DHW$DHW[closest_index]
       
-      # Introduce a non-linear effect of cover on the transmission rate
+      # Introduce a non-linear effect of cover on the transmission rate [base transmission rate with cover factor]
       # transmission_rate = b * (1 + l * sqrt(C)) #setting lambda to zero nullifies the effect of cover and reverts the model to a basic SIR
       # transmission_rate = b * (l * sqrt(C))
       # transmission_rate = b * (l * (1-exp(-130*(C)))) #20
       transmission_rate = b * (1 / (1 + exp(-l * (C))) + offset)
+      removal_rate = g
       
+      # Only apply SST and DHW effects in a way that can simulate a second wave
+      thermal_onset_time = min(SST$time[SST$SST > SST_threshold], na.rm = TRUE)
       
-      # attempt using a 30C threshold
-      #
-      # # #testing
-      # transmission_rate = 1.4
-      # z = 1.2
-      # current_SST = 30.35345
-      # SST_threshold = 30
-      # transmission_rate
-      # transmission_rate * (1 - z * (current_SST - SST_threshold))  # Decrease beta as SST increases
+      if (t >= thermal_onset_time) {
 
-      # # Adjust transmission rate based on sea surface temperature
-      # if (current_SST > SST_threshold) {
-      # 
-      #   # # Quadratic decrease in transmission rate as SST increases
-      #   # transmission_rate <- transmission_rate * (1 - z * (current_SST - SST_threshold)^2)  # Non-linear adjustment
-      # 
-      #   # Gradual decrease in transmission rate above the SST threshold
-      #   transmission_rate <- transmission_rate * (1 / (1 + exp(-z * (current_SST - SST_threshold))))
-      # 
-      # 
-      #   transmission_rate[transmission_rate < 0] <- 0  # Ensure transmission_rate doesn't go negative
-      # }
-      
-      # # Adjust transmission and removal rates based on sea surface temperature
-      # if (current_SST < SST_threshold) {
-      #   # # Increase rates as SST decreases below the threshold (linear)
-      #   # transmission_rate <- transmission_rate * (1 + z * (SST_threshold - current_SST))
-      #   # removal_rate <- g * (1 + e * (SST_threshold - current_SST))
-      #   # # removal_rate = g #do nothing to either rate when SST is below threshold
-      #   transmission_rate <- transmission_rate * z
-      #   removal_rate <- g * e
-      # } else {
-      #   # Decrease rates as SST increases above the threshold (non-linear)
-      #   # transmission_rate <- transmission_rate * (1 / (1 + exp(-z * (current_SST - SST_threshold))))
-      #   # removal_rate <- g * (1 / (1 + exp(-e * (current_SST - SST_threshold))))
-      #   removal_rate = g #do nothing to either rate when SST is below threshold
-      # }
-      
-      # Adjust transmission and removal rates based on SST and day threshold
-      if (t >= 332 && current_SST < SST_threshold) {  
-        # Apply modification to rates only after day 332 and when SST is below threshold
-        transmission_rate <- transmission_rate * z
-        removal_rate <- g * e
-      } else if (t >= 332 && current_SST >= SST_threshold) {
-        # Keep rates unaffected when SST is above threshold, after day 332
-        removal_rate <- g
-      } else {
-        # For t < 332, do nothing to the rates (keep them unaffected by SST)
-        removal_rate <- g
+        # SST-based logic for increasing or decreasing rates
+        if (current_SST < SST_threshold) {
+          # SST below threshold - increase rates
+          transmission_rate <- transmission_rate * (1 + z * (SST_threshold - current_SST))
+          removal_rate <- removal_rate * (1 + e * (SST_threshold - current_SST))
+        } else {
+          # SST above threshold - decrease rates
+          transmission_rate <- transmission_rate * (1 / (1 + exp(-z * (current_SST - SST_threshold))))
+          removal_rate <- removal_rate * (1 / (1 + exp(-e * (current_SST - SST_threshold))))
+        }
+        
+        # # Apply DHW-based reduction in transmission rate if DHW > 0
+        # if (current_DHW > 0) {
+        #   # Additional reduction factor based on DHW, capped at max DHW of 8
+        #   dhw_reduction_factor <- (1 - (current_DHW / 8))
+        #   transmission_rate <- transmission_rate * dhw_reduction_factor
+        # }
+        
       }
       
-      
-      # STOPPING POINT - 22 OCT 2024
-      #   - I accidentally started fitting a compensatory gamma to the fitted effect of temperature on transmission (removal_rate = g)
-      #   - not really sure what this will mean ???
-      #   - look more at the plots for this vs. null model vs. fitting both independently (or more independently ?)
-      #   - okay a quick look is telling me this is basically the same as just fitting the effect on transmission alone (bad and looks
-      #       strange in the output). so ... maybe just need to go further down the path of fitting *both* but just make it somehow more
-      #       pronounced? change threshold to 30? only let it happen past the period we actually want a second wave to happen ?
-      #   - and really that's the question. how do you get a second wave to happen? not letting the first one ever really die out totally?
-      #       actually sparking new infection with a stimulus? like Dan said, similar to SEIR and/or recovery-reinfection dynamics
-      
-      # STOPPING POINT - 23 OCT 2024
-      #   - I just remembered that the last observation day always has 0 for infected. this is probably skewing the fit down. may want to
-      #       consider re-running fit with last timepoint, specifically for infected compartment is not fitted
-      #   - I was able to get a "bump" in infection/mortality to happen with a second wave, but only by really boosting the rates. this
-      #       a little silly, and obviously not biologically accurate so I don't love it. not sure how to work in a bump without
-      #       compromising the integrity of the model-wide rates
-      
-      # Ensure rates don't go negative
-      transmission_rate[transmission_rate < 0] <- 0  
-      # removal_rate[removal_rate < 0] <- 0
-      
-      
-      
-      # # Attempt at gradual decrease in transmission rate with increasing SST; no threshold SST value
-      # SST_min = min(SST)
-      # SST_max = max(SST)
-      # transmission_rate <- transmission_rate * (1 - z * (current_SST - SST_min) / (SST_max - SST_min))
-      # transmission_rate[transmission_rate < 0] <- 0  # Ensure transmission_rate doesn't go negative
-      
-      
+      # Ensure rates are non-negative
+      transmission_rate <- max(transmission_rate, 0)
+      removal_rate <- max(removal_rate, 0)
+            
       dS.dt = -transmission_rate * S * I / N 
       dI.dt = transmission_rate * S * I / N - removal_rate * I
       dR.dt = removal_rate * I
@@ -404,26 +359,35 @@
     days.obs = days[first_valid_idx:length(days)]
     days.model = seq(from = min(days.obs), to = max(days.obs), by = 1)
     
-    # Extract SST values corresponding to the days in days.model
+    # Extract SST and DHW values corresponding to the days in days.model
     SST_values <- DHW.CRW %>%
       filter(day %in% days.model) %>%
       pull(SST.90th_HS)
     
-    # Create a data frame from your SST values with corresponding time indices
+    DHW_values <- DHW.CRW %>%
+      filter(day %in% days.model) %>%
+      pull(DHW_from_90th_HS.1)
+    
+    # Create a data frame from SST & DHW values with corresponding time indices
     SST_df <- data.frame(
       time = seq(0, length(days.model) - 1),  # Assuming your SST starts at day 0 and is sequential
       SST = SST_values
     )
     # current_SST_value = SST_values[as.integer(days.model) + 1]
     # current_SST_value2 = SST_values[days.model]
-
-
     
+    DHW_df <- data.frame(
+      time = seq(0, length(days.model) - 1),  # Assuming your SST starts at day 0 and is sequential
+      DHW = DHW_values
+    )
     
-    # Ensure that the length of SST_values matches the length of days.model
+    # Ensure that the lengths of SST_values and DHW_values match the length of days.model
     #   NOTE - this error checker really should be verifying dates, not the sequence - would likely require comparing to summary
     if (length(SST_values) != length(days.model)) {
       stop("Length of SST_values does not match length of days.model.")
+    }
+    if (length(DHW_values) != length(days.model)) {
+      stop("Length of DHW_values does not match length of days.model.")
     }
     
     N.site = susceptible_ref %>%
@@ -461,8 +425,9 @@
     # Set up the data and initial conditions
     coraldata.tiss = list(inftiss, remtiss)
     initial_state.tiss = c(S.tiss, I.tiss, R.tiss, N.site, cover.site)
-    SST_threshold_value = 30
-    
+    SST_threshold_value = 30.5 #the SST on the date that patient-zero SCTLD was backtracked to [could also try 30.5C, thermal stress threshold in corals]
+    DHW_threshold_value = 1 #4 is a threshold for coral bleaching in the literature; could try 3 (Whitaker 2024) or 2 (Gierz 2020)
+
     pre.fitted.params = params.basic[[i]] # NOTE - relies on hard-coding params.basic & could be revised. works fine now, but check here if bugs
     betas = pre.fitted.params[1]
     gammas = pre.fitted.params[3]
@@ -471,8 +436,15 @@
     objective_function = function(params, data, time, initial_state){
       
       # #testing
-      # z = 1.0
-
+      # betas = 2.0
+      # gammas = 1.0
+      # lambdas = 1.0
+      # zetas = 0.89
+      # etas = 0.70
+      # initial_state = initial_state.tiss
+      # time = days.model
+      # data = coraldata.tiss
+      
       zetas = params[1]
       etas = params[2]
       # SST_threshold_value = params[3]
@@ -485,8 +457,10 @@
                                     e = etas,
                                     l = lambdas,
                                     C = initial_state[5],
-                                    SST_threshold = SST_threshold_value), # NOTE - hard-coded
-                       SST = SST_df)) # NOTE - this is also hard-coded right now, ideally would not be
+                                    SST_threshold = SST_threshold_value,
+                                    DHW_threshold = DHW_threshold_value), # NOTE - hard-coded
+                       SST = SST_df,
+                       DHW = DHW_df)) # NOTE - this is also hard-coded right now, ideally would not be
       }, error = function(e) {
         print("Error in ODE:")
         print(e)
@@ -499,11 +473,11 @@
       # }
       
       #extract simulated values at time points matching observations
-      sim.inf = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'I')]
+      sim.inf = SIR.out[which(SIR.out$time %in% head(days.obs, -1)), which(colnames(SIR.out) %in% 'I')] # NOTE - remove final timepoint for infecteds (because of backtracking, see processing script)
       sim.rem = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R')]
       
       #extract observed values [repetitive code, but works]
-      obs.inf = unlist(data[1])
+      obs.inf = unlist(data[[1]])[-length(data[[1]])] # NOTE - remove final timepoint for infecteds (because of backtracking, see processing script)
       obs.rem = unlist(data[2])
       
       #use ratio of maximum removed value to maximum infected value to rescale removed. fits the 'I' curve better this way
@@ -518,6 +492,9 @@
       # max_sim_rem = max(sim.rem)
       # rem.inf.ratio = max_sim_rem/max_sim_inf
       # sim.rem = sim.rem/rem.inf.ratio
+      
+      # NOTE - need to exclude the final timepoint when fitting to infections, due to the nature of the backtracking estimations
+      #         (see processing script for more information)
       
       # Calculate differences after normalization
       diff.inf = (sim.inf - obs.inf)
@@ -544,9 +521,10 @@
     # upper_bounds.tiss = c(.01, .01)          # Upper bounds for zeta and eta
     # lower_bounds.tiss = c(0.000001, 0.000001)  # Lower bounds for zeta and eta
     # upper_bounds.tiss = c(1.0, 1.0)          # Upper bounds for zeta and eta
-    lower_bounds.tiss = c(1.1, 1.1)  # Lower bounds for zeta and eta
-    upper_bounds.tiss = c(1.5, 1.5)          # Upper bounds for zeta and eta
-    
+    # lower_bounds.tiss = c(1.1, 1.1)  # Lower bounds for zeta and eta
+    # upper_bounds.tiss = c(1.5, 1.5)          # Upper bounds for zeta and eta
+    lower_bounds.tiss = c(0.01, 0.01)  # Lower bounds for zeta and eta
+    upper_bounds.tiss = c(1.0, 1.0)          # Upper bounds for zeta and eta
     
     control = list(itermax = 100)  # Maximum number of iterations. 200 is default
     
@@ -572,13 +550,15 @@
                                                      e = min.eta.tiss,
                                                      l = lambdas,
                                                      C = initial_state.tiss[5],
-                                                     SST_threshold = SST_threshold_value),
-                                  SST = SST_df))
+                                                     SST_threshold = SST_threshold_value,
+                                                     DHW_threshold = DHW_threshold_value),
+                                  SST = SST_df,
+                                  DHW = DHW_df))
     my.SIRS.basic.DHW[[i]] = SIR.out.tiss
   }
   #
   ################ RUN SECOND FITTING FOR EFFECT OF SEA SURFACE TEMPERATURE ################
   
-  #pass workspace to downstream script
-  save.image(file = here("output", "basic_SIR_workspace.RData"))
+  # #pass workspace to downstream script
+  # save.image(file = here("output", "basic_SIR_workspace.RData"))
   

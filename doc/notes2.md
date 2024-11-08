@@ -142,6 +142,6 @@ source("script3.R")
 2.) run analysis for *just* first wave, dropping everything after 30.5C (and/or DHWs exceeds ~2.0 around 1 July 2019). see how this affects all my rates
 3.) after the above steps, again introduce effects of SST / DHW for a "second wave" and see what happens
 4.) ALSO, just noticed I am only fitting to removal for the basic SIR model!! need to address that. although it's doing remarkably well as-is actually
-
+ # - the chatGPT thread is pretty helpful from today
 
 

@@ -550,12 +550,13 @@
   file_content = readLines(here("data", "florida_keys.txt"))
   data_lines = file_content[22:length(file_content)]
   DHW.CRW = read.table(text = data_lines, header = TRUE)
-  DHW.CRW = DHW.CRW %>%
+  DHW.CRW.full = DHW.CRW %>%
     mutate(date = as.Date(paste(YYYY, MM, DD, sep = "-"))) %>%
-    # filter(date >= as.Date("2018-05-01") & date <= as.Date("2019-12-06")) %>% #include first day of surveying in the field
-    filter(date >= as.Date("2018-08-17") & date <= as.Date("2019-12-06")) %>% #skip to first SCTLD day
     select(-YYYY, -MM, -DD) %>%
     select(date, everything())
+  DHW.CRW = DHW.CRW.full %>%
+    # filter(date >= as.Date("2018-05-01") & date <= as.Date("2019-12-06")) %>% #include first day of surveying in the field
+    filter(date >= as.Date("2018-08-17") & date <= as.Date("2019-12-06")) #skip to first SCTLD day
   survey_long <- survey_long %>%
     left_join(DHW.CRW, by = "date")
   
@@ -1439,6 +1440,6 @@
   #
   ### LAST STEPS TO PREP FOR PLOTTING AND DOWNSTREAM MODELING SCRIPTS
   
-  #save workspace for use in subsequent scripts
-  save.image(file = here("output", "data_processing_workspace.RData"))
+  # #save workspace for use in subsequent scripts
+  # save.image(file = here("output", "data_processing_workspace.RData"))
   
