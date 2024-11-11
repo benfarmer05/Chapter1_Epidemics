@@ -515,16 +515,10 @@
     }
     ############################## OPTIMIZE PARAMETERS ############################################################
     
-    # lower_bounds.tiss = c(0.00001)  # Lower bounds for zeta, SST threshold
-    # upper_bounds.tiss = c(.01)    # Upper bounds for zeta, SST threshold
-    # lower_bounds.tiss = c(0.00001, 0.00001)  # Lower bounds for zeta and eta
-    # upper_bounds.tiss = c(.01, .01)          # Upper bounds for zeta and eta
-    # lower_bounds.tiss = c(0.000001, 0.000001)  # Lower bounds for zeta and eta
+    # lower_bounds.tiss = c(0.01, 0.01)  # Lower bounds for zeta and eta
     # upper_bounds.tiss = c(1.0, 1.0)          # Upper bounds for zeta and eta
-    # lower_bounds.tiss = c(1.1, 1.1)  # Lower bounds for zeta and eta
-    # upper_bounds.tiss = c(1.5, 1.5)          # Upper bounds for zeta and eta
     lower_bounds.tiss = c(0.01, 0.01)  # Lower bounds for zeta and eta
-    upper_bounds.tiss = c(1.0, 1.0)          # Upper bounds for zeta and eta
+    upper_bounds.tiss = c(3.0, 3.0)          # Upper bounds for zeta and eta
     
     control = list(itermax = 100)  # Maximum number of iterations. 200 is default
     

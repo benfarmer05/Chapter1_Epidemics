@@ -1440,6 +1440,6 @@
   #
   ### LAST STEPS TO PREP FOR PLOTTING AND DOWNSTREAM MODELING SCRIPTS
   
-  # #save workspace for use in subsequent scripts
-  # save.image(file = here("output", "data_processing_workspace.RData"))
+  #save workspace for use in subsequent scripts
+  save.image(file = here("output", "data_processing_workspace.RData"))
   
