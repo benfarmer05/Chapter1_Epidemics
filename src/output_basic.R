@@ -6,7 +6,7 @@
   library(tidyverse)
   library(DEoptim)
   library(deSolve)
-  
+
   #import workspace from upstream script
   load(here("output", "plots_obs_workspace.RData"))
   
@@ -22,6 +22,7 @@
     )
   
   #parameters for adjusting modeled outbreak based on Degree Heating Weeks (DHWs)
+  # NOTE - these do nothing and should be deprecated in favor of the now-updated approach to thermal stress
   DHW.onset.date = as.Date("2019-07-01")
   # DHW.modifier = summary_unique %>%
   #   filter(date > DHW.onset.date) %>%
@@ -30,8 +31,9 @@
   
   #NOTE - ideally, all preparation of days and days.model would happen outside of the loops below, making adjustment of fit to include/exclude
   #         days above SST/DHW thresholds easier. for now, this works
-  SST_threshold_value = 30.5 #the SST on the date that patient-zero SCTLD was backtracked to [could also try 30.5C, thermal stress threshold in corals]
-  DHW_threshold_value = 2 #4 is a threshold for coral bleaching in the literature; could try 3 (Whitaker 2024) or 2 (Gierz 2020)
+  SST_threshold_value = 28.5 #the SST on the date that patient-zero SCTLD was backtracked to [could also try 30.5C, thermal stress threshold in corals]
+  DHW_threshold_value = 1.0 #4 is a threshold for coral bleaching in the literature; could try 3 (Whitaker 2024) or 2 (Gierz 2020)
+  date_threshold <- as.Date("2019-05-05") #this ensures that most of the first wave is able to occur, before 28C is reached for the second time
   
   # # Scenario 1 [maximum transmission modifier of 1.0, with 100% coral cover]
   #lambda of 3: R0 is extremely low (0.8 or something), no outbreak in Midchannel
@@ -44,6 +46,47 @@
   
   lambda.modifier = 1.0
   offset = 1 - 1 / (1 + exp(-lambda.modifier))
+  
+  sites = unique(summary$site)
+  
+  # Prepare 'days.obs' and 'days.model' based on 'summary' data
+  days_sites <- summary %>%
+    group_by(site) %>%
+    summarize(
+      # Adjust 'days' to chop off observations after onset of Degree Heating Weeks
+      days = list(days.inf.site[1:(length(days.inf.site) - DHW.modifier)]),
+      # Extract days.obs and days.model for each site as lists to maintain lengths
+      days.obs = list({
+        days_cleaned <- na.omit(days.inf.site[1:(length(days.inf.site) - DHW.modifier)])
+        days_cleaned[which(!is.na(days_cleaned))[1]:length(days_cleaned)]
+      }),
+      days.model = list(seq(from = min(na.omit(days.inf.site)), to = max(na.omit(days.inf.site)), by = 1))
+    )
+  
+  # Join SST and DHW data from 'DHW.CRW' using 'days.model' values, and create separate dataframes for each
+  SST_sites <- days_sites %>%
+    rowwise() %>%
+    mutate(SST_data = list(DHW.CRW %>%
+                             filter(day %in% days.model) %>%
+                             select(date, SST = SST.90th_HS))) %>%
+    select(site, days.model, SST_data) %>%
+    unnest(cols = c(days.model, SST_data)) %>%
+    group_by(site) %>%
+    mutate(time = row_number() - 1) %>%
+    ungroup() %>%
+    select(date, time, site, days.model, SST)
+  
+  DHW_sites <- days_sites %>%
+    rowwise() %>%
+    mutate(DHW_data = list(DHW.CRW %>%
+                             filter(day %in% days.model) %>%
+                             select(date, DHW = DHW_from_90th_HS.1))) %>%
+    select(site, days.model, DHW_data) %>%
+    unnest(cols = c(days.model, DHW_data)) %>%
+    group_by(site) %>%
+    mutate(time = row_number() - 1) %>%
+    ungroup() %>%
+    select(date, time, site, days.model, DHW)
   
   SIR = function(t,y,p){ # 'p' is parameters or params
     {
@@ -67,9 +110,6 @@
     })
   }
   
-  sites = unique(summary$site)
-  # list(time_list <- vector("list", length = length(sites)))
-  
   my.SIRS.basic = vector('list', length(sites))
   params.basic = vector('list', length(sites))
   
@@ -84,20 +124,20 @@
     # site.loop = "off" #for testing purposes
     # i = 3
     
-    days = summary %>%
-      # drop_na(days.survey) %>% # NOTE - area to return to after fixing backtracking with patient zero corals. we do want to drop this
+    days <- days_sites %>% # NOTE - make sure this is working right with backtracked patient zero corals
       filter(site == site.loop) %>%
-      pull(days.inf.site)
+      pull(days) %>%
+      unlist()
     
-    #adjust days to chop off observations after onset of Degree Heating Weeks
-    days = days[1:(length(days) - DHW.modifier)]
+    days.obs <- days_sites %>%
+      filter(site == site.loop) %>%
+      pull(days.obs) %>%
+      unlist() 
     
-    # Find the first non-NA index in 'days'
-    first_valid_idx <- which(!is.na(days))[1]
-    
-    # Trim 'days' starting from the first non-NA value
-    days.obs = days[first_valid_idx:length(days)]
-    days.model = seq(from = min(days.obs), to = max(days.obs), by = 1)
+    days.model <- days_sites %>%
+      filter(site == site.loop) %>%
+      pull(days.model) %>%
+      unlist()
     
     N.site = susceptible_ref %>%
       filter(Site == site.loop) %>%
@@ -121,6 +161,7 @@
       pull(tissue)
     
     # Trim 'inftiss' and 'remtiss' using the same indices as 'days'
+    first_valid_idx <- which(!is.na(days))[1] #find the first non-NA index
     inftiss <- inftiss[first_valid_idx:length(inftiss)]
     remtiss <- remtiss[first_valid_idx:length(remtiss)]
     
@@ -149,12 +190,6 @@
       gammas = params[2]
       lambdas = params[3]
       
-      # SIR.out = data.frame(ode(c(S = initial_state[1], I = initial_state[2], R = initial_state[3]),
-      #                          time, SIR, c(b = betas, g = gammas,
-      #                                       N = initial_state[4],
-      #                                       l = lambdas,
-      #                                       C = initial_state[5])))
-      
       SIR.out = tryCatch({
         data.frame(ode(c(S = initial_state[1], I = initial_state[2], R = initial_state[3]),
                        time, SIR, c(b = betas, g = gammas,
@@ -167,56 +202,70 @@
         return(NA)
       })
       
-      # # Handle cases where the ODE solver failed
-      # if (is.na(SIR.out)) {
-      #   return(Inf)  # Return a large number to force DEoptim to move away from these params
-      # }
+      #SST approach
+      time_cutoff <- SST_sites %>%
+        filter(site == site.loop, date >= date_threshold, SST >= SST_threshold_value) %>%
+        summarize(first_exceed_time = min(time, na.rm = TRUE)) %>%
+        pull(first_exceed_time)
       
+      # #DHW approach
+      # time_cutoff <- DHW_sites %>%
+      #   filter(site == site.loop, date >= date_threshold, DHW >= DHW_threshold_value) %>%
+      #   summarize(first_exceed_time = min(time, na.rm = TRUE)) %>%
+      #   pull(first_exceed_time)
+      
+      # Trim days.obs and SIR.out based on the time_cutoff
+      days.obs_trimmed <- days.obs[days.obs < time_cutoff]
+      
+      # Extract simulated values at matching time points in SIR.out for trimmed days.obs
+      sim.inf <- SIR.out[which(SIR.out$time %in% days.obs_trimmed), which(colnames(SIR.out) %in% 'I')]
+      sim.rem <- SIR.out[which(SIR.out$time %in% days.obs_trimmed), which(colnames(SIR.out) %in% 'R')]
+      
+      # Extract observed values for the trimmed days.obs
+      obs.inf <- unlist(data[[1]])[days.obs < time_cutoff]  # NOTE - this is a bit hard-coded; refer to this line if there are bugs
+      obs.rem <- unlist(data[[2]])[days.obs < time_cutoff]  # NOTE - this is a bit hard-coded; refer to this line if there are bugs
+      
+      # # NOTE - this was a version where fit was not constrained to the first epidemic wave
       # #extract simulated values at time points matching observations
-      # sim.inf = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'I')]
+      # sim.inf = SIR.out[which(SIR.out$time %in% head(days.obs, -1)), which(colnames(SIR.out) %in% 'I')] # NOTE - remove final timepoint for infecteds (because of backtracking, see processing script)
       # sim.rem = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R')]
       # 
       # #extract observed values [repetitive code, but works]
-      # obs.inf = unlist(data[1])
+      # obs.inf = unlist(data[[1]])[-length(data[[1]])] # NOTE - remove final timepoint for infecteds (because of backtracking, see processing script)
       # obs.rem = unlist(data[2])
       
-      #extract simulated values at time points matching observations
-      sim.inf = SIR.out[which(SIR.out$time %in% head(days.obs, -1)), which(colnames(SIR.out) %in% 'I')] # NOTE - remove final timepoint for infecteds (because of backtracking, see processing script)
-      sim.rem = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R')]
-      
-      #extract observed values [repetitive code, but works]
-      obs.inf = unlist(data[[1]])[-length(data[[1]])] # NOTE - remove final timepoint for infecteds (because of backtracking, see processing script)
-      obs.rem = unlist(data[2])
-      
+      # # NOTE - this as a version where rescaling was required, because infections were part of the fitting process (not *just* removal)
       # #use ratio of maximum removed value to maximum infected value to rescale removed. fits the 'I' curve better this way
       # max_obs_inf = max(obs.inf)
       # max_obs_rem = max(obs.rem)
       # rem.inf.ratio = max_obs_rem/max_obs_inf
       # obs.rem = obs.rem/rem.inf.ratio
       # sim.rem = sim.rem/rem.inf.ratio
+      # 
+      # # #test to separately rescale removed simulated curve
+      # # max_sim_inf = max(sim.inf)
+      # # max_sim_rem = max(sim.rem)
+      # # rem.inf.ratio = max_sim_rem/max_sim_inf
+      # # sim.rem = sim.rem/rem.inf.ratio
       
-      # #test to separately rescale removed simulated curve
-      # max_sim_inf = max(sim.inf)
-      # max_sim_rem = max(sim.rem)
-      # rem.inf.ratio = max_sim_rem/max_sim_inf
-      # sim.rem = sim.rem/rem.inf.ratio
-      
-      # Calculate differences after normalization
+      # Calculate residuals
       diff.inf = (sim.inf - obs.inf)
       diff.rem = (sim.rem - obs.rem)
       
-      #minimize using sum of absolute differences
-      sum_squared_diff_I = sum(sum(abs(diff.inf))) #can multiply this by 2 or similar to weight it extra
-      sum_squared_diff_R = sum(sum(abs(diff.rem)))
-      # sum_squared_diff = sum_squared_diff_I + sum_squared_diff_R
-      sum_squared_diff = sum_squared_diff_R
+      #aggregate sum of absolute differences
+      # NOTE - this is not sum of squares and should be clearly stated/defended in the manuscript
+      sum_abs_diff_I = sum(sum(abs(diff.inf))) #can multiply this by 2 or similar to weight it extra
+      sum_abs_diff_R = sum(sum(abs(diff.rem)))
+      # sum_diff = sum_abs_diff_I + sum_abs_diff_R #this is the version where infections AND removal are fitted, not *just* removal
+      sum_diff = sum_abs_diff_R
       
       # #minimize using sum of squared differences
       # sum_squared_diff_I = sum(sum(diff.inf^2))
       # sum_squared_diff_R = sum(sum(diff.rem^2))
-      # sum_squared_diff = sum_squared_diff_I + sum_squared_diff_R
+      # sum_diff = sum_squared_diff_I + sum_squared_diff_R #this is the version where infections AND removal are fitted, not *just* removal
+      # sum_diff = sum_squared_diff_R
       
-      return(sum_squared_diff) #minimized error
+      return(sum_diff) #minimized error
     }
     ############################## OPTIMIZE PARAMETERS ############################################################
     
@@ -301,41 +350,17 @@
       transmission_rate = b * (1 / (1 + exp(-l * (C))) + offset)
       removal_rate = g
       
-      # # SST approach
-      # # Only apply SST and DHW effects in a way that can simulate a second wave
-      # thermal_onset_time = min(SST$time[SST$SST > SST_threshold], na.rm = TRUE)
-      # 
-      # if (t >= thermal_onset_time) {
-      #   
-      #   # SST-based logic for increasing or decreasing rates
-      #   if (current_SST < SST_threshold) {
-      #     # SST below threshold - increase rates
-      #     # transmission_rate <- transmission_rate * (1 + z * (SST_threshold - current_SST))
-      #     # removal_rate <- removal_rate * (1 + e * (SST_threshold - current_SST))
-      #     transmission_rate <- transmission_rate
-      #     removal_rate <- removal_rate
-      #   } else {
-      #     # SST above threshold - decrease rates
-      #     transmission_rate <- transmission_rate * (1 / (1 + exp(-z * (current_SST - SST_threshold))))
-      #     removal_rate <- removal_rate * (1 / (1 + exp(-e * (current_SST - SST_threshold))))
-      #   }
-      #   
-      #   # # Apply DHW-based reduction in transmission rate if DHW > 0
-      #   # if (current_DHW > 0) {
-      #   #   # Additional reduction factor based on DHW, capped at max DHW of 8
-      #   #   dhw_reduction_factor <- (1 - (current_DHW / 8))
-      #   #   transmission_rate <- transmission_rate * dhw_reduction_factor
-      #   # }
-      # }
-      
-      # DHW approach
+      # SST approach
       # Only apply SST and DHW effects in a way that can simulate a second wave
-      thermal_onset_time = min(DHW$time[DHW$DHW > DHW_threshold], na.rm = TRUE)
-      
+      thermal_onset_time = min(
+        SST$time[SST$SST >= SST_threshold & SST$date >= date_threshold],
+        na.rm = TRUE
+      )
+
       if (t >= thermal_onset_time) {
-        
+
         # SST-based logic for increasing or decreasing rates
-        if (current_DHW < DHW_threshold) {
+        if (current_SST < SST_threshold) {
           # SST below threshold - increase rates
           # transmission_rate <- transmission_rate * (1 + z * (SST_threshold - current_SST))
           # removal_rate <- removal_rate * (1 + e * (SST_threshold - current_SST))
@@ -343,17 +368,33 @@
           removal_rate <- removal_rate
         } else {
           # SST above threshold - decrease rates
-          transmission_rate <- transmission_rate * (1 / (1 + exp(-z * (current_DHW - DHW_threshold))))
-          removal_rate <- removal_rate * (1 / (1 + exp(-e * (current_DHW - DHW_threshold))))
+          transmission_rate <- transmission_rate * (1 / (1 + exp(-z * (current_SST - SST_threshold))))
+          removal_rate <- removal_rate * (1 / (1 + exp(-e * (current_SST - SST_threshold))))
         }
-        
-        # # Apply DHW-based reduction in transmission rate if DHW > 0
-        # if (current_DHW > 0) {
-        #   # Additional reduction factor based on DHW, capped at max DHW of 8
-        #   dhw_reduction_factor <- (1 - (current_DHW / 8))
-        #   transmission_rate <- transmission_rate * dhw_reduction_factor
-        # }
       }
+      
+      # # DHW approach
+      # # Only apply SST and DHW effects in a way that can simulate a second wave
+      # thermal_onset_time = min(
+      #     DHW$time[DHW$DHW >= DHW_threshold & DHW$date >= date_threshold],
+      #     na.rm = TRUE
+      #   )
+      # 
+      # if (t >= thermal_onset_time) {
+      # 
+      #   # SST-based logic for increasing or decreasing rates
+      #   if (current_DHW < DHW_threshold) {
+      #     # SST below threshold - increase rates
+      #     # transmission_rate <- transmission_rate * (1 + z * (SST_threshold - current_SST))
+      #     # removal_rate <- removal_rate * (1 + e * (SST_threshold - current_SST))
+      #     transmission_rate <- transmission_rate
+      #     removal_rate <- removal_rate
+      #   } else {
+      #     # SST above threshold - decrease rates
+      #     transmission_rate <- transmission_rate * (1 / (1 + exp(-z * (current_DHW - DHW_threshold))))
+      #     removal_rate <- removal_rate * (1 / (1 + exp(-e * (current_DHW - DHW_threshold))))
+      #   }
+      # }
       
       # Ensure rates are non-negative
       transmission_rate <- max(transmission_rate, 0)
@@ -381,42 +422,34 @@
     # site.loop = "off" #for testing purposes
     # i = 3
     
-    days = summary %>%
-      # drop_na(days.survey) %>% # NOTE - area to return to after fixing backtracking with patient zero corals. we do want to drop this
+    days <- days_sites %>% # NOTE - make sure this is working right with backtracked patient zero corals
       filter(site == site.loop) %>%
-      pull(days.inf.site)
+      pull(days) %>%
+      unlist()
     
-    #adjust days to chop off observations after onset of Degree Heating Weeks
-    days = days[1:(length(days) - DHW.modifier)]
+    days.obs <- days_sites %>%
+      filter(site == site.loop) %>%
+      pull(days.obs) %>%
+      unlist() 
     
-    # Find the first non-NA index in 'days'
-    first_valid_idx <- which(!is.na(days))[1]
+    days.model <- days_sites %>%
+      filter(site == site.loop) %>%
+      pull(days.model) %>%
+      unlist()
     
-    # Trim 'days' starting from the first non-NA value
-    days.obs = days[first_valid_idx:length(days)]
-    days.model = seq(from = min(days.obs), to = max(days.obs), by = 1)
+    SST_df = SST_sites %>%
+      filter(site == site.loop) %>%
+      select(date, time, SST)
     
-    # Extract SST and DHW values corresponding to the days in days.model
-    SST_values <- DHW.CRW %>%
-      filter(day %in% days.model) %>%
-      pull(SST.90th_HS)
+    DHW_df <- DHW_sites %>%
+      filter(site == site.loop) %>%
+      select(date, time, DHW)
     
-    DHW_values <- DHW.CRW %>%
-      filter(day %in% days.model) %>%
-      pull(DHW_from_90th_HS.1)
+    SST_values = SST_df %>%
+      pull(SST)
     
-    # Create a data frame from SST & DHW values with corresponding time indices
-    SST_df <- data.frame(
-      time = seq(0, length(days.model) - 1),  # Assuming your SST starts at day 0 and is sequential
-      SST = SST_values
-    )
-    # current_SST_value = SST_values[as.integer(days.model) + 1]
-    # current_SST_value2 = SST_values[days.model]
-    
-    DHW_df <- data.frame(
-      time = seq(0, length(days.model) - 1),  # Assuming your SST starts at day 0 and is sequential
-      DHW = DHW_values
-    )
+    DHW_values = DHW_df %>%
+      pull(DHW)
     
     # Ensure that the lengths of SST_values and DHW_values match the length of days.model
     #   NOTE - this error checker really should be verifying dates, not the sequence - would likely require comparing to summary
@@ -449,6 +482,7 @@
       pull(tissue)
     
     # Trim 'inftiss' and 'remtiss' using the same indices as 'days'
+    first_valid_idx <- which(!is.na(days))[1] #find the first non-NA index
     inftiss <- inftiss[first_valid_idx:length(inftiss)]
     remtiss <- remtiss[first_valid_idx:length(remtiss)]
     
@@ -502,51 +536,72 @@
         return(NA)
       })
       
-      # # Handle cases where the ODE solver failed
-      # if (is.na(SIR.out)) {
-      #   return(Inf)  # Return a large number to force DEoptim to move away from these params
-      # }
+      #SST approach
+      time_cutoff <- SST_sites %>%
+        filter(site == site.loop, date >= date_threshold, SST >= SST_threshold_value) %>%
+        summarize(first_exceed_time = min(time, na.rm = TRUE)) %>%
+        pull(first_exceed_time)
       
-      #extract simulated values at time points matching observations
-      sim.inf = SIR.out[which(SIR.out$time %in% head(days.obs, -1)), which(colnames(SIR.out) %in% 'I')] # NOTE - remove final timepoint for infecteds (because of backtracking, see processing script)
-      sim.rem = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R')]
+      # #DHW approach
+      # time_cutoff <- DHW_sites %>%
+      #   filter(site == site.loop, date >= date_threshold, DHW >= DHW_threshold_value) %>%
+      #   summarize(first_exceed_time = min(time, na.rm = TRUE)) %>%
+      #   pull(first_exceed_time)
       
-      #extract observed values [repetitive code, but works]
-      obs.inf = unlist(data[[1]])[-length(data[[1]])] # NOTE - remove final timepoint for infecteds (because of backtracking, see processing script)
-      obs.rem = unlist(data[2])
+      # Trim days.obs and SIR.out based on the time_cutoff
+      #   - this is the reverse of the cutoff-based approach used for the initial fit: this time, only observational data *including and
+      #       after* the first date in which the SST (or DHW) threshold is breached, is being fitted to
+      days.obs_trimmed <- days.obs[days.obs >= time_cutoff]
       
+      # Extract simulated values at matching time points in SIR.out for trimmed days.obs
+      sim.inf <- SIR.out[which(SIR.out$time %in% days.obs_trimmed), which(colnames(SIR.out) %in% 'I')]
+      sim.rem <- SIR.out[which(SIR.out$time %in% days.obs_trimmed), which(colnames(SIR.out) %in% 'R')]
+      
+      # Extract observed values for the trimmed days.obs
+      obs.inf <- unlist(data[[1]])[days.obs >= time_cutoff]  # NOTE - this is a bit hard-coded; refer to this line if there are bugs
+      obs.rem <- unlist(data[[2]])[days.obs >= time_cutoff]  # NOTE - this is a bit hard-coded; refer to this line if there are bugs
+      
+      # # NOTE - this was a version where fit was not constrained to the first epidemic wave
+      # #extract simulated values at time points matching observations
+      # sim.inf = SIR.out[which(SIR.out$time %in% head(days.obs, -1)), which(colnames(SIR.out) %in% 'I')] # NOTE - remove final timepoint for infecteds (because of backtracking, see processing script)
+      # sim.rem = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R')]
+      # 
+      # #extract observed values [repetitive code, but works]
+      # obs.inf = unlist(data[[1]])[-length(data[[1]])] # NOTE - remove final timepoint for infecteds (because of backtracking, see processing script)
+      # obs.rem = unlist(data[2])
+      
+      # # NOTE - this as a version where rescaling was required, because infections were part of the fitting process (not *just* removal)
       # #use ratio of maximum removed value to maximum infected value to rescale removed. fits the 'I' curve better this way
       # max_obs_inf = max(obs.inf)
       # max_obs_rem = max(obs.rem)
       # rem.inf.ratio = max_obs_rem/max_obs_inf
       # obs.rem = obs.rem/rem.inf.ratio
       # sim.rem = sim.rem/rem.inf.ratio
+      # 
+      # # #test to separately rescale removed simulated curve
+      # # max_sim_inf = max(sim.inf)
+      # # max_sim_rem = max(sim.rem)
+      # # rem.inf.ratio = max_sim_rem/max_sim_inf
+      # # sim.rem = sim.rem/rem.inf.ratio
       
-      # #test to separately rescale removed simulated curve
-      # max_sim_inf = max(sim.inf)
-      # max_sim_rem = max(sim.rem)
-      # rem.inf.ratio = max_sim_rem/max_sim_inf
-      # sim.rem = sim.rem/rem.inf.ratio
-      
-      # NOTE - need to exclude the final timepoint when fitting to infections, due to the nature of the backtracking estimations
-      #         (see processing script for more information)
-      
-      # Calculate differences after normalization
+      # Calculate residuals
       diff.inf = (sim.inf - obs.inf)
       diff.rem = (sim.rem - obs.rem)
       
-      #minimize using sum of absolute differences
-      sum_squared_diff_I = sum(sum(abs(diff.inf))) #can multiply this by 2 or similar to weight it extra
-      sum_squared_diff_R = sum(sum(abs(diff.rem)))
-      # sum_squared_diff = sum_squared_diff_I + sum_squared_diff_R
-      sum_squared_diff = sum_squared_diff_R
+      #aggregate sum of absolute differences
+      # NOTE - this is not sum of squares and should be clearly stated/defended in the manuscript
+      sum_abs_diff_I = sum(sum(abs(diff.inf))) #can multiply this by 2 or similar to weight it extra
+      sum_abs_diff_R = sum(sum(abs(diff.rem)))
+      # sum_diff = sum_abs_diff_I + sum_abs_diff_R #this is the version where infections AND removal are fitted, not *just* removal
+      sum_diff = sum_abs_diff_R
       
       # #minimize using sum of squared differences
       # sum_squared_diff_I = sum(sum(diff.inf^2))
       # sum_squared_diff_R = sum(sum(diff.rem^2))
-      # sum_squared_diff = sum_squared_diff_I + sum_squared_diff_R
+      # sum_diff = sum_squared_diff_I + sum_squared_diff_R #this is the version where infections AND removal are fitted, not *just* removal
+      # sum_diff = sum_squared_diff_R
       
-      return(sum_squared_diff) #minimized error
+      return(sum_diff) #minimized error
     }
     ############################## OPTIMIZE PARAMETERS ############################################################
     
@@ -555,7 +610,7 @@
     # lower_bounds.tiss = c(0.01, 0.01)  # Lower bounds for zeta and eta
     # upper_bounds.tiss = c(3.0, 3.0)          # Upper bounds for zeta and eta
     lower_bounds.tiss = c(0.0001, 0.0001)  # Lower bounds for zeta and eta
-    upper_bounds.tiss = c(1.0, 1.0)          # Upper bounds for zeta and eta
+    upper_bounds.tiss = c(3.0, 3.0)          # Upper bounds for zeta and eta
     
     control = list(itermax = 100)  # Maximum number of iterations. 200 is default
     
@@ -595,10 +650,17 @@
   # 1.) Still need to try this with DHWs and see if I can produce a less wiggly output
   #       - DONE, looks okay
   # 2.) Try only fitting pre-threshold-break for the initial fit and see what happens
-  #       - This might require making my code more elegant and done outside of loops. Will take an hourish
+  #       - DONE, looks great
   # 3.) Figure out why Nearshore is still not looking great
-  # 4.) Try this on multi-group SIR?
-  # 5.) Compare to pixel-level Coral Reef Watch data
+  #       - DONE, still fits strangely. may just be because of its late timing of outbreak. or differences in transmission due to ocean currents, connectivity, reservoirs nearby, etc.
+  # 4.) Test different thresholds, including 28.5C (SST when first wave began offshore)
+  #       - DONE, interesting output. largely similar, but the fitting is MUCH slower and still poorly constrained at Nearshore
+  # 5.) Try this on multi-group SIR?
+  #       - Not done yet!
+  # 6.) Compare to pixel-level Coral Reef Watch data
+  #       - Not done yet!
+  # 7.) Try smoothing the SST data to isolate the trend and eliminate some noise
+  #       - Not done yet!
   
   #pass workspace to downstream script
   save.image(file = here("output", "basic_SIR_workspace.RData"))
