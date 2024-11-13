@@ -28,6 +28,11 @@
   #   nrow()
   DHW.modifier = 0 #null model where DHWs do not matter
   
+  #NOTE - ideally, all preparation of days and days.model would happen outside of the loops below, making adjustment of fit to include/exclude
+  #         days above SST/DHW thresholds easier. for now, this works
+  SST_threshold_value = 30.5 #the SST on the date that patient-zero SCTLD was backtracked to [could also try 30.5C, thermal stress threshold in corals]
+  DHW_threshold_value = 2 #4 is a threshold for coral bleaching in the literature; could try 3 (Whitaker 2024) or 2 (Gierz 2020)
+  
   # # Scenario 1 [maximum transmission modifier of 1.0, with 100% coral cover]
   #lambda of 3: R0 is extremely low (0.8 or something), no outbreak in Midchannel
   #lambda of 1.6: R0 is solidly below 1.0., at 0.98 for Midchannel
@@ -183,12 +188,12 @@
       obs.inf = unlist(data[[1]])[-length(data[[1]])] # NOTE - remove final timepoint for infecteds (because of backtracking, see processing script)
       obs.rem = unlist(data[2])
       
-      #use ratio of maximum removed value to maximum infected value to rescale removed. fits the 'I' curve better this way
-      max_obs_inf = max(obs.inf)
-      max_obs_rem = max(obs.rem)
-      rem.inf.ratio = max_obs_rem/max_obs_inf
-      obs.rem = obs.rem/rem.inf.ratio
-      sim.rem = sim.rem/rem.inf.ratio
+      # #use ratio of maximum removed value to maximum infected value to rescale removed. fits the 'I' curve better this way
+      # max_obs_inf = max(obs.inf)
+      # max_obs_rem = max(obs.rem)
+      # rem.inf.ratio = max_obs_rem/max_obs_inf
+      # obs.rem = obs.rem/rem.inf.ratio
+      # sim.rem = sim.rem/rem.inf.ratio
       
       # #test to separately rescale removed simulated curve
       # max_sim_inf = max(sim.inf)
@@ -268,6 +273,9 @@
   
   
   
+  
+  
+  
   ################ RUN SECOND FITTING FOR EFFECT OF SEA SURFACE TEMPERATURE ################
   #
   SIR.DHW = function(t,y,p,SST,DHW){ # 'p' is parameters or params
@@ -293,20 +301,50 @@
       transmission_rate = b * (1 / (1 + exp(-l * (C))) + offset)
       removal_rate = g
       
+      # # SST approach
+      # # Only apply SST and DHW effects in a way that can simulate a second wave
+      # thermal_onset_time = min(SST$time[SST$SST > SST_threshold], na.rm = TRUE)
+      # 
+      # if (t >= thermal_onset_time) {
+      #   
+      #   # SST-based logic for increasing or decreasing rates
+      #   if (current_SST < SST_threshold) {
+      #     # SST below threshold - increase rates
+      #     # transmission_rate <- transmission_rate * (1 + z * (SST_threshold - current_SST))
+      #     # removal_rate <- removal_rate * (1 + e * (SST_threshold - current_SST))
+      #     transmission_rate <- transmission_rate
+      #     removal_rate <- removal_rate
+      #   } else {
+      #     # SST above threshold - decrease rates
+      #     transmission_rate <- transmission_rate * (1 / (1 + exp(-z * (current_SST - SST_threshold))))
+      #     removal_rate <- removal_rate * (1 / (1 + exp(-e * (current_SST - SST_threshold))))
+      #   }
+      #   
+      #   # # Apply DHW-based reduction in transmission rate if DHW > 0
+      #   # if (current_DHW > 0) {
+      #   #   # Additional reduction factor based on DHW, capped at max DHW of 8
+      #   #   dhw_reduction_factor <- (1 - (current_DHW / 8))
+      #   #   transmission_rate <- transmission_rate * dhw_reduction_factor
+      #   # }
+      # }
+      
+      # DHW approach
       # Only apply SST and DHW effects in a way that can simulate a second wave
-      thermal_onset_time = min(SST$time[SST$SST > SST_threshold], na.rm = TRUE)
+      thermal_onset_time = min(DHW$time[DHW$DHW > DHW_threshold], na.rm = TRUE)
       
       if (t >= thermal_onset_time) {
-
+        
         # SST-based logic for increasing or decreasing rates
-        if (current_SST < SST_threshold) {
+        if (current_DHW < DHW_threshold) {
           # SST below threshold - increase rates
-          transmission_rate <- transmission_rate * (1 + z * (SST_threshold - current_SST))
-          removal_rate <- removal_rate * (1 + e * (SST_threshold - current_SST))
+          # transmission_rate <- transmission_rate * (1 + z * (SST_threshold - current_SST))
+          # removal_rate <- removal_rate * (1 + e * (SST_threshold - current_SST))
+          transmission_rate <- transmission_rate
+          removal_rate <- removal_rate
         } else {
           # SST above threshold - decrease rates
-          transmission_rate <- transmission_rate * (1 / (1 + exp(-z * (current_SST - SST_threshold))))
-          removal_rate <- removal_rate * (1 / (1 + exp(-e * (current_SST - SST_threshold))))
+          transmission_rate <- transmission_rate * (1 / (1 + exp(-z * (current_DHW - DHW_threshold))))
+          removal_rate <- removal_rate * (1 / (1 + exp(-e * (current_DHW - DHW_threshold))))
         }
         
         # # Apply DHW-based reduction in transmission rate if DHW > 0
@@ -315,13 +353,12 @@
         #   dhw_reduction_factor <- (1 - (current_DHW / 8))
         #   transmission_rate <- transmission_rate * dhw_reduction_factor
         # }
-        
       }
       
       # Ensure rates are non-negative
       transmission_rate <- max(transmission_rate, 0)
       removal_rate <- max(removal_rate, 0)
-            
+      
       dS.dt = -transmission_rate * S * I / N 
       dI.dt = transmission_rate * S * I / N - removal_rate * I
       dR.dt = removal_rate * I
@@ -425,9 +462,7 @@
     # Set up the data and initial conditions
     coraldata.tiss = list(inftiss, remtiss)
     initial_state.tiss = c(S.tiss, I.tiss, R.tiss, N.site, cover.site)
-    SST_threshold_value = 30.5 #the SST on the date that patient-zero SCTLD was backtracked to [could also try 30.5C, thermal stress threshold in corals]
-    DHW_threshold_value = 1 #4 is a threshold for coral bleaching in the literature; could try 3 (Whitaker 2024) or 2 (Gierz 2020)
-
+    
     pre.fitted.params = params.basic[[i]] # NOTE - relies on hard-coding params.basic & could be revised. works fine now, but check here if bugs
     betas = pre.fitted.params[1]
     gammas = pre.fitted.params[3]
@@ -480,12 +515,12 @@
       obs.inf = unlist(data[[1]])[-length(data[[1]])] # NOTE - remove final timepoint for infecteds (because of backtracking, see processing script)
       obs.rem = unlist(data[2])
       
-      #use ratio of maximum removed value to maximum infected value to rescale removed. fits the 'I' curve better this way
-      max_obs_inf = max(obs.inf)
-      max_obs_rem = max(obs.rem)
-      rem.inf.ratio = max_obs_rem/max_obs_inf
-      obs.rem = obs.rem/rem.inf.ratio
-      sim.rem = sim.rem/rem.inf.ratio
+      # #use ratio of maximum removed value to maximum infected value to rescale removed. fits the 'I' curve better this way
+      # max_obs_inf = max(obs.inf)
+      # max_obs_rem = max(obs.rem)
+      # rem.inf.ratio = max_obs_rem/max_obs_inf
+      # obs.rem = obs.rem/rem.inf.ratio
+      # sim.rem = sim.rem/rem.inf.ratio
       
       # #test to separately rescale removed simulated curve
       # max_sim_inf = max(sim.inf)
@@ -517,8 +552,10 @@
     
     # lower_bounds.tiss = c(0.01, 0.01)  # Lower bounds for zeta and eta
     # upper_bounds.tiss = c(1.0, 1.0)          # Upper bounds for zeta and eta
-    lower_bounds.tiss = c(0.01, 0.01)  # Lower bounds for zeta and eta
-    upper_bounds.tiss = c(3.0, 3.0)          # Upper bounds for zeta and eta
+    # lower_bounds.tiss = c(0.01, 0.01)  # Lower bounds for zeta and eta
+    # upper_bounds.tiss = c(3.0, 3.0)          # Upper bounds for zeta and eta
+    lower_bounds.tiss = c(0.0001, 0.0001)  # Lower bounds for zeta and eta
+    upper_bounds.tiss = c(1.0, 1.0)          # Upper bounds for zeta and eta
     
     control = list(itermax = 100)  # Maximum number of iterations. 200 is default
     
@@ -553,6 +590,16 @@
   #
   ################ RUN SECOND FITTING FOR EFFECT OF SEA SURFACE TEMPERATURE ################
   
-  # #pass workspace to downstream script
-  # save.image(file = here("output", "basic_SIR_workspace.RData"))
+  
+  # STOPPING POINT - 12 NOV 2024
+  # 1.) Still need to try this with DHWs and see if I can produce a less wiggly output
+  #       - DONE, looks okay
+  # 2.) Try only fitting pre-threshold-break for the initial fit and see what happens
+  #       - This might require making my code more elegant and done outside of loops. Will take an hourish
+  # 3.) Figure out why Nearshore is still not looking great
+  # 4.) Try this on multi-group SIR?
+  # 5.) Compare to pixel-level Coral Reef Watch data
+  
+  #pass workspace to downstream script
+  save.image(file = here("output", "basic_SIR_workspace.RData"))
   

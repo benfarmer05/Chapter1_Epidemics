@@ -236,6 +236,18 @@
     geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Dead"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
   
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   ############## TEST FOR DHW ##############
   #
   
@@ -431,6 +443,16 @@
   
   #
   ############## TEST FOR DHW ##############
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
   
   # # Observations only [lines are observations]
