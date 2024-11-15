@@ -429,11 +429,17 @@
   
   # Update species and max width for mismatched data
   survey = survey %>%
-    mutate(spp = case_when(
-      Coral_ID == '2_p27_t10_s0_c1_OFAV' ~ 'OFAV',
-      Coral_ID == '2_p27_t10_s0_c3_OFAV' ~ 'OFAV',
-      TRUE ~ spp  # Keep existing values unchanged
-    ))
+    mutate(
+      spp = case_when(
+        Coral_ID == '2_p27_t10_s0_c1_OFAV' ~ 'OFAV',
+        Coral_ID == '2_p27_t10_s0_c3_OFAV' ~ 'OFAV',
+        TRUE ~ spp  # Keep existing values unchanged
+      ),
+      susc = case_when(
+        Coral_ID %in% c('2_p27_t10_s0_c1_OFAV', '2_p27_t10_s0_c3_OFAV') ~ 'moderate',
+        TRUE ~ susc  # Keep existing values unchanged
+      )
+    )
   
   old_mortality = old_mortality %>%
     mutate(Max_width = case_when(
