@@ -176,7 +176,7 @@
     # geom_line(aes(y = pred_gam_identity, color = "GAM with Zero Intercept"), linewidth = 1, alpha = 0.7) +
     # geom_line(aes(y = pred_gam_linear, color = "GAM with Linear Term"), linewidth = 1, alpha = 0.7) +
     # geom_line(aes(y = pred_gam_cr, color = "GAM with CR Basis"), linewidth = 1, alpha = 0.7) +
-    geom_line(aes(y = pred_gam_gamma, color = "GAM with Gamma"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_gamma, color = "GAM with Gamma"), linewidth = 1, alpha = 0.7) +
     # geom_line(aes(y = pred_gam_scaled, color = "GAM with Scaled x"), linewidth = 1, alpha = 0.7) +
     # geom_line(aes(y = pred_gam_complex, color = "Complex GAM"), linewidth = 1, alpha = 0.7) +
     # geom_line(aes(y = pred_gam_penalized, color = "Penalized GAM"), linewidth = 1, alpha = 0.7) +
@@ -184,7 +184,7 @@
     # geom_line(aes(y = pred_gam_adaptive, color = "Adaptive GAM"), linewidth = 1, alpha = 0.7) +
     # geom_line(aes(y = pred_gam_varying_knots, color = "Varying Knots GAM"), linewidth = 1, alpha = 0.7) +
     # geom_line(aes(y = pred_gam_gamma_1.5, color = "GAM with Gamma 1.5"), linewidth = 1, alpha = 0.7) +
-    # geom_line(aes(y = pred_gam_gamma_tp, color = "GAM with Tensor Product"), linewidth = 1, alpha = 0.7) +
+    geom_line(aes(y = pred_gam_gamma_tp, color = "GAM with Tensor Product"), linewidth = 1, alpha = 0.7) +
     geom_line(aes(y = pred_gam_gamma_ps, color = "GAM with P-splines"), linewidth = 1, alpha = 0.7) +
     labs(
       x = "Max diameter (cm)",
@@ -211,8 +211,8 @@
         "GAM with P-splines" = 'darkred'
       )
     ) +
-    # xlim(0, 20) +
-    # ylim(0, 0.10) +
+    xlim(0, 20) +
+    ylim(0, 0.10) +
     theme_minimal() +
     theme(
       legend.position = "bottom",
@@ -331,8 +331,8 @@
     ) +
     # xlim(0, max(SA_predictions$x)) +
     # ylim(0, max(SA_predictions$y)) +
-    # xlim(0, 20) +
-    # ylim(0, 0.10) +
+    xlim(0, 20) +
+    ylim(0, 0.10) +
     theme_minimal() +
     theme(
       legend.position = "bottom",

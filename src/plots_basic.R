@@ -356,7 +356,7 @@
     ylab("Surface area of infected tissue") +
     ggtitle(paste(c("", site.loop), collapse="")) +
     geom_line() +
-    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Infected"), aes(days.inf.site, tissue)) +
+    geom_line(data = obs.total %>% filter(Site == site.loop, Compartment == "Infected"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
   
   p.D.fit.midchannel.basic.DHW = ggplot(data = output.midchannel.DHW %>% filter(Compartment == "Dead"), aes(days.model, tissue)) +
@@ -471,6 +471,9 @@
   
   # Infection observations only [lines are observations]
   (p.I.offshore.basic | p.I.midchannel.basic | p.I.nearshore.basic) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+  
+  # Infection fit and observations only
+  
   
   # Fit only [lines are simulated]
   (p.fit.offshore.basic | p.fit.midchannel.basic | p.fit.nearshore.basic) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
@@ -712,18 +715,37 @@
     theme_classic(base_family = 'Georgia')
   
   # Combine the plots
-  nearshore.to.offshore.basic = (p.fit.nearshore.basic | p.fit.offshore.basic | p.fit.offshore.transfer.basic) + plot_layout(guides = "collect",
-    axis_titles = 'collect') &
+  # nearshore.to.offshore.basic = (p.fit.nearshore.basic | p.fit.offshore.basic | p.fit.offshore.transfer.basic) + plot_layout(guides = "collect",
+  #   axis_titles = 'collect') &
+  #   theme(legend.position = 'bottom') #& xlim(0, 325)
+  # 
+  # nearshore.to.midchannel.basic = (p.fit.nearshore.basic | p.fit.midchannel.basic | p.fit.midchannel.transfer.basic) + plot_layout(guides = "collect",
+  #   axis_titles = 'collect') &
+  #   theme(legend.position = 'bottom') #& xlim(0, 325)
+  # 
+  # offshore.to.nearshore.basic = (p.fit.offshore.basic | p.fit.nearshore.basic | p.fit.nearshore.transfer.basic) + plot_layout(guides = "collect",
+  #   axis_titles = 'collect') &
+  #   theme(legend.position = 'bottom') #& xlim(0, 325)
+  
+  nearshore.to.offshore.basic = (p.fit.nearshore.basic | p.I.fit.nearshore.basic | p.D.fit.nearshore.basic) / (p.fit.offshore.basic | p.I.fit.offshore.basic | p.D.fit.offshore.basic) / (p.fit.near.to.off.basic | p.I.fit.near.to.off.basic | p.D.fit.near.to.off.basic) + plot_layout(guides = "collect",
+                                                                                                                                                                                                                                                                                         axis_titles = 'collect') &
+    theme(legend.position = 'bottom') #& xlim(0, 325)
+  # nearshore.to.offshore.basic = (p.fit.nearshore.basic | p.I.fit.nearshore.basic | p.D.fit.nearshore.basic) / (p.fit.offshore.basic | p.I.fit.offshore.basic | p.D.fit.offshore.basic) / (p.fit.near.to.off.basic | p.I.fit.near.to.off.basic | p.D.fit.near.to.off.basic) + plot_layout(guides = "collect") &
+  #   theme(legend.position = 'bottom') #& xlim(0, 325)
+  
+  nearshore.to.midchannel.basic = (p.fit.nearshore.basic | p.I.fit.nearshore.basic | p.D.fit.nearshore.basic) / (p.fit.midchannel.basic | p.I.fit.midchannel.basic | p.D.fit.midchannel.basic) / (p.fit.near.to.mid.basic | p.I.fit.near.to.mid.basic | p.D.fit.near.to.mid.basic)  + plot_layout(guides = "collect",
+                                                                                                                                                                                                                                                                                                  axis_titles = 'collect') &
+    theme(legend.position = 'bottom') # & xlim(0, 325)
+  
+  offshore.to.nearshore.basic = (p.fit.offshore.basic | p.I.fit.offshore.basic | p.D.fit.offshore.basic) / (p.fit.nearshore.basic | p.I.fit.nearshore.basic | p.D.fit.nearshore.basic) / (p.fit.off.to.near.basic | p.I.fit.off.to.near.basic | p.D.fit.off.to.near.basic)  + plot_layout(guides = "collect",
+                                                                                                                                                                                                                                                                                          axis_titles = 'collect') &
     theme(legend.position = 'bottom') #& xlim(0, 325)
   
-  nearshore.to.midchannel.basic = (p.fit.nearshore.basic | p.fit.midchannel.basic | p.fit.midchannel.transfer.basic) + plot_layout(guides = "collect",
-    axis_titles = 'collect') &
+  offshore.to.midchannel.basic = (p.fit.offshore.basic | p.I.fit.offshore.basic | p.D.fit.offshore.basic) / (p.fit.midchannel.basic | p.I.fit.midchannel.basic | p.D.fit.midchannel.basic) / (p.fit.off.to.mid.basic | p.I.fit.off.to.mid.basic | p.D.fit.off.to.mid.basic)  + plot_layout(guides = "collect",
+                                                                                                                                                                                                                                                                                           axis_titles = 'collect') &
     theme(legend.position = 'bottom') #& xlim(0, 325)
   
-  nearshore.to.offshore.basic = (p.fit.offshore.basic | p.fit.nearshore.basic | p.fit.nearshore.transfer.basic) + plot_layout(guides = "collect",
-    axis_titles = 'collect') &
-    theme(legend.position = 'bottom') #& xlim(0, 325)
   
-  #pass workspace to downstream script
-  save.image(file = here("output", "plots_basic_workspace.RData"))
+  # #pass workspace to downstream script
+  # save.image(file = here("output", "plots_basic_workspace.RData"))
   
