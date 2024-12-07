@@ -92,12 +92,11 @@
       I.HS = y[8]
       R.HS = y[9]
       
-      P = y[10]
+      # P = y[10]
     }
     with(as.list(p),{
-      # P = (I.LS + I.MS + I.HS)
-      # dP = (I.LS*prop.LS + I.MS*prop.MS + I.HS*prop.HS)
-      
+      P = (I.LS + I.MS + I.HS)
+
       # transmission_modifier.LS = (1 / (1 + exp(-l * (C.LS))) + offset)
       # transmission_modifier.MS = (1 / (1 + exp(-l * (C.MS))) + offset)
       # transmission_modifier.HS = (1 / (1 + exp(-l * (C.HS))) + offset)
@@ -123,10 +122,18 @@
         warning("Sum of S, I, and R exceeds N for at least one group during fitting process.")
       }
       
-      # Update dP using the sum of infected individuals
-      dP.dt = (I.LS + I.MS + I.HS) - P
+      # # Update dP using the sum of infected individuals
+      # # NOTE - make sure this is "right" - because why exactly does 'P' get updated by 'dP.dt' when that isn't the case for other compartments?
+      # #         - and is dP.dt correct or is it time-lagging Pt ?
+      # dP.dt = (I.LS + I.MS + I.HS)  - P
   
-  return(list(c(dS.LS.dt, dI.LS.dt, dR.LS.dt, dS.MS.dt, dI.MS.dt, dR.MS.dt, dS.HS.dt, dI.HS.dt, dR.HS.dt, dP.dt)))
+      # NOTE - is it a problem that I.MS and I.LS are immediately "allowed" to start getting disease after initiation?
+      #         like, is the fitting forcing them to have weird rates so that, even though they have a non-zero amount on
+      #         day 2 in the model by mathematical necessity, they don't look like a big outbreak? maybe just note limitation
+      #         of the model is that it can't account for nuance like that (in discussion)
+ 
+      return(list(c(dS.LS.dt, dI.LS.dt, dR.LS.dt, dS.MS.dt, dI.MS.dt, dR.MS.dt, dS.HS.dt, dI.HS.dt, dR.HS.dt), P = P))
+      # return(list(c(dS.LS.dt, dI.LS.dt, dR.LS.dt, dS.MS.dt, dI.MS.dt, dR.MS.dt, dS.HS.dt, dI.HS.dt, dR.HS.dt, dP.dt), P = P))
       # return(list(c(dS.LS.dt, dI.LS.dt, dR.LS.dt, dS.MS.dt, dI.MS.dt, dR.MS.dt, dS.HS.dt, dI.HS.dt, dR.HS.dt)))
     })
   }
@@ -255,7 +262,7 @@
     # Set up the data and initial conditions
     coraldata.tiss = list(LS.inftiss, MS.inftiss, HS.inftiss, LS.remtiss, MS.remtiss, HS.remtiss)
     initial_state.tiss = c(S.LS.tiss, I.LS.tiss, R.LS.tiss, S.MS.tiss, I.MS.tiss, R.MS.tiss, S.HS.tiss, I.HS.tiss, R.HS.tiss,
-                           P.tiss,
+                           # P.tiss,
                            N.LS.site, N.MS.site, N.HS.site,
                            cover.site,
                            cover.LS.site, cover.MS.site, cover.HS.site,
@@ -265,16 +272,16 @@
     objective_function = function(params, data, time, initial_state){
       
       # #testing
-      # betas.LS = 2.0
-      # gammas.LS = 1.0
-      # betas.MS = 2.0
-      # gammas.MS = 1.0
-      # betas.HS = 2.0
-      # gammas.HS = 1.0
+      # betas.LS = 0.02
+      # gammas.LS = 0.04
+      # betas.MS = 0.26
+      # gammas.MS = 2.02
+      # betas.HS = 3.39
+      # gammas.HS = 2.72
       # initial_state = initial_state.tiss
       # time = days.model
       # data = coraldata.tiss
-      
+
       betas.LS = params[1]
       gammas.LS = params[2]
       betas.MS = params[3]
@@ -284,21 +291,26 @@
       
       SIR.out = data.frame(ode(c(S.LS = initial_state[1], I.LS = initial_state[2], R.LS = initial_state[3],
                                  S.MS = initial_state[4], I.MS = initial_state[5], R.MS = initial_state[6],
-                                 S.HS = initial_state[7], I.HS = initial_state[8], R.HS = initial_state[9],
-                                 P = initial_state[10]),
+                                 S.HS = initial_state[7], I.HS = initial_state[8], R.HS = initial_state[9]),
+                                 # S.HS = initial_state[7], I.HS = initial_state[8], R.HS = initial_state[9],
+                                 # P = initial_state[10]),
                                time, SIR, c(b.LS = betas.LS, g.LS = gammas.LS,
                                             b.MS = betas.MS, g.MS = gammas.MS,
                                             b.HS = betas.HS, g.HS = gammas.HS,
-                                            N.LS = initial_state[11], N.MS = initial_state[12], N.HS = initial_state[13],
-                                            C = initial_state[14],
-                                            C.LS = initial_state[15], C.MS = initial_state[16], C.HS = initial_state[17],
-                                            l = as.numeric(initial_state[18]))))
+                                            N.LS = initial_state[10], N.MS = initial_state[11], N.HS = initial_state[12],
+                                            C = initial_state[13],
+                                            C.LS = initial_state[14], C.MS = initial_state[15], C.HS = initial_state[16],
+                                            l = as.numeric(initial_state[17]))))
+                                            # N.LS = initial_state[11], N.MS = initial_state[12], N.HS = initial_state[13],
+                                            # C = initial_state[14],
+                                            # C.LS = initial_state[15], C.MS = initial_state[16], C.HS = initial_state[17],
+                                            # l = as.numeric(initial_state[18]))))
       
       #extract simulated values at time points matching observations
       sim.LS.inf = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'I.LS')]
       sim.MS.inf = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'I.MS')]
       sim.HS.inf = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'I.HS')]
-  
+      
       sim.LS.rem = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R.LS')]
       sim.MS.rem = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R.MS')]
       sim.HS.rem = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R.HS')]
@@ -307,69 +319,64 @@
       obs.LS.inf = unlist(data[1])
       obs.MS.inf = unlist(data[2])
       obs.HS.inf = unlist(data[3])
-  
+      
       obs.LS.rem = unlist(data[4])
       obs.MS.rem = unlist(data[5])
       obs.HS.rem = unlist(data[6])
-  
-      # NOTE - if there is NO rescaling done, the fit to removal is actually excellent (when I set
-      #   the 'polyp_SA' to 1e-4 at least, as well as DHW modifier to 6 and initial conditions as below). but it's the fit to infection
-      #   that will be really interesting to get right as well.
-      #     initial conditions mentioned:
-      #       upper_bounds.tiss = c(0.15/N.LS.site, 0.10, 0.15/N.MS.site, 0.10, 1/N.HS.site, 1)  # Upper bounds for betas and gammas
-  
-      #use ratio of maximum removed value to maximum infected value to rescale removed. fits the 'I' curve better this way
-      # NOTE - doing this within each susceptibility category. should it be global?
-      max.obs.LS.inf = max(obs.LS.inf)
-      max.obs.MS.inf = max(obs.MS.inf)
-      max.obs.HS.inf = max(obs.HS.inf)
-  
-      max.obs.LS.rem = max(obs.LS.rem)
-      max.obs.MS.rem = max(obs.MS.rem)
-      max.obs.HS.rem = max(obs.HS.rem)
-  
-      rem.inf.LS.ratio = max.obs.LS.rem/max.obs.LS.inf
-      rem.inf.MS.ratio = max.obs.MS.rem/max.obs.MS.inf
-      rem.inf.HS.ratio = max.obs.HS.rem/max.obs.HS.inf
-  
-      obs.LS.rem = obs.LS.rem / rem.inf.LS.ratio
-      obs.MS.rem = obs.MS.rem / rem.inf.MS.ratio
-      obs.HS.rem = obs.HS.rem / rem.inf.HS.ratio
-  
-      sim.LS.rem = sim.LS.rem / rem.inf.LS.ratio
-      sim.MS.rem = sim.MS.rem / rem.inf.MS.ratio
-      sim.HS.rem = sim.HS.rem / rem.inf.HS.ratio
       
-      # #global version of rescaling
-      # max.obs.inf = max(obs.LS.inf, obs.MS.inf, obs.HS.inf)
-      # max.obs.rem = max(obs.LS.rem, obs.MS.rem, obs.HS.rem)
+      # # NOTE - this as a version where rescaling was required, because infections were part of the fitting process (not *just* removal)
+      # #use ratio of maximum removed value to maximum infected value to rescale removed. fits the 'I' curve better this way
+      # # NOTE - doing this within each susceptibility category. should it be global?
+      # max.obs.LS.inf = max(obs.LS.inf)
+      # max.obs.MS.inf = max(obs.MS.inf)
+      # max.obs.HS.inf = max(obs.HS.inf)
       # 
-      # rem.inf.ratio = max.obs.rem/max.obs.inf
+      # max.obs.LS.rem = max(obs.LS.rem)
+      # max.obs.MS.rem = max(obs.MS.rem)
+      # max.obs.HS.rem = max(obs.HS.rem)
       # 
-      # obs.LS.rem = obs.LS.rem / rem.inf.ratio
-      # obs.MS.rem = obs.MS.rem / rem.inf.ratio
-      # obs.HS.rem = obs.HS.rem / rem.inf.ratio
+      # rem.inf.LS.ratio = max.obs.LS.rem/max.obs.LS.inf
+      # rem.inf.MS.ratio = max.obs.MS.rem/max.obs.MS.inf
+      # rem.inf.HS.ratio = max.obs.HS.rem/max.obs.HS.inf
       # 
-      # sim.LS.rem = sim.LS.rem / rem.inf.ratio
-      # sim.MS.rem = sim.MS.rem / rem.inf.ratio
-      # sim.HS.rem = sim.HS.rem / rem.inf.ratio
-      
-      # # Calculate differences after normalization
-      # diff.LS.inf = (sim.LS.inf - obs.LS.inf)
-      # diff.MS.inf = (sim.MS.inf - obs.MS.inf)
-      # diff.HS.inf = (sim.HS.inf - obs.HS.inf)
-      # diff.LS.rem = (sim.LS.rem - obs.LS.rem)
-      # diff.MS.rem = (sim.MS.rem - obs.MS.rem)
-      # diff.HS.rem = (sim.HS.rem - obs.HS.rem)
+      # obs.LS.rem = obs.LS.rem / rem.inf.LS.ratio
+      # obs.MS.rem = obs.MS.rem / rem.inf.MS.ratio
+      # obs.HS.rem = obs.HS.rem / rem.inf.HS.ratio
       # 
-      # #minimize using sum of absolute differences
-      # sum_squared_diff_I = sum(sum(abs(diff.LS.inf)) + sum(abs(diff.MS.inf)) +
-      #                            sum(abs(diff.HS.inf))) #can multiply this by 2 or similar to weight it extra
+      # sim.LS.rem = sim.LS.rem / rem.inf.LS.ratio
+      # sim.MS.rem = sim.MS.rem / rem.inf.MS.ratio
+      # sim.HS.rem = sim.HS.rem / rem.inf.HS.ratio
       # 
-      # sum_squared_diff_R = sum(sum(abs(diff.LS.rem)) + sum(abs(diff.MS.rem)) +
-      #                            sum(abs(diff.HS.rem)))
+      # # #global version of rescaling
+      # # max.obs.inf = max(obs.LS.inf, obs.MS.inf, obs.HS.inf)
+      # # max.obs.rem = max(obs.LS.rem, obs.MS.rem, obs.HS.rem)
+      # # 
+      # # rem.inf.ratio = max.obs.rem/max.obs.inf
+      # # 
+      # # obs.LS.rem = obs.LS.rem / rem.inf.ratio
+      # # obs.MS.rem = obs.MS.rem / rem.inf.ratio
+      # # obs.HS.rem = obs.HS.rem / rem.inf.ratio
+      # # 
+      # # sim.LS.rem = sim.LS.rem / rem.inf.ratio
+      # # sim.MS.rem = sim.MS.rem / rem.inf.ratio
+      # # sim.HS.rem = sim.HS.rem / rem.inf.ratio
       # 
-      # sum_squared_diff = sum_squared_diff_I + sum_squared_diff_R
+      # # # Calculate differences after normalization
+      # # diff.LS.inf = (sim.LS.inf - obs.LS.inf)
+      # # diff.MS.inf = (sim.MS.inf - obs.MS.inf)
+      # # diff.HS.inf = (sim.HS.inf - obs.HS.inf)
+      # # diff.LS.rem = (sim.LS.rem - obs.LS.rem)
+      # # diff.MS.rem = (sim.MS.rem - obs.MS.rem)
+      # # diff.HS.rem = (sim.HS.rem - obs.HS.rem)
+      # # 
+      # # #minimize using sum of absolute differences
+      # # sum_squared_diff_I = sum(sum(abs(diff.LS.inf)) + sum(abs(diff.MS.inf)) +
+      # #                            sum(abs(diff.HS.inf))) #can multiply this by 2 or similar to weight it extra
+      # # 
+      # # sum_squared_diff_R = sum(sum(abs(diff.LS.rem)) + sum(abs(diff.MS.rem)) +
+      # #                            sum(abs(diff.HS.rem)))
+      # # 
+      # # sum_squared_diff = sum_squared_diff_I + sum_squared_diff_R
       
       # Vectorized calculation of differences after normalization
       diff_inf = cbind(
@@ -385,18 +392,19 @@
       )
   
       # Minimize using sum of absolute differences
-      sum_squared_diff_I = sum(abs(diff_inf))
-      sum_squared_diff_R = sum(abs(diff_rem))
-      sum_squared_diff = sum_squared_diff_I + sum_squared_diff_R
-  
+      sum_absolute_diff_I = sum(abs(diff_inf))
+      sum_absolute_diff_R = sum(abs(diff_rem))
+      # sum_diff = sum_absolute_diff_I + sum_absolute_diff_R
+      sum_diff = sum_absolute_diff_R
+      
       # #minimize using sum of squared differences
       # sum_squared_diff_I = sum(sum(diff.LS.inf^2) + sum(diff.MS.inf^2) +
       #                            sum(diff.HS.inf^2))
       # sum_squared_diff_R = sum(sum(diff.LS.rem^2) + sum(diff.MS.rem^2) +
       #                            sum(diff.HS.rem^2))
-      # sum_squared_diff = sum_squared_diff_I + sum_squared_diff_R
+      # sum_diff = sum_squared_diff_I + sum_squared_diff_R
   
-      return(sum_squared_diff) #minimized error
+      return(sum_diff) #minimized error
     }
   
     ############################## OPTIMIZE PARAMETERS ############################################################

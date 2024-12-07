@@ -211,8 +211,8 @@
         "GAM with P-splines" = 'darkred'
       )
     ) +
-    xlim(0, 20) +
-    ylim(0, 0.10) +
+    # xlim(0, 20) +
+    # ylim(0, 0.10) +
     theme_minimal() +
     theme(
       legend.position = "bottom",
@@ -331,8 +331,8 @@
     ) +
     # xlim(0, max(SA_predictions$x)) +
     # ylim(0, max(SA_predictions$y)) +
-    xlim(0, 20) +
-    ylim(0, 0.10) +
+    # xlim(0, 20) +
+    # ylim(0, 0.10) +
     theme_minimal() +
     theme(
       legend.position = "bottom",

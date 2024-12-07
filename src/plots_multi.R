@@ -51,7 +51,8 @@
     filter(Site == site.loop, Category == 'High') %>%
     pull(tissue_ref)
   
-  output.nearshore = my.SIRS.multi[[order]]
+  output.raw.nearshore = my.SIRS.multi[[order]]
+  output.nearshore = output.raw.nearshore
   params.nearshore = params.multi[[order]]
   
   cover.nearshore.LS = params.nearshore[14]
@@ -209,7 +210,8 @@
     filter(Site == site.loop, Category == 'High') %>%
     pull(tissue_ref)
   
-  output.midchannel = my.SIRS.multi[[order]]
+  output.raw.midchannel = my.SIRS.multi[[order]]
+  output.midchannel = output.raw.midchannel
   params.midchannel = params.multi[[order]]
   
   # order: c(min.beta.LS.tiss, min.beta.LS.tiss.adj, min.gamma.LS.tiss,
@@ -320,7 +322,8 @@
     filter(Site == site.loop, Category == 'High') %>%
     pull(tissue_ref)
   
-  output.offshore = my.SIRS.multi[[order]]
+  output.raw.offshore = my.SIRS.multi[[order]]
+  output.offshore = output.raw.offshore
   params.offshore = params.multi[[order]]
   
   # order: c(min.beta.LS.tiss, min.beta.LS.tiss.adj, min.gamma.LS.tiss,
