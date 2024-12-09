@@ -49,12 +49,12 @@
   # lambda.MS = 2.5 # overpredicted off.to.near (by a little); underpredicted near.to.off (by a lot)
   # lambda.HS = 5.0 # underpredicted off.to.near (by a lot); underpredicted near.to.off (by a little)
   
-  # 0/0/0 experiment
-  #   - haven't tested these yet. NOTE / STOPPING POINT - 8 OCT 2024:
-  #       what exactly are the null conditions for effect of coral cover? should figure that out
-  lambda.LS = 0.0
-  lambda.MS = 0.0
-  lambda.HS = 0.0
+  # # 0/0/0 experiment
+  # #   - haven't tested these yet. NOTE / STOPPING POINT - 8 OCT 2024:
+  # #       what exactly are the null conditions for effect of coral cover? should figure that out
+  # lambda.LS = 0.0
+  # lambda.MS = 0.0
+  # lambda.HS = 0.0
   
   # # 05/125/5 experiment
   # # comparing to 2/2/5 experiment above, trying something new
@@ -62,11 +62,11 @@
   # lambda.MS = 1.25 # quite good off.to.near (closer to reality); no change near.to.off (still quite bad)
   # lambda.HS = 5.0 # underpredicted off.to.near (even worse); about right near.to.off (closer to reality)
   
-  # # 01/125/15 experiment
-  # # comparing to 05/125/5 experiment above
-  # lambda.LS = 0.1 # overpredicted off.to.near (got worse); no change near.to.off (still quite bad)
-  # lambda.MS = 1.25 # overpredicted off.to.near (a bit worse but still good); underpredicted near.to.off (bad but better)
-  # lambda.HS = 15.0 # underpredicted off.to.near (still bad but a lot better); shape changed near.to.off (still pretty good)
+  # 01/125/15 experiment
+  # comparing to 05/125/5 experiment above
+  lambda.LS = 0.1 # overpredicted off.to.near (got worse); no change near.to.off (still quite bad)
+  lambda.MS = 1.25 # overpredicted off.to.near (a bit worse but still good); underpredicted near.to.off (bad but better)
+  lambda.HS = 15.0 # underpredicted off.to.near (still bad but a lot better); shape changed near.to.off (still pretty good)
   
   # # 0/05/20 experiment
   # # comparing to 01/125/15 experiment above
@@ -281,7 +281,7 @@
       # initial_state = initial_state.tiss
       # time = days.model
       # data = coraldata.tiss
-
+      
       betas.LS = params[1]
       gammas.LS = params[2]
       betas.MS = params[3]
@@ -301,10 +301,6 @@
                                             C = initial_state[13],
                                             C.LS = initial_state[14], C.MS = initial_state[15], C.HS = initial_state[16],
                                             l = as.numeric(initial_state[17]))))
-                                            # N.LS = initial_state[11], N.MS = initial_state[12], N.HS = initial_state[13],
-                                            # C = initial_state[14],
-                                            # C.LS = initial_state[15], C.MS = initial_state[16], C.HS = initial_state[17],
-                                            # l = as.numeric(initial_state[18]))))
       
       #extract simulated values at time points matching observations
       sim.LS.inf = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'I.LS')]
@@ -509,20 +505,21 @@
     #simulation using initial state variables and best-fit beta/gamma parameters
     SIR.out.tiss = data.frame(ode(c(S.LS = initial_state.tiss[1], I.LS = initial_state.tiss[2], R.LS = initial_state.tiss[3],
                                     S.MS = initial_state.tiss[4], I.MS = initial_state.tiss[5], R.MS = initial_state.tiss[6],
-                                    S.HS = initial_state.tiss[7], I.HS = initial_state.tiss[8], R.HS = initial_state.tiss[9],
-                                    P = initial_state.tiss[10]),
-                                  days.model, SIR, c(b.LS = min.beta.LS.tiss, g.LS = min.gamma.LS.tiss,
+                                    S.HS = initial_state.tiss[7], I.HS = initial_state.tiss[8], R.HS = initial_state.tiss[9]),
+                                    # S.HS = initial_state[7], I.HS = initial_state[8], R.HS = initial_state[9],
+                                    # P = initial_state[10]),
+                                    days.model, SIR, c(b.LS = min.beta.LS.tiss, g.LS = min.gamma.LS.tiss,
                                                b.MS = min.beta.MS.tiss, g.MS = min.gamma.MS.tiss,
                                                b.HS = min.beta.HS.tiss, g.HS = min.gamma.HS.tiss,
-                                               N.LS = initial_state.tiss[11], N.MS = initial_state.tiss[12], N.HS = initial_state.tiss[13],
-                                               C = initial_state.tiss[14],
-                                               C.LS = initial_state.tiss[15], C.MS = initial_state.tiss[16], C.HS = initial_state.tiss[17],
-                                               l = as.numeric(initial_state.tiss[18]))))  
+                                               N.LS = initial_state.tiss[10], N.MS = initial_state.tiss[11], N.HS = initial_state.tiss[12],
+                                               C = initial_state.tiss[13],
+                                               C.LS = initial_state.tiss[14], C.MS = initial_state.tiss[15], C.HS = initial_state.tiss[16],
+                                               l = as.numeric(initial_state.tiss[17]))))
     
     my.SIRS.multi[[i]] = SIR.out.tiss
     
   }
   
-  # #pass workspace to downstream script
-  # save.image(file = here("output", "multi_SIR_workspace.RData"))
+  #pass workspace to downstream script
+  save.image(file = here("output", "multi_SIR_workspace.RData"))
   

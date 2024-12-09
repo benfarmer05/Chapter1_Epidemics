@@ -10,7 +10,8 @@
   library(deSolve)
   
   #import workspace from upstream script
-  load(here("output/pre_DHW_integration_and_cover_ratio_9Oct2024/multi_SIR_workspace_01_125_15.RData"))
+  load(here("output/multi_SIR_workspace.RData"))
+  # load(here("output/pre_DHW_integration_and_cover_ratio_9Oct2024/multi_SIR_workspace_01_125_15.RData"))
   
   # obs.multi = obs.multi %>%
   #   mutate(Category = case_when(
@@ -19,7 +20,8 @@
   #     Category == 'High' ~ 'HS'
   #   ))
   
-  # NOTE - should just go back upsreams in the scripts to rename Category to Susceptibility
+  # NOTE - should ideally go back upstream in the scripts to rename Category to Susceptibility. does not affect
+  #         function of the code, though
   obs.multi = obs.multi %>%
     rename(Susceptibility = Category)
   
@@ -527,8 +529,9 @@
   #simulation using initial state variables from naive site and parameters from fitted site
   output.near.to.off.multi = data.frame(ode(c(S.LS = S.LS.offshore, I.LS = I.LS.offshore, R.LS = R.LS.offshore,
                                                 S.MS = S.MS.offshore, I.MS = I.MS.offshore, R.MS = R.MS.offshore,
-                                                S.HS = S.HS.offshore, I.HS = I.HS.offshore, R.HS = R.HS.offshore,
-                                                P = P.offshore),
+                                                # S.HS = S.HS.offshore, I.HS = I.HS.offshore, R.HS = R.HS.offshore,
+                                                # P = P.offshore),
+                                                S.HS = S.HS.offshore, I.HS = I.HS.offshore, R.HS = R.HS.offshore),
                                               days.model.offshore, SIR, c(b.LS = beta.nearshore.LS, g.LS = gamma.nearshore.LS,
                                                            b.MS = beta.nearshore.MS, g.MS = gamma.nearshore.MS,
                                                            b.HS = beta.nearshore.HS, g.HS = gamma.nearshore.HS,
@@ -625,8 +628,9 @@
   #simulation using initial state variables from naive site and parameters from fitted site
   output.near.to.mid.multi = data.frame(ode(c(S.LS = S.LS.midchannel, I.LS = I.LS.midchannel, R.LS = R.LS.midchannel,
                                               S.MS = S.MS.midchannel, I.MS = I.MS.midchannel, R.MS = R.MS.midchannel,
-                                              S.HS = S.HS.midchannel, I.HS = I.HS.midchannel, R.HS = R.HS.midchannel,
-                                              P = P.midchannel),
+                                              # S.HS = S.HS.midchannel, I.HS = I.HS.midchannel, R.HS = R.HS.midchannel,
+                                              # P = P.midchannel),
+                                              S.HS = S.HS.midchannel, I.HS = I.HS.midchannel, R.HS = R.HS.midchannel),
                                             days.model.midchannel, SIR, c(b.LS = beta.nearshore.LS, g.LS = gamma.nearshore.LS,
                                                                         b.MS = beta.nearshore.MS, g.MS = gamma.nearshore.MS,
                                                                         b.HS = beta.nearshore.HS, g.HS = gamma.nearshore.HS,
@@ -712,8 +716,9 @@
   #simulation using initial state variables from naive site and parameters from fitted site
   output.off.to.near.multi = data.frame(ode(c(S.LS = S.LS.nearshore, I.LS = I.LS.nearshore, R.LS = R.LS.nearshore,
                                               S.MS = S.MS.nearshore, I.MS = I.MS.nearshore, R.MS = R.MS.nearshore,
-                                              S.HS = S.HS.nearshore, I.HS = I.HS.nearshore, R.HS = R.HS.nearshore,
-                                              P = P.nearshore),
+                                              # S.HS = S.HS.nearshore, I.HS = I.HS.nearshore, R.HS = R.HS.nearshore,
+                                              # P = P.nearshore),
+                                              S.HS = S.HS.nearshore, I.HS = I.HS.nearshore, R.HS = R.HS.nearshore),
                                             days.model.nearshore, SIR, c(b.LS = beta.offshore.LS, g.LS = gamma.offshore.LS,
                                                                           b.MS = beta.offshore.MS, g.MS = gamma.offshore.MS,
                                                                           b.HS = beta.offshore.HS, g.HS = gamma.offshore.HS,
@@ -805,9 +810,10 @@
   #simulation using initial state variables from naive site and parameters from fitted site
   output.off.to.mid.multi = data.frame(ode(c(S.LS = S.LS.midchannel, I.LS = I.LS.midchannel, R.LS = R.LS.midchannel,
                                               S.MS = S.MS.midchannel, I.MS = I.MS.midchannel, R.MS = R.MS.midchannel,
-                                              S.HS = S.HS.midchannel, I.HS = I.HS.midchannel, R.HS = R.HS.midchannel,
-                                              P = P.midchannel),
-                                            days.model.midchannel, SIR, c(b.LS = beta.offshore.LS, g.LS = gamma.offshore.LS,
+                                              # S.HS = S.HS.midchannel, I.HS = I.HS.midchannel, R.HS = R.HS.midchannel,
+                                              # P = P.midchannel),
+                                              S.HS = S.HS.midchannel, I.HS = I.HS.midchannel, R.HS = R.HS.midchannel),
+                                           days.model.midchannel, SIR, c(b.LS = beta.offshore.LS, g.LS = gamma.offshore.LS,
                                                                          b.MS = beta.offshore.MS, g.MS = gamma.offshore.MS,
                                                                          b.HS = beta.offshore.HS, g.HS = gamma.offshore.HS,
                                                                          N.LS = N.LS.midchannel, N.MS = N.MS.midchannel, N.HS = N.HS.midchannel,
@@ -901,6 +907,6 @@
   
   
   
-  # #pass workspace to downstream script
-  # save.image(file = here("output", "plots_multi_workspace.RData"))
+  #pass workspace to downstream script
+  save.image(file = here("output", "plots_multi_workspace.RData"))
   
