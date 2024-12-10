@@ -7,10 +7,14 @@
   library(patchwork)
   library(extrafont)
   library(ggthemes)
+  library(scales)
   
   # #this was required for me to run at least once on an M1 Macbook (last updated December 2024)
   # font_import() 
   # loadfonts(device = "pdf")
+  
+  #very helpful:
+  # https://www.rforecology.com/post/exporting-plots-in-r/
   
   #import workspace from upstream script
   # load(here("output/pre_DHW_integration_and_cover_ratio_9Oct2024/plots_multi_workspace_01_125_15.RData"))
@@ -212,22 +216,43 @@
   #   theme_classic(base_family = "Georgia") +
   #   theme(legend.position = "bottom")
   
+  
+  # Find the first date after the initial epidemic wave where SST exceeds threshold set during modeling
+  target_date <- DHW.CRW %>%
+    filter(date > as.Date(date_threshold) & SST.90th_HS > SST_threshold_value) %>%
+    slice(1) %>%
+    pull(date)
+  
+  target_days <- obs.total.figures %>%
+    filter(date == target_date) %>%
+    select(Site, days.inf.site)
+  
+  
+  
    #version where "Total" is its own thing, not part of the legend
    obs.total.figures <- obs.total %>%
      rename(Susceptibility = Category) %>%
      mutate(Site = factor(Site, levels = c("Offshore", "Midchannel", "Nearshore")))
 
    obs.multi.figures <- obs.multi %>%
+     mutate(Susceptibility = factor(Susceptibility, levels = c("Low", "Moderate", "High"))) %>%
      mutate(Site = factor(Site, levels = c("Offshore", "Midchannel", "Nearshore")))
-  
+   
+   
+   
+   # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
+   # quartz(h = 5, w = 3.35)
+   # quartz(h = 6, w = 7.087)
+   quartz(h = 3, w = 5)
+   
    # Create the plot
    # NOTE
    #    - 'days' need to be
-   fig1 = ggplot() +
+   ggplot() +
      # Add the original lines from obs.total.figures
      geom_line(data = obs.total.figures %>% filter(Compartment == "Infected"),
                aes(x = days.inf.site, y = tissue),
-               color = "gray30", linewidth = 1.0) + #2.0
+               color = "gray30", linewidth = 0.75) + #2.0
      # Add the shaded area beneath the "Total" line
      geom_ribbon(data = obs.total.figures %>% filter(Compartment == "Infected"),
                  aes(x = days.inf.site, ymin = 0, ymax = tissue), 
@@ -235,16 +260,32 @@
      # Add the multi-group lines from obs.multi.figures
      geom_line(data = obs.multi.figures %>% filter(Compartment == "Infected"),
                aes(x = days.inf.site, y = tissue, linetype = Susceptibility),
-               color = "black", linewidth = 1.0) +
+               color = "black", linewidth = 0.75) +
      # Facet by Site
      facet_wrap(~ Site, scales = "free") + #"free_y"
      # Add labels and theme
-     xlab("Day") + # "Day of observation period"
+     xlab("Day of outbreak") + # "Day of observation period"
      ylab("Tissue surface area (m²)") + # "Infected tissue surface area (m²)"
-     theme_tufte(base_family = "Georgia") + #theme_classic
-     theme(legend.position = "bottom")
+     scale_y_continuous(labels = label_number(accuracy = 0.001)) + # Control decimal places
+     # scale_y_continuous(labels = scales::label_scientific()) +
+     # scale_y_continuous(labels = function(x) scales::number(x, accuracy = 0.001, trim = TRUE)) +
+     scale_linetype_manual(values = c("dotted", "dashed", "solid", "dotdash", "longdash")) +
+     # theme_tufte(base_family = "Georgia") + #theme_classic
+     theme_classic(base_family = "Georgia") + #theme_classic
+     theme(legend.position = "bottom",
+           axis.title = element_text(size = 9),  # Set axis title font size to 6 points
+           axis.text = element_text(size = 7),    # Set axis text font size to 6 points
+           strip.text = element_text(size = 8),
+           legend.text = element_text(size = 7),
+           legend.title = element_text(size = 9),
+           legend.key.height = unit(0, "cm")
+           # legend.margin = margin(t = 0, b = 0),  # Reduce the margin above and below the legend
+           # legend.spacing.y = unit(0.5, "lines"), # Reduce vertical spacing between legend items
+           # legend.spacing.x = unit(0.5, "lines")  # Reduce horizontal spacing between legend items (if needed)
+     )
+   
    
    # Save the plot with specified width and height, using here for the file path
    # ggsave(here("output", "fig1.pdf"), plot = fig1)  
-   ggsave(here("output", "fig1.pdf"), plot = fig1, width = 15, height = 8, units = "cm")   #18 inches max width
+   ggsave(here("output", "fig1.pdf"), plot = fig1, width = 5, height = 3, units = "in")   #18 inches max width
   

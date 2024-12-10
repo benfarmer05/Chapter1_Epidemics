@@ -6,7 +6,7 @@
   library(tidyverse)
   library(DEoptim)
   library(deSolve)
-
+  
   #import workspace from upstream script
   load(here("output", "plots_obs_workspace.RData"))
   
@@ -29,10 +29,19 @@
   #   nrow()
   DHW.modifier = 0 #null model where DHWs do not matter
   
+  #NOTE - 10 dec 2024
+  #   - should maybe try a DHW threshold of 8.0? I think a problem right now is the phase lag in the second 
+  #       infection peak. but this may also be a fundamental flaw in how the second peak is occurring AS
+  #       bleaching is occurring. not sure how I would explicitly encourage the modeled infections to 
+  #       kick in again after heat stress tapers out....but maybe what I have is actually somewhat realistic too?
+  #       lick maybe R0 is really higher as temperature kicks in, causing an uptick in infections...but that 
+  #       doesn't seem supported by the observations. not sure. the answer might in part be, next study,
+  #       fully integrating temperature in to affect R0 from start to end of outbreak
+  
   #NOTE - ideally, all preparation of days and days.model would happen outside of the loops below, making adjustment of fit to include/exclude
   #         days above SST/DHW thresholds easier. for now, this works
-  SST_threshold_value = 28.5 #the SST on the date that patient-zero SCTLD was backtracked to [could also try 30.5C, thermal stress threshold in corals]
-  DHW_threshold_value = 1.0 #4 is a threshold for coral bleaching in the literature; could try 3 (Whitaker 2024) or 2 (Gierz 2020)
+  SST_threshold_value = 30.5 #the SST on the date that patient-zero SCTLD was backtracked to [could also try 30.5C, thermal stress threshold in corals]
+  DHW_threshold_value = 4.0 #4 is a threshold for coral bleaching in the literature; could try 3 (Whitaker 2024) or 2 (Gierz 2020)
   date_threshold <- as.Date("2019-05-05") #this ensures that most of the first wave is able to occur, before 28C is reached for the second time
   
   # # Scenario 1 [maximum transmission modifier of 1.0, with 100% coral cover]
@@ -53,40 +62,77 @@
   days_sites <- summary %>%
     group_by(site) %>%
     summarize(
-      # Adjust 'days' to chop off observations after onset of Degree Heating Weeks
-      days = list(days.inf.site[1:(length(days.inf.site) - DHW.modifier)]),
+      days = list(days.inf.site[1:(length(days.inf.site))]),
       # Extract days.obs and days.model for each site as lists to maintain lengths
       days.obs = list({
-        days_cleaned <- na.omit(days.inf.site[1:(length(days.inf.site) - DHW.modifier)])
+        days_cleaned <- na.omit(days.inf.site[1:(length(days.inf.site))])
         days_cleaned[which(!is.na(days_cleaned))[1]:length(days_cleaned)]
       }),
       days.model = list(seq(from = min(na.omit(days.inf.site)), to = max(na.omit(days.inf.site)), by = 1))
     )
   
-  # Join SST and DHW data from 'DHW.CRW' using 'days.model' values, and create separate dataframes for each
-  SST_sites <- days_sites %>%
-    rowwise() %>%
-    mutate(SST_data = list(DHW.CRW %>%
-                             filter(day %in% days.model) %>%
-                             select(date, SST = SST.90th_HS))) %>%
-    select(site, days.model, SST_data) %>%
-    unnest(cols = c(days.model, SST_data)) %>%
+  # pull SST from summary table
+  SST_sites <- summary %>%
     group_by(site) %>%
-    mutate(time = row_number() - 1) %>%
+    filter(date >= first(first.infdate.site)) %>%
+    # # Calculate the time variable starting from day 0
+    # mutate(time = as.integer(difftime(date, first(first.infdate.site), units = "days"))) %>%
     ungroup() %>%
-    select(date, time, site, days.model, SST)
+    select(date, site, days.inf.site, SST.90th_HS) # Adjust the columns as needed
+    # rename(SST = SST.90th_HS, time = days.inf.site)
   
-  DHW_sites <- days_sites %>%
+  # Create a sequence of all dates between the first and last date for each site
+  all_dates <- SST_sites %>%
+    group_by(site) %>%
+    summarise(start_date = min(date), end_date = max(date)) %>%
+    ungroup() %>%
     rowwise() %>%
-    mutate(DHW_data = list(DHW.CRW %>%
-                             filter(day %in% days.model) %>%
-                             select(date, DHW = DHW_from_90th_HS.1))) %>%
-    select(site, days.model, DHW_data) %>%
-    unnest(cols = c(days.model, DHW_data)) %>%
+    mutate(date_sequence = list(seq.Date(as.Date(start_date), as.Date(end_date), by = "day"))) %>%
+    unnest(date_sequence) %>%
+    select(site, date_sequence) %>%
+    rename(date = date_sequence)
+  
+  # use date sequence to pull all SST's between start and end dates of each site's infection observations
+  SST_sites <- all_dates %>%
+    left_join(SST_sites %>% select(site, date, days.inf.site), by = c("site", "date")) %>%
+    left_join(DHW.CRW %>% select(date, SST.90th_HS), by = "date") %>%
+    rename(SST = SST.90th_HS) %>%
     group_by(site) %>%
     mutate(time = row_number() - 1) %>%
     ungroup() %>%
-    select(date, time, site, days.model, DHW)
+    select(site, date, days.inf.site, time, SST)
+  
+  
+  #for DHW
+  DHW_sites <- summary %>%
+    group_by(site) %>%
+    filter(date >= first(first.infdate.site)) %>%
+    # # Calculate the time variable starting from day 0
+    # mutate(time = as.integer(difftime(date, first(first.infdate.site), units = "days"))) %>%
+    ungroup() %>%
+    select(date, site, days.inf.site, DHW_from_90th_HS.1) # Adjust the columns as needed
+  # rename(DHW = DHW_from_90th_HS.1, time = days.inf.site)
+  
+  # Create a sequence of all dates between the first and last date for each site
+  all_dates <- DHW_sites %>%
+    group_by(site) %>%
+    summarise(start_date = min(date), end_date = max(date)) %>%
+    ungroup() %>%
+    rowwise() %>%
+    mutate(date_sequence = list(seq.Date(as.Date(start_date), as.Date(end_date), by = "day"))) %>%
+    unnest(date_sequence) %>%
+    select(site, date_sequence) %>%
+    rename(date = date_sequence)
+  
+  # use date sequence to pull all DHW's between start and end dates of each site's infection observations
+  DHW_sites <- all_dates %>%
+    left_join(DHW_sites %>% select(site, date, days.inf.site), by = c("site", "date")) %>%
+    left_join(DHW.CRW %>% select(date, DHW_from_90th_HS.1), by = "date") %>%
+    rename(DHW = DHW_from_90th_HS.1) %>%
+    group_by(site) %>%
+    mutate(time = row_number() - 1) %>%
+    ungroup() %>%
+    select(site, date, days.inf.site, time, DHW)
   
   SIR = function(t,y,p){ # 'p' is parameters or params
     {
