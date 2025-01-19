@@ -37,6 +37,15 @@
   #       lick maybe R0 is really higher as temperature kicks in, causing an uptick in infections...but that 
   #       doesn't seem supported by the observations. not sure. the answer might in part be, next study,
   #       fully integrating temperature in to affect R0 from start to end of outbreak
+  #
+  #   - something else to think about is if this hints at, since we're only fitting removal, that "infections"
+  #       must in some way be kicking up prior to the observed bump in removal? perhaps suggesting that 
+  #       the vector itself (maybe symbionts) is surging, precipitating losses...seems a bit contrived. either
+  #       way I think explicitly modeling the vector pool some day may make sense
+  #
+  #   - and another alternative takeaway may be that the system could just be simpler - thermal stress wears off,
+  #       disease kicks back into gear. what we're missing is a smart way to test that which informs what is
+  #       happening with R0 (possibly fuel for future work)
   
   #NOTE - ideally, all preparation of days and days.model would happen outside of the loops below, making adjustment of fit to include/exclude
   #         days above SST/DHW thresholds easier. for now, this works

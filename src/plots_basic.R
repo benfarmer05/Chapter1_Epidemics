@@ -754,6 +754,6 @@
                                                                                                                                                                                                                                                                                           axis_titles = 'collect') &
     theme(legend.position = 'bottom') #& xlim(0, 325)
   
-  #pass workspace to downstream script
-  save.image(file = here("output", "plots_basic_workspace.RData"))
+  # #pass workspace to downstream script
+  # save.image(file = here("output", "plots_basic_workspace.RData"))
   

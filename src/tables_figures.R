@@ -216,19 +216,6 @@
   #   theme_classic(base_family = "Georgia") +
   #   theme(legend.position = "bottom")
   
-  
-  # Find the first date after the initial epidemic wave where SST exceeds threshold set during modeling
-  target_date <- DHW.CRW %>%
-    filter(date > as.Date(date_threshold) & SST.90th_HS > SST_threshold_value) %>%
-    slice(1) %>%
-    pull(date)
-  
-  target_days <- obs.total.figures %>%
-    filter(date == target_date) %>%
-    select(Site, days.inf.site)
-  
-  
-  
    #version where "Total" is its own thing, not part of the legend
    obs.total.figures <- obs.total %>%
      rename(Susceptibility = Category) %>%
@@ -238,29 +225,63 @@
      mutate(Susceptibility = factor(Susceptibility, levels = c("Low", "Moderate", "High"))) %>%
      mutate(Site = factor(Site, levels = c("Offshore", "Midchannel", "Nearshore")))
    
+   # Find the first date after the initial epidemic wave where SST exceeds threshold set during modeling
+   target_date <- DHW.CRW %>%
+     filter(date > as.Date(date_threshold) & SST.90th_HS > SST_threshold_value) %>%
+     slice(1) %>%
+     pull(date)
+   
+   target_days <- obs.total.figures %>%
+     filter(date == target_date) %>%
+     select(Site, days.inf.site)
+   
    
    
    # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
+   # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
    # quartz(h = 5, w = 3.35)
    # quartz(h = 6, w = 7.087)
-   quartz(h = 3, w = 5)
+   quartz(h = 3, w = 5) 
    
    # Create the plot
    # NOTE
    #    - 'days' need to be
    ggplot() +
-     # Add the original lines from obs.total.figures
-     geom_line(data = obs.total.figures %>% filter(Compartment == "Infected"),
-               aes(x = days.inf.site, y = tissue),
-               color = "gray30", linewidth = 0.75) + #2.0
+     
+     # #black and grey version
+     # # Add the original lines from obs.total.figures
+     # geom_line(data = obs.total.figures %>% filter(Compartment == "Infected"),
+     #           aes(x = days.inf.site, y = tissue),
+     #           color = "gray30", linewidth = 0.75) + #2.0
+     # # Add the shaded area beneath the "Total" line
+     # geom_ribbon(data = obs.total.figures %>% filter(Compartment == "Infected"),
+     #             aes(x = days.inf.site, ymin = 0, ymax = tissue), 
+     #             fill = "gray80", alpha = 0.5) +  # Adjust alpha for transparency
+     # # Add the multi-group lines from obs.multi.figures
+     # geom_line(data = obs.multi.figures %>% filter(Compartment == "Infected"),
+     #           aes(x = days.inf.site, y = tissue, linetype = Susceptibility),
+     #           color = "black", linewidth = 0.75) +
+     # # # Add the multi-group lines from obs.multi.figures
+     # # geom_line(data = obs.multi.figures %>% filter(Compartment == "Infected"),
+     # #           aes(x = days.inf.site, y = tissue, linetype = Susceptibility, color = Susceptibility),
+     # #           linewidth = 0.75) +
+     
+     #color version
      # Add the shaded area beneath the "Total" line
      geom_ribbon(data = obs.total.figures %>% filter(Compartment == "Infected"),
                  aes(x = days.inf.site, ymin = 0, ymax = tissue), 
-                 fill = "gray80", alpha = 0.5) +  # Adjust alpha for transparency
+                 fill = "gray80", alpha = 0.8) +  # Adjust alpha for transparency
      # Add the multi-group lines from obs.multi.figures
      geom_line(data = obs.multi.figures %>% filter(Compartment == "Infected"),
-               aes(x = days.inf.site, y = tissue, linetype = Susceptibility),
-               color = "black", linewidth = 0.75) +
+               aes(x = days.inf.site, y = tissue, color = Susceptibility),
+               linewidth = 0.75) +
+     # scale_color_brewer(name = 'Susceptibility', palette = 'YlOrRd') +
+     # scale_color_manual(values = c("Low" = "#4477AA", "Moderate" = "#AA3377", "High" = "#FF4444")) +
+     # scale_color_manual(values = c("Low" = "#FFDD44", "Moderate" = "#FF8844", "High" = "#FF4444")) +
+     scale_color_manual(values = c("Low" = "#FFD700",   # Yellow
+                                   "Moderate" = "#1E90FF", # Blue
+                                   "High" = "#FF1493")) +  # Red (or Deep Pink)
+     
      # Facet by Site
      facet_wrap(~ Site, scales = "free") + #"free_y"
      # Add labels and theme
@@ -269,7 +290,8 @@
      scale_y_continuous(labels = label_number(accuracy = 0.001)) + # Control decimal places
      # scale_y_continuous(labels = scales::label_scientific()) +
      # scale_y_continuous(labels = function(x) scales::number(x, accuracy = 0.001, trim = TRUE)) +
-     scale_linetype_manual(values = c("dotted", "dashed", "solid", "dotdash", "longdash")) +
+     # scale_linetype_manual(values = c("dotted", "dashed", "solid", "dotdash", "longdash")) +
+     scale_linetype_manual(values = c("dotdash", "longdash", "solid")) +
      # theme_tufte(base_family = "Georgia") + #theme_classic
      theme_classic(base_family = "Georgia") + #theme_classic
      theme(legend.position = "bottom",
@@ -283,9 +305,18 @@
            # legend.spacing.y = unit(0.5, "lines"), # Reduce vertical spacing between legend items
            # legend.spacing.x = unit(0.5, "lines")  # Reduce horizontal spacing between legend items (if needed)
      )
+
+   # # Save the Quartz output directly as a PDF
+   # quartz.save(file = here("output", "sample_plot.pdf"), type = "pdf")
+   
+   # # Close the Quartz device
+   # dev.off()
+   
+   # # Save the plot with specified width and height, using here for the file path
+   # # ggsave(here("output", "fig1.pdf"), plot = fig1)  
+   # ggsave(here("output", "fig1.pdf"), plot = fig1, width = 5, height = 3, units = "in")   #18 inches max width
    
    
-   # Save the plot with specified width and height, using here for the file path
-   # ggsave(here("output", "fig1.pdf"), plot = fig1)  
-   ggsave(here("output", "fig1.pdf"), plot = fig1, width = 5, height = 3, units = "in")   #18 inches max width
+   ################################## FIGURE 2  ##################################
+   
   
