@@ -278,12 +278,14 @@
      # scale_color_brewer(name = 'Susceptibility', palette = 'YlOrRd') +
      # scale_color_manual(values = c("Low" = "#4477AA", "Moderate" = "#AA3377", "High" = "#FF4444")) +
      # scale_color_manual(values = c("Low" = "#FFDD44", "Moderate" = "#FF8844", "High" = "#FF4444")) +
-     scale_color_manual(values = c("Low" = "#FFD700",   # Yellow
-                                   "Moderate" = "#1E90FF", # Blue
+     scale_color_manual(values = c("Low" = "#1E90FF",   # Yellow 
+                                   "Moderate" = "#FFD700", # Blue
                                    "High" = "#FF1493")) +  # Red (or Deep Pink)
      
      # Facet by Site
-     facet_wrap(~ Site, scales = "free") + #"free_y"
+     facet_wrap(~ Site, scales = "free") + #free y- and x-axes
+     # facet_wrap(~ Site, scales = "free_y") + #just free y-axis (only makes sense if plotting dates)
+     # facet_wrap(~ Site) + #fixed
      # Add labels and theme
      xlab("Day of outbreak") + # "Day of observation period"
      ylab("Tissue surface area (m²)") + # "Infected tissue surface area (m²)"
@@ -305,12 +307,12 @@
            # legend.spacing.y = unit(0.5, "lines"), # Reduce vertical spacing between legend items
            # legend.spacing.x = unit(0.5, "lines")  # Reduce horizontal spacing between legend items (if needed)
      )
-
+  
    # # Save the Quartz output directly as a PDF
    # quartz.save(file = here("output", "sample_plot.pdf"), type = "pdf")
    
-   # # Close the Quartz device
-   # dev.off()
+   # Close the Quartz device
+   dev.off()
    
    # # Save the plot with specified width and height, using here for the file path
    # # ggsave(here("output", "fig1.pdf"), plot = fig1)  
@@ -319,4 +321,83 @@
    
    ################################## FIGURE 2  ##################################
    
-  
+   #this will be a 9-panel figure
+   #    leftmost column is nearshore-fitted, offshore-fitted, and offshore-projected for single-host model
+   #    middle column is the same as the leftmost, but for the multi-host model
+   #    rightmost column is the same as leftmost, but for the single-host model with inclusion of thermal stress
+   
+   #all the information about specific compartments (black lines for )
+   
+   
+   
+   ## ACTUALLY THIS IS JUST FIGURE 1 FURTHER EDITS RIGHT NOW
+   
+   # Absolute Values Plot (Free Scales)
+   absolute_plot <- ggplot() +
+     geom_ribbon(data = obs.total.figures %>% filter(Compartment == "Infected"),
+                 aes(x = days.inf.site, ymin = 0, ymax = tissue), 
+                 fill = "gray80", alpha = 0.8) +
+     geom_line(data = obs.multi.figures %>% filter(Compartment == "Infected"),
+               aes(x = days.inf.site, y = tissue, color = Susceptibility),
+               linewidth = 0.75) +
+     scale_color_manual(values = c("Low" = "#1E90FF",   # Blue
+                                   "Moderate" = "#FFD700", # Yellow
+                                   "High" = "#FF1493")) +  # Deep Pink
+     facet_wrap(~ Site, scales = "free") +
+     xlab("Day of outbreak") +
+     ylab("Tissue surface area (m²)") +
+     scale_y_continuous(labels = scales::label_number(accuracy = 0.001)) +
+     scale_linetype_manual(values = c("dotdash", "longdash", "solid")) +
+     theme_classic(base_family = "Georgia") +
+     theme(legend.position = "bottom",
+           axis.title = element_text(size = 9),
+           axis.text = element_text(size = 7),
+           strip.text = element_text(size = 8),
+           legend.text = element_text(size = 7),
+           legend.title = element_text(size = 9),
+           legend.key.height = unit(0, "cm"))
+   
+   # Relative Values Plot (Fixed Scales)
+   relative_plot <- ggplot() +
+     geom_ribbon(data = obs.total.figures %>% filter(Compartment == "Infected"),
+                 aes(x = days.inf.site, ymin = 0, ymax = tissue), 
+                 fill = "gray80", alpha = 0.8) +
+     geom_line(data = obs.multi.figures %>% filter(Compartment == "Infected"),
+               aes(x = days.inf.site, y = tissue, color = Susceptibility),
+               linewidth = 0.75) +
+     scale_color_manual(values = c("Low" = "#1E90FF",   # Blue
+                                   "Moderate" = "#FFD700", # Yellow
+                                   "High" = "#FF1493")) +  # Deep Pink
+     facet_wrap(~ Site, scales = "free_x") +  # Fixed scales
+     xlab("Day of outbreak") +
+     ylab("Tissue surface area (m²)") +
+     scale_y_continuous(labels = scales::label_number(accuracy = 0.001)) +
+     scale_linetype_manual(values = c("dotdash", "longdash", "solid")) +
+     theme_classic(base_family = "Georgia") +
+     theme(legend.position = "bottom",
+           axis.title = element_text(size = 9),
+           axis.text = element_text(size = 7),
+           strip.text = element_text(size = 8),
+           legend.text = element_text(size = 7),
+           legend.title = element_text(size = 9),
+           legend.key.height = unit(0, "cm"))
+   
+   # Display both plots
+   # STOPPING POINT - 29 jan 2025 - also knock off the facet label strips for the bottom panel, so they only show up once
+   #    (at the top). hopefully this works. if not, can just do it in photoshop I guess
+   
+   combined_plot <- (absolute_plot / relative_plot) +
+     plot_layout(guides = "collect", axes = "collect") &  # Collect the legends
+     theme(legend.position = "bottom", strip.placement = "outside", strip.text = element_text(size = 15))   # Set legend position
+   
+   
+   # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
+   # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
+   # quartz(h = 5, w = 3.35)
+   # quartz(h = 6, w = 7.087)
+   quartz(h = 3, w = 5) 
+   
+   # Close the Quartz device
+   dev.off()
+   
+   
