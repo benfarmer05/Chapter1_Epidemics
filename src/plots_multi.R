@@ -907,6 +907,6 @@
   
   
   
-  #pass workspace to downstream script
-  save.image(file = here("output", "plots_multi_workspace.RData"))
+  # #pass workspace to downstream script
+  # save.image(file = here("output", "plots_multi_workspace.RData"))
   
