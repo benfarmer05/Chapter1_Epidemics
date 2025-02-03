@@ -146,3 +146,12 @@ source("script3.R")
  # - the chatGPT thread is pretty helpful from today
 
 
+# Notes 3 Feb 2025:
+- Figures are coming together; likely just 3-4 total figures. One if them is non-code based (Figure 1; conceptual SIR diagram)
+- Figure 2 is observations of infectious tissue. This is mostly finalized
+       - but need to rework the top row to be proportional to 
+ - Figure 3 is a composite figure demonstrating the fit, and projected fit, of Nearshore & Offshore. Column 1 is single-host model; Column 2 is multi-host model. May have column 3 for single-host model with thermal stress but not sure ?
+        - need to double-check where the fit is or isn't getting cut off when thermal stress threshold is breached, and plot that in with an abline
+       - may consider doing some proportional plotting here, too. particularly for column 2. the visuals might be identical to as-is, but the y-axis would be more informative and demonstrate the proportionality of each susceptibility group to the total tissue demonstrated by column 1 (max possible y-value is 1.0, but would be lower and match the top of the curves)
+       - figure out what to do with the thermal stress before/after. how best to visualize?
+

@@ -291,9 +291,9 @@
   
   
   
-  ################################## FIGURE 1  ##################################
+  ################################## FIGURE 2  ##################################
   
-  # NOTE - need to make the top row of fig1 proportional (see teams chat Jan 30 2025)
+  # NOTE - need to make the top row of fig2 proportional (see teams chat Jan 30 2025)
   
   # #version with "Total" included in legend directly
   # obs.total.figures = obs.total %>%
@@ -306,7 +306,7 @@
   #                      aes(x = days.inf.site, y = tissue, linetype = Susceptibility)) +
   #   geom_line(size = 1) +  # Adjust line size for all lines
   #   facet_wrap(~ Site, scales = "free_y") +  # Facet by Site
-  #   xlab("Day of site-level outbreak") +
+  #   xlab("Day of outbreak") +
   #   ylab("Tissue Surface Area (m²)") +
   #   # scale_color_manual(values = c("Total" = "black", "Low" = "blue", "Moderate" = "green", "High" = "red")) +  # Customize colors
   #   # scale_linetype_manual(values = c("Summed" = "solid", "Low" = "dashed", "Moderate" = "dotted", "High" = "dotdash")) +  # Customize linetypes
@@ -391,7 +391,7 @@
   #   # facet_wrap(~ Site, scales = "free_y") + #just free y-axis (only makes sense if plotting dates)
   #   # facet_wrap(~ Site) + #fixed
   #   # Add labels and theme
-  #   xlab("Day of outbreak") + # "Day of site-level outbreak"
+  #   xlab("Day of outbreak") + # "Day of outbreak"
   #   ylab("Tissue surface area (m²)") + # "Infected tissue surface area (m²)"
   #   scale_y_continuous(labels = label_number(accuracy = 0.001)) + # Control decimal places
   #   # scale_y_continuous(labels = scales::label_scientific()) +
@@ -450,7 +450,7 @@
          legend.title = element_text(size = 9),
          legend.key.height = unit(0, "cm"))
   
-  max_value.fig1 <- max(obs.total.figures %>% filter(Compartment == "Infected") %>% pull(tissue), na.rm = TRUE)
+  max_value.fig2 <- max(obs.total.figures %>% filter(Compartment == "Infected") %>% pull(tissue), na.rm = TRUE)
   
   # Relative Values Plot (Fixed Scales)
   relative_plot <- ggplot() +
@@ -468,7 +468,7 @@
    xlab("Day of outbreak") +
    ylab("Tissue surface area (m²)") +
    scale_x_continuous(limits = c(0, max_days_all_sites)) +  # Apply global max
-   scale_y_continuous(limits = c(0, max_value.fig1), labels = scales::label_number(accuracy = 0.001)) +
+   scale_y_continuous(limits = c(0, max_value.fig2), labels = scales::label_number(accuracy = 0.001)) +
    scale_linetype_manual(values = c("dotdash", "longdash", "solid")) +
    theme_classic(base_family = "Georgia") +
    theme(legend.position = "bottom",
@@ -480,11 +480,7 @@
          legend.title = element_text(size = 9),
          legend.key.height = unit(0, "cm"))
   
-  # Display both plots
-  # STOPPING POINT - 29 jan 2025 - also knock off the facet label strips for the bottom panel, so they only show up once
-  #    (at the top). hopefully this works. if not, can just do it in Photoshop I guess
-  
-  fig1 <- (absolute_plot / relative_plot) +
+  fig2 <- (absolute_plot / relative_plot) +
    plot_layout(guides = "collect", axes = "collect") &  # Collect the legends
    theme(legend.position = "bottom",
          legend.box.spacing = unit(0, "cm"),
@@ -501,17 +497,17 @@
   # quartz(h = 6, w = 7.087)
   quartz(h = 3, w = 5)
   
-  fig1
+  fig2
   
   # # Save the Quartz output directly as a PDF
-  # quartz.save(file = here("output", "fig1.pdf"), type = "pdf")
+  # quartz.save(file = here("output", "fig2.pdf"), type = "pdf")
   
   # Close the Quartz device
   dev.off()
   
   # # Save the plot with specified width and height, using here for the file path
-  # # ggsave(here("output", "fig1.pdf"), plot = fig1)
-  # ggsave(here("output", "fig1.pdf"), plot = combined_plot, width = 5, height = 3, units = "in")   #18 inches max width
+  # # ggsave(here("output", "fig2.pdf"), plot = fig2)
+  # ggsave(here("output", "fig2.pdf"), plot = combined_plot, width = 5, height = 3, units = "in")   #18 inches max width
   
   
   ################################## FIGURE 3  ##################################
@@ -543,50 +539,54 @@
                      pull(tissue), na.rm = TRUE)
   
   site.loop = 'Nearshore'
-  p.fit.nearshore.single.figures = 
+  p.fit.nearshore.single.figures =
   ggplot(data = data_fig3 %>% filter(Site == site.loop, Host == "Single-host", Type == "Fitted"),
          aes(x = days.model, y = tissue, group = Compartment)) +
-   xlab("Day of site-level outbreak") +
+   xlab("Day of outbreak") +
    ylab("Surface area of tissue (m2)") +
    # ggtitle(paste0(site.loop, " - Fitted")) +
-   geom_line(aes(group = Compartment), color = "black", linewidth = 0.5) +
-   geom_point(data = obs.total.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment), color = "black", size = 1.5) +
+   geom_line(aes(group = Compartment), color = "black", linewidth = 0.4) +
+   geom_point(data = obs.total.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment), color = "black", size = 1.3) +
    scale_x_continuous(limits = c(0, max_days_all_sites)) +
    # scale_y_continuous(limits = c(0, max_value.fig3)) +
    scale_shape_manual(values = c("Susceptible" = 16,
-                                 "Infected" = 1,
-                                 "Recovered" = 13),
+                                 "Infected" = 17,
+                                 "Recovered" = 15),
                       name = "") + # Removes "Compartment" from the legend title
+    # scale_shape_manual(values = c("Susceptible" = 16,
+    #                               "Infected" = 1,
+    #                               "Recovered" = 13),
+    #                    name = "") + # Removes "Compartment" from the legend title
    theme_classic(base_family = 'Georgia')
   
   site.loop = 'Offshore'
   p.fit.offshore.single.figures =
   ggplot(data = data_fig3 %>% filter(Site == site.loop, Host == "Single-host", Type == "Fitted"), aes(x = days.model, y = tissue, group = Compartment)) +
-   xlab("Day of site-level outbreak") +
+   xlab("Day of outbreak") +
    ylab("Surface area of tissue (m2)") +
    # ggtitle(paste0(site.loop, " - Fitted")) +
-   geom_line(aes(group = Compartment), color = "black", linewidth = 0.5) +
-   geom_point(data = obs.total.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment), color = "black", size = 1.5) +
+   geom_line(aes(group = Compartment), color = "black", linewidth = 0.4) +
+   geom_point(data = obs.total.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment), color = "black", size = 1.3) +
    scale_x_continuous(limits = c(0, max_days_all_sites)) +
    # scale_y_continuous(limits = c(0, max_value.fig3)) +
    scale_shape_manual(values = c("Susceptible" = 16,
-                                 "Infected" = 1,
-                                 "Recovered" = 13),
+                                 "Infected" = 17,
+                                 "Recovered" = 15),
                       name = "") + # Removes "Compartment" from the legend title
    theme_classic(base_family = 'Georgia')
   
   p.fit.near.to.off.single.figures =
   ggplot(data = data_fig3 %>% filter(Site == site.loop, Host == "Single-host", Type == "Projected"), aes(x = days.model, y = tissue, group = Compartment)) +
-   xlab("Day of site-level outbreak") +
+   xlab("Day of outbreak") +
    ylab("Surface area of tissue (m2)") +
    # ggtitle(paste0(site.loop, " - Projected")) +
-   geom_line(aes(group = Compartment), color = "black", linewidth = 0.5) +
-   geom_point(data = obs.total.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment), color = "black", size = 1.5) +
+   geom_line(aes(group = Compartment), color = "black", linewidth = 0.4) +
+   geom_point(data = obs.total.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment), color = "black", size = 1.3) +
    scale_x_continuous(limits = c(0, max_days_all_sites)) +
    # scale_y_continuous(limits = c(0, max_value.fig3)) +
    scale_shape_manual(values = c("Susceptible" = 16,
-                                 "Infected" = 1,
-                                 "Recovered" = 13),
+                                 "Infected" = 17,
+                                 "Recovered" = 15),
                       name = "") + # Removes "Compartment" from the legend title
    theme_classic(base_family = 'Georgia')
   
@@ -596,9 +596,12 @@
          legend.box.spacing = unit(0, "cm"),
          legend.key.size = unit(0.3, "cm"),  # Shrink legend key size (symbols)
          legend.text = element_text(size = 8),  # Reduce legend text size
+         axis.title.x = element_blank(),  # Remove x-axis label
          # legend.spacing.y = unit(0, "cm"),    # Reduce space between legend items (doesn't work)
-         plot.margin = margin(t = 5, r = 5, b = 0, l = 5)#, line = element_line(linewidth = 1)  # Change the universal linewidth
+         plot.margin = margin(t = 5, r = 5, b = 0, l = 5) #line = element_line(linewidth = 1)  # Change the universal linewidth
    )
+   # ) &
+   #  labs(x = "Day of outbreak")  # Apply x-axis label at the composite level
   
   # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
   # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
@@ -626,54 +629,54 @@
   site.loop = 'Nearshore'
   p.fit.nearshore.multi.figures =
     ggplot(data = data_fig3 %>% filter(Site == site.loop, Host == "Multi-host", Type == "Fitted"), aes(x = days.model, y = tissue, color = Susceptibility, shape = Compartment)) +
-    xlab("Day of site-level outbreak") +
+    xlab("Day of outbreak") +
     ylab("Surface area of tissue (m2)") +
     # ggtitle(paste0(site.loop, " - Fitted")) +
-    geom_line(linewidth = 0.5) +
+    geom_line(linewidth = 0.4) +
     scale_color_manual(values = c("Low" = "#1E90FF",   # Blue
                                   "Moderate" = "#FFD700", # Yellow
                                   "High" = "#FF1493")) +  # Deep Pink
-    geom_point(data = obs.multi.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment, fill = Susceptibility), size = 1.5) +
+    geom_point(data = obs.multi.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment, fill = Susceptibility), size = 1.3) +
     scale_x_continuous(limits = c(0, max_days_all_sites)) +
     scale_shape_manual(values = c("Susceptible" = 16,
-                                  "Infected" = 1,
-                                  "Recovered" = 13),
+                                  "Infected" = 17,
+                                  "Recovered" = 15),
                        name = "") + # Removes "Compartment" from the legend title
     theme_classic(base_family = 'Georgia')
   
   site.loop = 'Offshore'
   p.fit.offshore.multi.figures =
     ggplot(data = data_fig3 %>% filter(Site == site.loop, Host == "Multi-host", Type == "Fitted"), aes(x = days.model, y = tissue, color = Susceptibility, shape = Compartment)) +
-    xlab("Day of site-level outbreak") +
+    xlab("Day of outbreak") +
     ylab("Surface area of tissue (m2)") +
     # ggtitle(paste0(site.loop, " - Fitted")) +
-    geom_line(linewidth = 0.5) +
+    geom_line(linewidth = 0.4) +
     scale_color_manual(values = c("Low" = "#1E90FF",   # Blue
                                   "Moderate" = "#FFD700", # Yellow
                                   "High" = "#FF1493")) +  # Deep Pink
-    geom_point(data = obs.multi.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment, fill = Susceptibility), size = 1.5) +
+    geom_point(data = obs.multi.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment, fill = Susceptibility), size = 1.3) +
     scale_x_continuous(limits = c(0, max_days_all_sites)) +
     scale_shape_manual(values = c("Susceptible" = 16,
-                                  "Infected" = 1,
-                                  "Recovered" = 13),
+                                  "Infected" = 17,
+                                  "Recovered" = 15),
                        name = "") + # Removes "Compartment" from the legend title
     theme_classic(base_family = 'Georgia')
   
   p.fit.near.to.off.multi.figures =
     ggplot(data = data_fig3 %>% filter(Site == site.loop, Host == "Multi-host", Type == "Projected"), aes(x = days.model, y = tissue, color = Susceptibility, shape = Compartment)) +
-    xlab("Day of site-level outbreak") +
+    xlab("Day of outbreak") +
     ylab("Surface area of tissue (m2)") +
     # ggtitle(paste0(site.loop, " - Projected")) +
-    geom_line(linewidth = 0.5) +
+    geom_line(linewidth = 0.4) +
     scale_color_manual(values = c("Low" = "#1E90FF",   # Blue
                                   "Moderate" = "#FFD700", # Yellow
                                   "High" = "#FF1493")) +  # Deep Pink
-    geom_point(data = obs.multi.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment, fill = Susceptibility), size = 1.5) +
+    geom_point(data = obs.multi.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment, fill = Susceptibility), size = 1.3) +
     scale_x_continuous(limits = c(0, max_days_all_sites)) +
     # scale_y_continuous(limits = c(0, max_value.fig3)) +
     scale_shape_manual(values = c("Susceptible" = 16,
-                                  "Infected" = 1,
-                                  "Recovered" = 13),
+                                  "Infected" = 17,
+                                  "Recovered" = 15),
                        name = "") + # Removes "Compartment" from the legend title
     theme_classic(base_family = 'Georgia')
   
@@ -684,6 +687,7 @@
           legend.key.size = unit(0.3, "cm"),  # Shrink legend key size (symbols)
           legend.text = element_text(size = 8),  # Reduce legend text size
           axis.title.y = element_blank(),  # Remove y-axis label
+          # axis.title.x = element_blank(),  # Remove x-axis label
           # legend.spacing.y = unit(0, "cm"),    # Reduce space between legend items (doesn't work)
           plot.margin = margin(t = 5, r = 5, b = 0, l = 5)#, line = element_line(linewidth = 1)  # Change the universal linewidth
     )
@@ -703,7 +707,7 @@
   dev.off()
   
   
-
+  
   
   
   
@@ -713,7 +717,7 @@
   
   
   # p.fit.nearshore.single.DHW = ggplot(data = output.single.nearshore.DHW, aes(days.model, tissue, colour = Compartment)) +
-  #   xlab("Day of site-level outbreak") +
+  #   xlab("Day of outbreak") +
   #   ylab("Surface area of tissue (m2)") +
   #   ggtitle(paste(c("", site.loop, ' - Fitted'), collapse="")) +
   #   geom_line() +
@@ -725,7 +729,101 @@
   #   theme(panel.background = element_rect(fill = "gray90"))
   
   
+  site.loop = 'Nearshore'
+  p.fit.nearshore.single.DHW.figures = 
+    ggplot(data = data_fig3 %>% filter(Site == site.loop, Host == "Single-host", Type == "DHW"),
+           aes(x = days.model, y = tissue, group = Compartment)) +
+    # xlab("Day of outbreak") +
+    ylab("Surface area of tissue (m2)") +
+    # ggtitle(paste0(site.loop, " - Fitted")) +
+    geom_line(aes(group = Compartment), color = "black", linewidth = 0.4) +
+    geom_point(data = obs.total.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment), color = "black", size = 1.3) +
+    scale_x_continuous(limits = c(0, max_days_all_sites)) +
+    # scale_y_continuous(limits = c(0, max_value.fig3)) +
+    scale_shape_manual(values = c("Susceptible" = 16,
+                                  "Infected" = 17,
+                                  "Recovered" = 15),
+                       name = "") + # Removes "Compartment" from the legend title
+    # scale_shape_manual(values = c("Susceptible" = 16,
+    #                               "Infected" = 1,
+    #                               "Recovered" = 13),
+    #                    name = "") + # Removes "Compartment" from the legend title
+    theme_classic(base_family = 'Georgia')
+  
+  site.loop = 'Offshore'
+  p.fit.offshore.single.DHW.figures =
+    ggplot(data = data_fig3 %>% filter(Site == site.loop, Host == "Single-host", Type == "DHW"), aes(x = days.model, y = tissue, group = Compartment)) +
+    # xlab("Day of outbreak") +
+    ylab("Surface area of tissue (m2)") +
+    # ggtitle(paste0(site.loop, " - Fitted")) +
+    geom_line(aes(group = Compartment), color = "black", linewidth = 0.4) +
+    geom_point(data = obs.total.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment), color = "black", size = 1.3) +
+    scale_x_continuous(limits = c(0, max_days_all_sites)) +
+    # scale_y_continuous(limits = c(0, max_value.fig3)) +
+    scale_shape_manual(values = c("Susceptible" = 16,
+                                  "Infected" = 17,
+                                  "Recovered" = 15),
+                       name = "") + # Removes "Compartment" from the legend title
+    theme_classic(base_family = 'Georgia')
+  
+  # NOTE - have not attempted to project an epidemic with DHW information ... I guess I could try ?
+  p.fit.near.to.off.single.DHW.figures =
+    ggplot(data = data_fig3 %>% filter(Site == site.loop, Host == "Single-host", Type == "Projected"), aes(x = days.model, y = tissue, group = Compartment)) +
+    # xlab("Day of outbreak") +
+    ylab("Surface area of tissue (m2)") +
+    # ggtitle(paste0(site.loop, " - Projected")) +
+    # geom_line(aes(group = Compartment), color = "black", linewidth = 0.4) +
+    # geom_point(data = obs.total.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment), color = "black", size = 1.3) +
+    scale_x_continuous(limits = c(0, max_days_all_sites)) +
+    # scale_y_continuous(limits = c(0, max_value.fig3)) +
+    scale_shape_manual(values = c("Susceptible" = 16,
+                                  "Infected" = 17,
+                                  "Recovered" = 15),
+                       name = "") + # Removes "Compartment" from the legend title
+    theme_classic(base_family = 'Georgia')
+  
+  
+  # # Create a blank plot for p.fit.near.to.off.single.figures
+  # p.fit.near.to.off.single.figures <- ggplot() + 
+  #   theme_void()  # Ensures it appears blank with no axes or labels
+  
+  
+  fig3_col3 = (p.fit.nearshore.single.DHW.figures / p.fit.offshore.single.DHW.figures / p.fit.near.to.off.single.DHW.figures) +
+  # fig3_col3 = (p.fit.nearshore.single.figures / p.fit.offshore.single.figures) + 
+    plot_layout(guides = "collect", axes = "collect") &  # Collect the legends
+    theme(legend.position = "bottom",
+          legend.box.spacing = unit(0, "cm"),
+          legend.key.size = unit(0.3, "cm"),  # Shrink legend key size (symbols)
+          legend.text = element_text(size = 8),  # Reduce legend text size
+          axis.title.y = element_blank(),  # Remove y-axis label
+          axis.title.x = element_blank(),  # Remove x-axis label
+          # legend.spacing.y = unit(0, "cm"),    # Reduce space between legend items (doesn't work)
+          plot.margin = margin(t = 5, r = 5, b = 0, l = 5)#, line = element_line(linewidth = 1)  # Change the universal linewidth
+    )
+  
+  # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
+  # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
+  # quartz(h = 5, w = 3.35)
+  # quartz(h = 6, w = 7.087)
+  quartz(h = 5, w = 3)
+  
+  fig3_col3
+  
+  # # Save the Quartz output directly as a PDF
+  # quartz.save(file = here("output", "fig1.pdf"), type = "pdf")
+  
+  # Close the Quartz device
+  dev.off()
+  
+  
+  
+  
+  
+  
+  
+  #COMPOSITE
   fig3_col1 = fig3_col1 & theme(legend.position = "none")  # Remove legend from fig3_col1
+  fig3_col3 = fig3_col3 & theme(legend.position = "none")  # Remove legend from fig3_col1
   
   # #failed attempt at better formatting the shared legend
   # fig3_col2 = fig3_col2 & 
@@ -735,21 +833,30 @@
   #         legend.spacing.y = unit(0.3, "cm"))  # Adjust vertical spacing
   
   fig3 = (fig3_col1 | fig3_col2) +
-    plot_layout(guides = "collect", axes = "collect") &
-    ylab("Surface area of tissue (m²)")
+  # fig3 = (fig3_col1 | fig3_col2 | fig3_col3) +
+  # fig3 = (fig3_col1 | fig3_col3) +
+    plot_layout(guides = "collect", axes = "collect")  #&
+    # ylab("Surface area of tissue (m²)") &
+    # xlab("Day of ...  ")
+    # labs(x = "Day of outbreak",
+    #      y = "Surface area of tissue (m²)")
+  
+  # add annotation separately (must be done to avoid breaking axes collect)
+  fig3 <- fig3 + plot_annotation(tag_levels = "A") & 
+    theme(plot.tag.position = c(1, 1))  # Move labels to top right
   
   
   # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
   # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
   # quartz(h = 5, w = 3.35)
   # quartz(h = 6, w = 7.087)
-  quartz(h = 5, w = 5)
+  quartz(h = 4, w = 6)
   
   fig3
   
   # # Save the Quartz output directly as a PDF
   # quartz.save(file = here("output", "fig1.pdf"), type = "pdf")
   
-  # Close the Quartz device
-  dev.off()
+  # # Close the Quartz device
+  # dev.off()
   
