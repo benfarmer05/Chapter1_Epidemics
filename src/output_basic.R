@@ -111,7 +111,6 @@
     ungroup() %>%
     select(site, date, days.inf.site, time, SST)
   
-  
   #for DHW
   DHW_sites <- summary %>%
     group_by(site) %>%
@@ -314,11 +313,11 @@
       # sum_diff = sum_abs_diff_I + sum_abs_diff_R #this is the version where infections AND removal are fitted, not *just* removal
       sum_diff = sum_abs_diff_R
       
-      # #minimize using sum of squared differences
-      # sum_squared_diff_I = sum(sum(diff.inf^2))
-      # sum_squared_diff_R = sum(sum(diff.rem^2))
+      #minimize using sum of squared differences
+      sum_squared_diff_I = sum(sum(diff.inf^2))
+      sum_squared_diff_R = sum(sum(diff.rem^2))
       # sum_diff = sum_squared_diff_I + sum_squared_diff_R #this is the version where infections AND removal are fitted, not *just* removal
-      # sum_diff = sum_squared_diff_R
+      sum_diff = sum_squared_diff_R
       
       return(sum_diff) #minimized error
     }

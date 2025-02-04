@@ -226,30 +226,6 @@
       legend.title = element_blank()
     )
   
-  
-  pred_list <- lapply(gam_list, function(model) {
-    pred_data <- data.frame(x = seq(min(SA$x), max(SA$x), length.out = 200))
-    pred_data <- pred_data %>%
-      mutate(
-        fit = predict(model, newdata = pred_data, se.fit = TRUE)$fit,
-        se = predict(model, newdata = pred_data, se.fit = TRUE)$se.fit,
-        lower = fit - 1.96 * se,
-        upper = fit + 1.96 * se
-      )
-    return(pred_data)
-  })
-  
-  # Create the plot for all GAMs with confidence intervals
-  ggplot(SA, aes(x = x, y = y)) +
-    geom_point(alpha = 0.5) +  # Scatter plot of original data
-    lapply(1:length(gam_list), function(i) {
-      # Plot each GAM model's fit with confidence intervals
-      geom_line(data = pred_list[[i]], aes(x = x, y = fit), color = colors[i], size = 1) +  # GAM fit line
-        geom_ribbon(data = pred_list[[i]], aes(x = x, ymin = lower, ymax = upper), alpha = 0.2, fill = colors[i])  # Confidence intervals
-    }) +
-    labs(x = "Width (cm)", y = "Surface Area") +  # Customize labels
-    theme_minimal()
-  
   #Akaike comparison
   aic_values = AIC(SA.linear, SA.GAM, SA.GAM_identity, SA.GAM_linear, SA.GAM_cr, SA.GAM_gamma, SA.GAM_scaled, 
       SA.GAM_complex, SA.GAM_penalized, SA.GAM_log_y, SA.GAM_adaptive, SA.GAM_varying_knots,
@@ -290,8 +266,6 @@
       pred_gam_gamma_tp = predict(SA.GAM_gamma_tp, newdata = data.frame(x = Max_width), type = 'response'),
       pred_gam_gamma_ps = predict(SA.GAM_gamma_ps, newdata = data.frame(x = Max_width), type = 'response')
     )
-  
-
   
   # Plot predictions with ggplot
   ggplot(survey_predictions, aes(x = Max_width)) +
@@ -372,7 +346,6 @@
       legend.title = element_blank()
     )
   
-  
   # Generate predictions and confidence intervals
   plot_data <- smooth_estimates(SA.GAM_gamma_tp, smooth = "s(x)", overall = TRUE)
   
@@ -382,7 +355,6 @@
       lower_ci = .estimate - 1.96 * .se,  # 95% CI lower bound
       upper_ci = .estimate + 1.96 * .se   # 95% CI upper bound
     )
-  
   
   # Plot with confidence intervals
   ggplot(plot_data, aes(x = x, y = .estimate)) +
@@ -1502,6 +1474,6 @@
   #
   ### LAST STEPS TO PREP FOR PLOTTING AND DOWNSTREAM MODELING SCRIPTS
   
-  #save workspace for use in subsequent scripts
-  save.image(file = here("output", "data_processing_workspace.RData"))
+  # #save workspace for use in subsequent scripts
+  # save.image(file = here("output", "data_processing_workspace.RData"))
   
