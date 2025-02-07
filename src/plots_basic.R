@@ -753,7 +753,7 @@
   offshore.to.nearshore.basic = (p.fit.offshore.basic | p.I.fit.offshore.basic | p.D.fit.offshore.basic) / (p.fit.nearshore.basic | p.I.fit.nearshore.basic | p.D.fit.nearshore.basic) / (p.fit.off.to.near.basic | p.I.fit.off.to.near.basic | p.D.fit.off.to.near.basic)  + plot_layout(guides = "collect",
                                                                                                                                                                                                                                                                                           axis_titles = 'collect') &
     theme(legend.position = 'bottom') #& xlim(0, 325)
-  
+
   # #pass workspace to downstream script
   # save.image(file = here("output", "plots_basic_workspace.RData"))
   

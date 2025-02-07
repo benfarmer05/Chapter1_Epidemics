@@ -155,3 +155,10 @@ source("script3.R")
        - may consider doing some proportional plotting here, too. particularly for column 2. the visuals might be identical to as-is, but the y-axis would be more informative and demonstrate the proportionality of each susceptibility group to the total tissue demonstrated by column 1 (max possible y-value is 1.0, but would be lower and match the top of the curves)
        - figure out what to do with the thermal stress before/after. how best to visualize?
 
+# Notes 6 Feb 2025:
+- Meeting today with Dan; decided:
+- Include 'wave' column for error_eval table which tracks R-squared not just for the where the fit occurred (pre- or post-thermal threshold breach), but also for the entire outbreak (compare not just apples to apples, but also apples to oranges)
+- fig 3; maybe make a solid line turn to dotted after thermal threshold is breached / fitting stops or starts. and/or vertical line / shaded region
+    - also maybe symbols become red or open afterwards? symbols should also be smaller and perhaps have some transparency
+- finally, make a projected single-host DHW nearshore to offshore and just see what happens !
+

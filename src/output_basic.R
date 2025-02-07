@@ -10,6 +10,9 @@
   #import workspace from upstream script
   load(here("output", "plots_obs_workspace.RData"))
   
+  #all modeling output in this script is for a single-host SIR model
+  curr.host = 'Single-host'
+  
   #refactor names in 'obs' to match 'summary'
   obs.model <- obs %>%
     mutate(
@@ -49,9 +52,32 @@
   
   #NOTE - ideally, all preparation of days and days.model would happen outside of the loops below, making adjustment of fit to include/exclude
   #         days above SST/DHW thresholds easier. for now, this works
+  # NOTE - also, date_threshold should be coded dynamically based on the threshold value being used
   SST_threshold_value = 30.5 #the SST on the date that patient-zero SCTLD was backtracked to [could also try 30.5C, thermal stress threshold in corals]
-  DHW_threshold_value = 4.0 #4 is a threshold for coral bleaching in the literature; could try 3 (Whitaker 2024) or 2 (Gierz 2020)
-  date_threshold <- as.Date("2019-05-05") #this ensures that most of the first wave is able to occur, before 28C is reached for the second time
+  # DHW_threshold_value = 4.0 #4 is a threshold for coral bleaching in the literature; could try 3 (Whitaker 2024) or 2 (Gierz 2020)
+  DHW_threshold_value = NA
+  
+  #SST approach
+  # Find the date when the minimum SST occurs, to split apart 2018 and 2019's excessive heating events
+  min_sst_date <- DHW.CRW %>%
+    filter(SST.90th_HS == min(SST.90th_HS, na.rm = TRUE)) %>%
+    arrange(date) %>% 
+    slice(1) %>%  # In case there are multiple minimum values, pick the earliest one
+    pull(date)
+  
+  # Find the date (following the minimum SST date) just before SST exceeds the threshold
+  date_threshold <- DHW.CRW %>%
+    filter(date > min_sst_date, SST.90th_HS >= SST_threshold_value) %>%
+    arrange(date) %>%
+    slice(1) %>%
+    pull(date) - 1
+  
+  # Update Error_eval with metrics and thresholds
+  error_eval <- error_eval %>%
+    mutate(
+      SST_threshold = if_else(host == 'Single-host', SST_threshold_value, SST_threshold),
+      date_thresh = if_else(host == 'Single-host', date_threshold, date_thresh)
+    )
   
   # # Scenario 1 [maximum transmission modifier of 1.0, with 100% coral cover]
   #lambda of 3: R0 is extremely low (0.8 or something), no outbreak in Midchannel
@@ -142,6 +168,7 @@
     ungroup() %>%
     select(site, date, days.inf.site, time, DHW)
   
+  ################################## Model: single-host ##################################
   SIR = function(t,y,p){ # 'p' is parameters or params
     {
       S = y[1]
@@ -166,6 +193,7 @@
   
   my.SIRS.basic = vector('list', length(sites))
   params.basic = vector('list', length(sites))
+  curr.type = 'Fitted' #the below is for a basic fitting model for single-host transmission (no DHW or projection)
   
   for(i in 1:length(sites)){
     
@@ -225,7 +253,7 @@
     S.tiss = N.site - I.tiss
     R.tiss = 0
     
-    ############################## optimize parameters ##############################
+    ################################## Optimize single-host model ##################################
     # Set up the data and initial conditions
     coraldata.tiss = list(inftiss, remtiss)
     initial_state.tiss = c(S.tiss, I.tiss, R.tiss, N.site, cover.site)
@@ -233,8 +261,8 @@
     objective_function = function(params, data, time, initial_state){
       
       # #testing
-      # betas = 2.0
-      # gammas = 1.0
+      # betas = 4 #betas = 3.91
+      # gammas = 3.12 #gammas = 3.01
       # lambdas = 1.0
       # initial_state = initial_state.tiss
       # time = days.model
@@ -274,10 +302,14 @@
       # Extract simulated values at matching time points in SIR.out for trimmed days.obs
       sim.inf <- SIR.out[which(SIR.out$time %in% days.obs_trimmed), which(colnames(SIR.out) %in% 'I')]
       sim.rem <- SIR.out[which(SIR.out$time %in% days.obs_trimmed), which(colnames(SIR.out) %in% 'R')]
+      sim.inf.total = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'I')]
+      sim.rem.total = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R')]
       
       # Extract observed values for the trimmed days.obs
       obs.inf <- unlist(data[[1]])[days.obs < time_cutoff]  # NOTE - this is a bit hard-coded; refer to this line if there are bugs
       obs.rem <- unlist(data[[2]])[days.obs < time_cutoff]  # NOTE - this is a bit hard-coded; refer to this line if there are bugs
+      obs.inf.total = unlist(data[[1]])
+      obs.rem.total = unlist(data[[2]])
       
       # # NOTE - this was a version where fit was not constrained to the first epidemic wave
       # #extract simulated values at time points matching observations
@@ -303,25 +335,75 @@
       # # sim.rem = sim.rem/rem.inf.ratio
       
       # Calculate residuals
-      diff.inf = (sim.inf - obs.inf)
+      # diff.inf = (sim.inf - obs.inf)
       diff.rem = (sim.rem - obs.rem)
+      diff.rem.total = (sim.rem.total - obs.rem.total)
       
-      #aggregate sum of absolute differences
-      # NOTE - this is not sum of squares and should be clearly stated/defended in the manuscript
-      sum_abs_diff_I = sum(sum(abs(diff.inf))) #can multiply this by 2 or similar to weight it extra
-      sum_abs_diff_R = sum(sum(abs(diff.rem)))
-      # sum_diff = sum_abs_diff_I + sum_abs_diff_R #this is the version where infections AND removal are fitted, not *just* removal
-      sum_diff = sum_abs_diff_R
+      # #aggregate sum of absolute residuals
+      # # NOTE - this is not sum of squares and should be clearly stated/defended in the manuscript if used
+      # sum_abs_diff_I = sum(sum(abs(diff.inf))) #can multiply this by 2 or similar to weight it extra
+      # sum_abs_diff_R = sum(sum(abs(diff.rem)))
+      # # sum_diff = sum_abs_diff_I + sum_abs_diff_R #this is the version where infections AND removal are fitted, not *just* removal
+      # sum_diff = sum_abs_diff_R
       
-      #minimize using sum of squared differences
-      sum_squared_diff_I = sum(sum(diff.inf^2))
-      sum_squared_diff_R = sum(sum(diff.rem^2))
-      # sum_diff = sum_squared_diff_I + sum_squared_diff_R #this is the version where infections AND removal are fitted, not *just* removal
-      sum_diff = sum_squared_diff_R
+      # #decided to just focus on removal for fit
+      # #minimize using sum of squared residuals
+      # sum_squared_diff_I = sum(diff.inf^2)
+      # sum_squared_diff_R = sum(diff.rem^2)
+      # # sum_diff = sum_squared_diff_I + sum_squared_diff_R #this is the version where infections AND removal are fitted, not *just* removal
+      # sum_diff = sum_squared_diff_R
       
-      return(sum_diff) #minimized error
+      #minimize using sum of squared residuals
+      sum_diff = sum(diff.rem^2)
+      sum_diff.total = sum(diff.rem.total^2)
+      
+      # NOTE - see Kalizhanova et al. 2024 (TB SIR) for other error assessments - including mean absolute error (MAE)
+      # Total Sum of Squares (TSS) for removal only
+      mean_obs_rem = mean(obs.rem, na.rm = TRUE)  # Compute mean of observed removals
+      tss_rem = sum((obs.rem - mean_obs_rem)^2)   # Sum of squared differences from mean
+      mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
+      tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+      
+      #R-squared
+      r_squared_rem = 1 - (sum_diff / tss_rem)
+      r_squared_rem.total = 1 - (sum_diff.total / tss_rem.total)
+      
+      # Update the Error_eval dataframe with current settings using dplyr
+      # error_eval <<- error_eval %>%
+      #   mutate(
+      #     SSR = if_else(site == site.loop & host == curr.host & type == curr.type, sum_diff, SSR),
+      #     TSS = if_else(site == site.loop & host == curr.host & type == curr.type, tss_rem, TSS),
+      #     R_squared = if_else(site == site.loop & host == curr.host & type == curr.type, r_squared_rem, R_squared),
+      #     
+      #     # Update list-columns with vectors
+      #     sim_inf = if_else(site == site.loop & host == curr.host & type == curr.type, list(sim.inf), sim_inf),
+      #     sim_rem = if_else(site == site.loop & host == curr.host & type == curr.type, list(sim.rem), sim_rem),
+      #     obs_inf = if_else(site == site.loop & host == curr.host & type == curr.type, list(obs.inf), obs_inf),
+      #     obs_rem = if_else(site == site.loop & host == curr.host & type == curr.type, list(obs.rem), obs_rem)
+      #   )
+      
+      error_eval <<- error_eval %>%
+        mutate(
+          SSR = if_else(site == site.loop & host == curr.host & type == curr.type, 
+                        if_else(wave == 'Pre-heat', sum_diff, if_else(wave == 'Both', sum_diff.total, SSR)), SSR),
+          TSS = if_else(site == site.loop & host == curr.host & type == curr.type, 
+                        if_else(wave == 'Pre-heat', tss_rem, if_else(wave == 'Both', tss_rem.total, TSS)), TSS),
+          R_squared = if_else(site == site.loop & host == curr.host & type == curr.type, 
+                              if_else(wave == 'Pre-heat', r_squared_rem, if_else(wave == 'Both', r_squared_rem.total, R_squared)), R_squared),
+          
+          # Update list-columns with vectors
+          sim_inf = if_else(site == site.loop & host == curr.host & type == curr.type, 
+                            if_else(wave == 'Pre-heat', list(sim.inf), if_else(wave == 'Both', list(sim.inf.total), sim_inf)), sim_inf),
+          sim_rem = if_else(site == site.loop & host == curr.host & type == curr.type, 
+                            if_else(wave == 'Pre-heat', list(sim.rem), if_else(wave == 'Both', list(sim.rem.total), sim_rem)), sim_rem),
+          obs_inf = if_else(site == site.loop & host == curr.host & type == curr.type, 
+                            if_else(wave == 'Pre-heat', list(obs.inf), if_else(wave == 'Both', list(obs.inf.total), obs_inf)), obs_inf),
+          obs_rem = if_else(site == site.loop & host == curr.host & type == curr.type, 
+                            if_else(wave == 'Pre-heat', list(obs.rem), if_else(wave == 'Both', list(obs.rem.total), obs_rem)), obs_rem)
+        )
+      
+      return(sum_diff) #return only the epidemic wave being fit to
     }
-    ############################## OPTIMIZE PARAMETERS ############################################################
     
     # uniform
     lower_bounds.tiss = c(0, 0, lambda.modifier)  #lower bounds for beta, gamma and lambda
@@ -367,20 +449,7 @@
     my.SIRS.basic[[i]] = SIR.out.tiss
   }
   
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  ################ RUN SECOND FITTING FOR EFFECT OF SEA SURFACE TEMPERATURE ################
-  #
+  ################################## Model: thermal stress w/ single-host ##################################
   SIR.DHW = function(t,y,p,SST,DHW){ # 'p' is parameters or params
     {
       S = y[1]
@@ -464,6 +533,7 @@
   
   my.SIRS.basic.DHW = vector('list', length(sites))
   params.basic.DHW = vector('list', length(sites))
+  curr.type = 'DHW' #the below is for a model of single-host transmission, with consideration of thermal stress
   
   for(i in 1:length(sites)){
     
@@ -546,7 +616,7 @@
     S.tiss = N.site - I.tiss
     R.tiss = 0
     
-    ############################## optimize parameters ##############################
+    ################################## Optimize thermal-stress single-host model ##################################
     # Set up the data and initial conditions
     coraldata.tiss = list(inftiss, remtiss)
     initial_state.tiss = c(S.tiss, I.tiss, R.tiss, N.site, cover.site)
@@ -559,8 +629,8 @@
     objective_function = function(params, data, time, initial_state){
       
       # #testing
-      # betas = 2.0
-      # gammas = 1.0
+      # betas = 3.91
+      # gammas = 3.01
       # lambdas = 1.0
       # zetas = 0.89
       # etas = 0.70
@@ -610,10 +680,14 @@
       # Extract simulated values at matching time points in SIR.out for trimmed days.obs
       sim.inf <- SIR.out[which(SIR.out$time %in% days.obs_trimmed), which(colnames(SIR.out) %in% 'I')]
       sim.rem <- SIR.out[which(SIR.out$time %in% days.obs_trimmed), which(colnames(SIR.out) %in% 'R')]
-      
+      sim.inf.total = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'I')]
+      sim.rem.total = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R')]
+
       # Extract observed values for the trimmed days.obs
       obs.inf <- unlist(data[[1]])[days.obs >= time_cutoff]  # NOTE - this is a bit hard-coded; refer to this line if there are bugs
       obs.rem <- unlist(data[[2]])[days.obs >= time_cutoff]  # NOTE - this is a bit hard-coded; refer to this line if there are bugs
+      obs.inf.total = unlist(data[[1]])
+      obs.rem.total = unlist(data[[2]])
       
       # # NOTE - this was a version where fit was not constrained to the first epidemic wave
       # #extract simulated values at time points matching observations
@@ -639,26 +713,63 @@
       # # sim.rem = sim.rem/rem.inf.ratio
       
       # Calculate residuals
-      diff.inf = (sim.inf - obs.inf)
+      # diff.inf = (sim.inf - obs.inf)
       diff.rem = (sim.rem - obs.rem)
+      diff.rem.total = (sim.rem.total - obs.rem.total)
       
-      #aggregate sum of absolute differences
-      # NOTE - this is not sum of squares and should be clearly stated/defended in the manuscript
-      sum_abs_diff_I = sum(sum(abs(diff.inf))) #can multiply this by 2 or similar to weight it extra
-      sum_abs_diff_R = sum(sum(abs(diff.rem)))
-      # sum_diff = sum_abs_diff_I + sum_abs_diff_R #this is the version where infections AND removal are fitted, not *just* removal
-      sum_diff = sum_abs_diff_R
+      # #aggregate sum of absolute differences
+      # # NOTE - this is not sum of squares and should be clearly stated/defended in the manuscript
+      # sum_abs_diff_I = sum(sum(abs(diff.inf))) #can multiply this by 2 or similar to weight it extra
+      # sum_abs_diff_R = sum(sum(abs(diff.rem)))
+      # # sum_diff = sum_abs_diff_I + sum_abs_diff_R #this is the version where infections AND removal are fitted, not *just* removal
+      # sum_diff = sum_abs_diff_R
       
+      # # # decided to just focus on removal for fit
       # #minimize using sum of squared differences
       # sum_squared_diff_I = sum(sum(diff.inf^2))
       # sum_squared_diff_R = sum(sum(diff.rem^2))
       # sum_diff = sum_squared_diff_I + sum_squared_diff_R #this is the version where infections AND removal are fitted, not *just* removal
       # sum_diff = sum_squared_diff_R
       
-      return(sum_diff) #minimized error
+      #minimize using sum of squared residuals
+      sum_diff = sum(diff.rem^2)
+      sum_diff.total = sum(diff.rem.total^2)
+      
+      # NOTE - see Kalizhanova et al. 2024 (TB SIR) for other error assessments - including mean absolute error (MAE)
+      # Total Sum of Squares (TSS) for removal only
+      mean_obs_rem = mean(obs.rem, na.rm = TRUE)  # Compute mean of observed removals
+      tss_rem = sum((obs.rem - mean_obs_rem)^2)   # Sum of squared differences from mean
+      mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)  # Compute mean of observed removals
+      tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)   # Sum of squared differences from mean
+      
+      #R-squared
+      r_squared_rem = 1 - (sum_diff / tss_rem)
+      r_squared_rem.total = 1 - (sum_diff.total / tss_rem.total)
+      
+      # Update the Error_eval dataframe with current settings using dplyr
+      error_eval <<- error_eval %>%
+        mutate(
+          SSR = if_else(site == site.loop & host == curr.host & type == curr.type, 
+                        if_else(wave == 'Post-heat', sum_diff, if_else(wave == 'Both', sum_diff.total, SSR)), SSR),
+          TSS = if_else(site == site.loop & host == curr.host & type == curr.type, 
+                        if_else(wave == 'Post-heat', tss_rem, if_else(wave == 'Both', tss_rem.total, TSS)), TSS),
+          R_squared = if_else(site == site.loop & host == curr.host & type == curr.type, 
+                              if_else(wave == 'Post-heat', r_squared_rem, if_else(wave == 'Both', r_squared_rem.total, R_squared)), R_squared),
+          
+          # Update list-columns with vectors
+          sim_inf = if_else(site == site.loop & host == curr.host & type == curr.type, 
+                            if_else(wave == 'Post-heat', list(sim.inf), if_else(wave == 'Both', list(sim.inf.total), sim_inf)), sim_inf),
+          sim_rem = if_else(site == site.loop & host == curr.host & type == curr.type, 
+                            if_else(wave == 'Post-heat', list(sim.rem), if_else(wave == 'Both', list(sim.rem.total), sim_rem)), sim_rem),
+          obs_inf = if_else(site == site.loop & host == curr.host & type == curr.type, 
+                            if_else(wave == 'Post-heat', list(obs.inf), if_else(wave == 'Both', list(obs.inf.total), obs_inf)), obs_inf),
+          obs_rem = if_else(site == site.loop & host == curr.host & type == curr.type, 
+                            if_else(wave == 'Post-heat', list(obs.rem), if_else(wave == 'Both', list(obs.rem.total), obs_rem)), obs_rem)
+        )
+      
+      return(sum_diff)
     }
-    ############################## OPTIMIZE PARAMETERS ############################################################
-    
+
     # lower_bounds.tiss = c(0.01, 0.01)  # Lower bounds for zeta and eta
     # upper_bounds.tiss = c(1.0, 1.0)          # Upper bounds for zeta and eta
     # lower_bounds.tiss = c(0.01, 0.01)  # Lower bounds for zeta and eta
@@ -696,9 +807,6 @@
                                   DHW = DHW_df))
     my.SIRS.basic.DHW[[i]] = SIR.out.tiss
   }
-  #
-  ################ RUN SECOND FITTING FOR EFFECT OF SEA SURFACE TEMPERATURE ################
-  
   
   # STOPPING POINT - 12 NOV 2024
   # 1.) Still need to try this with DHWs and see if I can produce a less wiggly output
@@ -716,6 +824,6 @@
   # 7.) Try smoothing the SST data to isolate the trend and eliminate some noise
   #       - Not done yet!
   
-  #pass workspace to downstream script
-  save.image(file = here("output", "basic_SIR_workspace.RData"))
+  # #pass workspace to downstream script
+  # save.image(file = here("output", "basic_SIR_workspace.RData"))
   

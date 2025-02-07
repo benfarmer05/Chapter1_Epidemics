@@ -1474,6 +1474,51 @@
   #
   ### LAST STEPS TO PREP FOR PLOTTING AND DOWNSTREAM MODELING SCRIPTS
   
+  # ### CREATE ERROR EVALUATION DATAFRAME
+  # # Define combinations of sites, hosts, and model types
+  # sites <- c("off", "mid", "near")
+  # hosts <- c("Single-host", "Multi-host")
+  # types <- c("Fitted", "DHW", "Projected")
+  # 
+  # # Create an empty Error_eval dataframe with all combinations
+  # error_eval <- expand.grid(site = sites, 
+  #                           host = hosts, 
+  #                           type = types, 
+  #                           SSR = NA, 
+  #                           TSS = NA, 
+  #                           R_squared = NA, 
+  #                           stringsAsFactors = FALSE)
+  # ### CREATE ERROR EVALUATION DATAFRAME
+  
+  library(tibble)
+  
+  # Define combinations of sites, hosts, and model types
+  sites <- c("off", "mid", "near")
+  hosts <- c("Single-host", "Multi-host")
+  types <- c("Fitted", "DHW", "Projected")
+  waves = c("Pre-heat", "Post-heat", "Both")
+  
+  # Create an empty tibble with all combinations and list columns for vectors
+  error_eval <- expand.grid(site = sites, 
+                            host = hosts, 
+                            type = types, 
+                            wave = waves,
+                            stringsAsFactors = FALSE) %>%
+    as_tibble() %>%
+    mutate(
+      SST_threshold = NA,
+      DHW_threshold = NA,
+      date_thresh = as.Date(NA),
+      # SSR_optimizer = NA_real_, #residual sum of squares used for fitting optimization
+      SSR = NA_real_, #residual sum of squared residuals
+      TSS = NA_real_, #total sum of squares for entire outbreak
+      R_squared = NA_real_, #R-squared (1 - SSR / TSS) for entire outbreak
+      sim_inf = vector("list", n()),  # List-column for simulated infected
+      sim_rem = vector("list", n()),  # List-column for simulated removed
+      obs_inf = vector("list", n()),  # List-column for observed infected
+      obs_rem = vector("list", n())   # List-column for observed removed
+    )
+  
   # #save workspace for use in subsequent scripts
   # save.image(file = here("output", "data_processing_workspace.RData"))
   
