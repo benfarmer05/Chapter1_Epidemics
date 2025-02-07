@@ -88,7 +88,8 @@
   #lambda of 0.7: R0 is high (1.05), a late and too-strong outbreak in Midchannel still. offshore looks GREAT, though
   #lambda of 0.5: R0 is high (1.06), a somewhat late and too-strong outbreak in Midchannel
   
-  lambda.modifier = 1.0
+  # lambda.modifier = 1.0 # NOTE - 7 feb 2025 - used this for a long time. revert to it if there are issues
+  lambda.modifier = 1.15
   offset = 1 - 1 / (1 + exp(-lambda.modifier))
   
   sites = unique(summary$site)
@@ -299,13 +300,13 @@
       # Trim days.obs and SIR.out based on the time_cutoff
       days.obs_trimmed <- days.obs[days.obs < time_cutoff]
       
-      # Extract simulated values at matching time points in SIR.out for trimmed days.obs
+      # Extract simulated values
       sim.inf <- SIR.out[which(SIR.out$time %in% days.obs_trimmed), which(colnames(SIR.out) %in% 'I')]
       sim.rem <- SIR.out[which(SIR.out$time %in% days.obs_trimmed), which(colnames(SIR.out) %in% 'R')]
       sim.inf.total = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'I')]
       sim.rem.total = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R')]
       
-      # Extract observed values for the trimmed days.obs
+      # Extract observed values
       obs.inf <- unlist(data[[1]])[days.obs < time_cutoff]  # NOTE - this is a bit hard-coded; refer to this line if there are bugs
       obs.rem <- unlist(data[[2]])[days.obs < time_cutoff]  # NOTE - this is a bit hard-coded; refer to this line if there are bugs
       obs.inf.total = unlist(data[[1]])
@@ -368,20 +369,6 @@
       r_squared_rem = 1 - (sum_diff / tss_rem)
       r_squared_rem.total = 1 - (sum_diff.total / tss_rem.total)
       
-      # Update the Error_eval dataframe with current settings using dplyr
-      # error_eval <<- error_eval %>%
-      #   mutate(
-      #     SSR = if_else(site == site.loop & host == curr.host & type == curr.type, sum_diff, SSR),
-      #     TSS = if_else(site == site.loop & host == curr.host & type == curr.type, tss_rem, TSS),
-      #     R_squared = if_else(site == site.loop & host == curr.host & type == curr.type, r_squared_rem, R_squared),
-      #     
-      #     # Update list-columns with vectors
-      #     sim_inf = if_else(site == site.loop & host == curr.host & type == curr.type, list(sim.inf), sim_inf),
-      #     sim_rem = if_else(site == site.loop & host == curr.host & type == curr.type, list(sim.rem), sim_rem),
-      #     obs_inf = if_else(site == site.loop & host == curr.host & type == curr.type, list(obs.inf), obs_inf),
-      #     obs_rem = if_else(site == site.loop & host == curr.host & type == curr.type, list(obs.rem), obs_rem)
-      #   )
-      
       error_eval <<- error_eval %>%
         mutate(
           SSR = if_else(site == site.loop & host == curr.host & type == curr.type, 
@@ -402,7 +389,7 @@
                             if_else(wave == 'Pre-heat', list(obs.rem), if_else(wave == 'Both', list(obs.rem.total), obs_rem)), obs_rem)
         )
       
-      return(sum_diff) #return only the epidemic wave being fit to
+      return(sum_diff) #return only the residual metric for the epidemic wave being fit to
     }
     
     # uniform
