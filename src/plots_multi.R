@@ -11,6 +11,9 @@
   
   #import workspace from upstream script
   load(here("output/multi_SIR_workspace.RData"))
+  
+  ################################## Set-up ##################################
+  
   # load(here("output/pre_DHW_integration_and_cover_ratio_9Oct2024/multi_SIR_workspace_01_125_15.RData"))
   
   # obs.multi = obs.multi %>%
@@ -38,6 +41,8 @@
   theme_set(theme_classic(base_family = "Arial"))
   update_geom_defaults("text", list(colour = "black", family = theme_get()$text$family))
   # display.brewer.all(colorblindFriendly = TRUE)
+  
+  ################################## Fitted whole-outbreak ##################################
   
   # Nearshore
   site.loop = 'Nearshore'
@@ -424,8 +429,7 @@
   
   # p.fit.offshore;p.I.fit.offshore;p.D.fit.offshore
   
-  ##############################################################################################################################
-  #development
+  ################################## Plots  ##################################
   
   # # Observations only [lines are observations]
   # #overlaid
@@ -450,9 +454,9 @@
   (p.I.fit.offshore.multi | p.I.fit.midchannel.multi | p.I.fit.nearshore.multi) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
   (p.D.fit.offshore.multi | p.D.fit.midchannel.multi | p.D.fit.nearshore.multi) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
   
-  ##############################################################################################################################
-  # PREDICT OUTBREAKS FROM INITIAL CONDTIONS
-  
+
+  ################################## Project outbreaks  ##################################
+    
   site.loop = 'Offshore'
   
   # Calculate the indices to keep based on HS.inftiss.offshore (the high-susceptibility corals kick off the epidemic at every site)
@@ -532,7 +536,7 @@
                                                 # S.HS = S.HS.offshore, I.HS = I.HS.offshore, R.HS = R.HS.offshore,
                                                 # P = P.offshore),
                                                 S.HS = S.HS.offshore, I.HS = I.HS.offshore, R.HS = R.HS.offshore),
-                                              days.model.offshore, SIR, c(b.LS = beta.nearshore.LS, g.LS = gamma.nearshore.LS,
+                                              days.model.offshore, SIR.multi, c(b.LS = beta.nearshore.LS, g.LS = gamma.nearshore.LS,
                                                            b.MS = beta.nearshore.MS, g.MS = gamma.nearshore.MS,
                                                            b.HS = beta.nearshore.HS, g.HS = gamma.nearshore.HS,
                                                            N.LS = N.LS.offshore, N.MS = N.MS.offshore, N.HS = N.HS.offshore,
@@ -631,7 +635,7 @@
                                               # S.HS = S.HS.midchannel, I.HS = I.HS.midchannel, R.HS = R.HS.midchannel,
                                               # P = P.midchannel),
                                               S.HS = S.HS.midchannel, I.HS = I.HS.midchannel, R.HS = R.HS.midchannel),
-                                            days.model.midchannel, SIR, c(b.LS = beta.nearshore.LS, g.LS = gamma.nearshore.LS,
+                                            days.model.midchannel, SIR.multi, c(b.LS = beta.nearshore.LS, g.LS = gamma.nearshore.LS,
                                                                         b.MS = beta.nearshore.MS, g.MS = gamma.nearshore.MS,
                                                                         b.HS = beta.nearshore.HS, g.HS = gamma.nearshore.HS,
                                                                         N.LS = N.LS.midchannel, N.MS = N.MS.midchannel, N.HS = N.HS.midchannel,
@@ -719,7 +723,7 @@
                                               # S.HS = S.HS.nearshore, I.HS = I.HS.nearshore, R.HS = R.HS.nearshore,
                                               # P = P.nearshore),
                                               S.HS = S.HS.nearshore, I.HS = I.HS.nearshore, R.HS = R.HS.nearshore),
-                                            days.model.nearshore, SIR, c(b.LS = beta.offshore.LS, g.LS = gamma.offshore.LS,
+                                            days.model.nearshore, SIR.multi, c(b.LS = beta.offshore.LS, g.LS = gamma.offshore.LS,
                                                                           b.MS = beta.offshore.MS, g.MS = gamma.offshore.MS,
                                                                           b.HS = beta.offshore.HS, g.HS = gamma.offshore.HS,
                                                                           N.LS = N.LS.nearshore, N.MS = N.MS.nearshore, N.HS = N.HS.nearshore,
@@ -813,7 +817,7 @@
                                               # S.HS = S.HS.midchannel, I.HS = I.HS.midchannel, R.HS = R.HS.midchannel,
                                               # P = P.midchannel),
                                               S.HS = S.HS.midchannel, I.HS = I.HS.midchannel, R.HS = R.HS.midchannel),
-                                           days.model.midchannel, SIR, c(b.LS = beta.offshore.LS, g.LS = gamma.offshore.LS,
+                                           days.model.midchannel, SIR.multi, c(b.LS = beta.offshore.LS, g.LS = gamma.offshore.LS,
                                                                          b.MS = beta.offshore.MS, g.MS = gamma.offshore.MS,
                                                                          b.HS = beta.offshore.HS, g.HS = gamma.offshore.HS,
                                                                          N.LS = N.LS.midchannel, N.MS = N.MS.midchannel, N.HS = N.HS.midchannel,
@@ -906,6 +910,7 @@
     theme(legend.position = 'bottom') #& xlim(0, 325)
   
   
+  ################################## Save workspace  ##################################
   
   # #pass workspace to downstream script
   # save.image(file = here("output", "plots_multi_workspace.RData"))

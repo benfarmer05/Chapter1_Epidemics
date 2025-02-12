@@ -263,14 +263,14 @@
     
     objective_function = function(params, data, time, initial_state){
       
-      # #testing
-      # betas = 4 #betas = 3.91
-      # gammas = 3.12 #gammas = 3.01
-      # lambdas = 1.0
-      # initial_state = initial_state.tiss
-      # time = days.model
-      # data = coraldata.tiss
-  
+      #testing
+      betas = 4 #betas = 3.91
+      gammas = 3.12 #gammas = 3.01
+      lambdas = 1.0
+      initial_state = initial_state.tiss
+      time = days.model
+      data = coraldata.tiss
+
       betas = params[1]
       gammas = params[2]
       lambdas = params[3]

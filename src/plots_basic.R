@@ -637,6 +637,10 @@
   p.fit.offshore.basic.DHW
   
   ################################## Project outbreaks  ##################################
+  curr.host <- "Single-host"
+  curr.type <- "Projected"
+  curr.wave = "Full"
+  
   days.model.offshore = unique(output.basic.offshore$days.model)
   days.model.midchannel = unique(output.basic.midchannel$days.model)
   days.model.nearshore = unique(output.basic.nearshore$days.model)
@@ -663,6 +667,12 @@
   
   #run SIR for Offshore based on fit from Nearshore
   site.loop = 'Offshore'
+  curr.site = 'off'
+  days.obs <- days_sites %>%
+    filter(site == curr.site) %>%
+    pull(days.obs) %>%
+    unlist() 
+  
   I.offshore = inftiss.offshore[1]
   # I.offshore = 1e-4 #m2 - equivalent to 100 mm2, which is a rough approximation of a fully infected medium-sized coral polyp
   S.offshore = N.offshore - I.offshore
@@ -675,6 +685,30 @@
                                                 l = lambda.nearshore,
                                                 C = cover.offshore)))
 
+  #calculate R-squared and update error table
+  # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
+  sim.rem.total = output.basic.offshore.transfer[which(output.basic.offshore.transfer$time %in% days.obs), which(colnames(output.basic.offshore.transfer) %in% 'R')]
+  obs.rem.total = obs.model %>%
+    filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
+    slice(head(row_number(), n()-DHW.modifier)) %>%
+    pull(tissue)
+  first_valid_idx <- which(!is.na(days))[1] #find the first non-NA index
+  obs.rem.total <- obs.rem.total[first_valid_idx:length(obs.rem.total)]
+  
+  diff.rem.total = (sim.rem.total - obs.rem.total)
+  sum_diff.total = sum(diff.rem.total^2)
+  mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
+  tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+  r_squared.near.to.off.basic = 1 - (sum_diff.total / tss_rem.total)
+  
+  error_eval <- error_eval %>%
+  mutate(R_squared = ifelse(site == curr.site & 
+                              host == curr.host & 
+                              type == curr.type & 
+                              wave == curr.wave,
+                            r_squared.near.to.off.basic,
+                            R_squared))
+  
   output.basic.offshore.transfer = pivot_longer(output.basic.offshore.transfer, cols = -1, names_to = c("Compartment")) %>%
     mutate(Compartment = ifelse(Compartment == "", "value", Compartment)) %>%
     mutate(Compartment = ifelse(Compartment == 'S', 'Susceptible',
@@ -900,52 +934,6 @@
   offshore.to.nearshore.basic = (p.fit.offshore.basic | p.I.fit.offshore.basic | p.D.fit.offshore.basic) / (p.fit.nearshore.basic | p.I.fit.nearshore.basic | p.D.fit.nearshore.basic) / (p.fit.off.to.near.basic | p.I.fit.off.to.near.basic | p.D.fit.off.to.near.basic)  + plot_layout(guides = "collect",
                                                                                                                                                                                                                                                                                           axis_titles = 'collect') &
     theme(legend.position = 'bottom') #& xlim(0, 325)
-  
-  ################################## Plots quick  ##################################
-  # # Observations only [lines are observations]
-  # #overlaid
-  # ggplot(data = obs, aes(days.inf.site, tissue, colour = Compartment, linetype = Category, shape = Site)) +
-  #   xlab("Day of observation period") +
-  #   ylab("Surface area of tissue") +
-  #   ggtitle(paste(c("", 'All sites'), collapse="")) +
-  #   geom_line() +
-  #   scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
-  #   theme_classic(base_family = 'Georgia')
-  
-  #facet-wrapped observations
-  (p.SIR.offshore.basic | p.SIR.midchannel.basic | p.SIR.nearshore.basic) + plot_layout(guides = "collect") & theme(legend.position = 'bottom') #&
-  # scale_color_brewer(name = 'Disease compartment', labels = c("High", "Low", "Medium"), palette = 'Dark2')
-  
-  # Infection observations only [lines are observations]
-  (p.I.offshore.basic | p.I.midchannel.basic | p.I.nearshore.basic) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
-  
-  #whole outbreak simulations
-  (p.fit.offshore.basic | p.fit.midchannel.basic | p.fit.nearshore.basic) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
-  (p.fit.offshore.basic.full | p.fit.midchannel.basic.full | p.fit.nearshore.basic.full) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
-  (p.fit.offshore.basic.DHW | p.fit.midchannel.basic.DHW | p.fit.nearshore.basic.DHW) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
-  
-  #projection vs fitted
-  (p.fit.offshore.basic | p.fit.near.to.off.basic)
-  (p.fit.nearshore.basic | p.fit.off.to.near.basic)
-  (p.fit.midchannel.basic | p.fit.near.to.mid.basic)
-  
-  #susceptible compartment
-  (p.S.fit.offshore.basic | p.S.fit.midchannel.basic | p.S.fit.nearshore.basic) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
-  (p.S.fit.offshore.basic.DHW | p.S.fit.midchannel.basic.DHW | p.S.fit.nearshore.basic.DHW) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
-  
-  #infected compartment
-  (p.I.fit.offshore.basic | p.I.fit.midchannel.basic | p.I.fit.nearshore.basic) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
-  (p.I.fit.offshore.basic.DHW | p.I.fit.midchannel.basic.DHW | p.I.fit.nearshore.basic.DHW) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
-  (p.I.fit.near.to.off.basic | p.I.fit.off.to.near.basic)
-  
-  #dead compartment
-  (p.D.fit.offshore.basic | p.D.fit.midchannel.basic | p.D.fit.nearshore.basic) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
-  (p.D.fit.offshore.basic.DHW | p.D.fit.midchannel.basic.DHW | p.D.fit.nearshore.basic.DHW) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
-  
-  # STOPPING POINT - 11 FEB 2025
-  #   - need to add R-squared to projected fit. also, decide if want to project from pre-thermal stress, thermal stress, or whole-outbreak fit
-  #   - then need to do the same for multi-host model
-  
   
   ################################## Thermal projections  ##################################
   site.loop = 'Offshore'
@@ -1201,7 +1189,50 @@
     theme(legend.position = 'bottom') #& xlim(0, 325)
   
   
+  ################################## Plots ##################################
+  # # Observations only [lines are observations]
+  # #overlaid
+  # ggplot(data = obs, aes(days.inf.site, tissue, colour = Compartment, linetype = Category, shape = Site)) +
+  #   xlab("Day of observation period") +
+  #   ylab("Surface area of tissue") +
+  #   ggtitle(paste(c("", 'All sites'), collapse="")) +
+  #   geom_line() +
+  #   scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
+  #   theme_classic(base_family = 'Georgia')
   
+  #facet-wrapped observations
+  (p.SIR.offshore.basic | p.SIR.midchannel.basic | p.SIR.nearshore.basic) + plot_layout(guides = "collect") & theme(legend.position = 'bottom') #&
+  # scale_color_brewer(name = 'Disease compartment', labels = c("High", "Low", "Medium"), palette = 'Dark2')
+  
+  # Infection observations only [lines are observations]
+  (p.I.offshore.basic | p.I.midchannel.basic | p.I.nearshore.basic) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+  
+  #whole outbreak simulations
+  (p.fit.offshore.basic | p.fit.midchannel.basic | p.fit.nearshore.basic) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+  (p.fit.offshore.basic.full | p.fit.midchannel.basic.full | p.fit.nearshore.basic.full) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+  (p.fit.offshore.basic.DHW | p.fit.midchannel.basic.DHW | p.fit.nearshore.basic.DHW) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+  
+  #projection vs fitted
+  (p.fit.offshore.basic | p.fit.near.to.off.basic)
+  (p.fit.nearshore.basic | p.fit.off.to.near.basic)
+  (p.fit.midchannel.basic | p.fit.near.to.mid.basic)
+  
+  #susceptible compartment
+  (p.S.fit.offshore.basic | p.S.fit.midchannel.basic | p.S.fit.nearshore.basic) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+  (p.S.fit.offshore.basic.DHW | p.S.fit.midchannel.basic.DHW | p.S.fit.nearshore.basic.DHW) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+  
+  #infected compartment
+  (p.I.fit.offshore.basic | p.I.fit.midchannel.basic | p.I.fit.nearshore.basic) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+  (p.I.fit.offshore.basic.DHW | p.I.fit.midchannel.basic.DHW | p.I.fit.nearshore.basic.DHW) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+  (p.I.fit.near.to.off.basic | p.I.fit.off.to.near.basic)
+  
+  #dead compartment
+  (p.D.fit.offshore.basic | p.D.fit.midchannel.basic | p.D.fit.nearshore.basic) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+  (p.D.fit.offshore.basic.DHW | p.D.fit.midchannel.basic.DHW | p.D.fit.nearshore.basic.DHW) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+  
+  # STOPPING POINT - 11 FEB 2025
+  #   - need to add R-squared to projected fit. also, decide if want to project from pre-thermal stress, thermal stress, or whole-outbreak fit
+  #   - then need to do the same for multi-host model
   
   ################################## Save workspace  ##################################
   

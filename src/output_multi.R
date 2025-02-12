@@ -7,6 +7,8 @@
   library(DEoptim)
   library(deSolve)
   
+  ################################## Set-up ##################################
+  
   #import workspace from upstream script
   load(here("output/plots_basic_workspace.RData"))
   
@@ -88,7 +90,8 @@
   offset.MS = 1 - 1 / (1 + exp(-lambda.MS * 1.0))
   offset.HS = 1 - 1 / (1 + exp(-lambda.HS * 1.0))
   
-  SIR = function(t,y,p){
+  ################################## Model: multi-host ##################################
+  SIR.multi = function(t,y,p){
     {
       S.LS = y[1]
       I.LS = y[2]
@@ -154,12 +157,12 @@
   
   for(i in 1:length(sites)){
     
-    site.loop = sites[i]
+    # site.loop = sites[i]
     
     # site.loop = "mid" #for testing purposes
     # i = 1
-    # site.loop = "near" #for testing purposes
-    # i = 2
+    site.loop = "near" #for testing purposes
+    i = 2
     # site.loop = "off" #for testing purposes
     # i = 3
     
@@ -269,7 +272,7 @@
     
     P.tiss = I.HS.tiss
     
-    ############################## OPTIMIZE PARAMETERS ############################################################
+    ################################## Optimize multi-host model ##################################
     # Set up the data and initial conditions
     coraldata.tiss = list(LS.inftiss, MS.inftiss, HS.inftiss, LS.remtiss, MS.remtiss, HS.remtiss)
     initial_state.tiss = c(S.LS.tiss, I.LS.tiss, R.LS.tiss, S.MS.tiss, I.MS.tiss, R.MS.tiss, S.HS.tiss, I.HS.tiss, R.HS.tiss,
@@ -283,12 +286,12 @@
     objective_function = function(params, data, time, initial_state){
       
       # #testing
-      # betas.LS = 0.08
-      # gammas.LS = 0.83
-      # betas.MS = 0.16
-      # gammas.MS = 0.73
-      # betas.HS = 3.79
-      # gammas.HS = 2.31
+      # betas.LS = 0.06
+      # gammas.LS = 0.08
+      # betas.MS = 0.29
+      # gammas.MS = 2.57
+      # betas.HS = 3.13
+      # gammas.HS = 3.49
       # initial_state = initial_state.tiss
       # time = days.model
       # data = coraldata.tiss
@@ -305,7 +308,7 @@
                                  S.HS = initial_state[7], I.HS = initial_state[8], R.HS = initial_state[9]),
                                  # S.HS = initial_state[7], I.HS = initial_state[8], R.HS = initial_state[9],
                                  # P = initial_state[10]),
-                               time, SIR, c(b.LS = betas.LS, g.LS = gammas.LS,
+                               time, SIR.multi, c(b.LS = betas.LS, g.LS = gammas.LS,
                                             b.MS = betas.MS, g.MS = gammas.MS,
                                             b.HS = betas.HS, g.HS = gammas.HS,
                                             N.LS = initial_state[10], N.MS = initial_state[11], N.HS = initial_state[12],
@@ -448,8 +451,6 @@
       
       # NOTE - see Kalizhanova et al. 2024 (TB SIR) for other error assessments - including mean absolute error (MAE)
       # Total Sum of Squares (TSS) for removal only
-      obs.rem <- c(obs.LS.rem, obs.MS.rem, obs.HS.rem)
-      obs.rem.total <- c(obs.LS.rem.total, obs.MS.rem.total, obs.HS.rem.total)
       mean_obs_rem <- obs.rem %>% mean(na.rm = TRUE) # Compute mean of observed removals
       tss_rem = sum((obs.rem - mean_obs_rem)^2)   # Sum of squared differences from mean
       mean_obs_rem.total <- obs.rem.total %>% mean(na.rm = TRUE)
@@ -461,39 +462,38 @@
       
       error_eval <<- error_eval %>%
         mutate(
-          SSR = if_else(site == site.loop & host == curr.host & type == curr.type,
-                        if_else(wave == 'Pre-heat', sum_diff, if_else(wave == 'Both', sum_diff.total, SSR)), SSR),
-          TSS = if_else(site == site.loop & host == curr.host & type == curr.type,
-                        if_else(wave == 'Pre-heat', tss_rem, if_else(wave == 'Both', tss_rem.total, TSS)), TSS),
-          R_squared = if_else(site == site.loop & host == curr.host & type == curr.type,
-                              if_else(wave == 'Pre-heat', r_squared_rem, if_else(wave == 'Both', r_squared_rem.total, R_squared)), R_squared),
+          SSR = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', sum_diff.total, SSR),
+          TSS = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', tss_rem.total, TSS),
+          R_squared = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', r_squared_rem.total, R_squared),
           
           # Update list-columns with vectors
-          sim_inf = if_else(site == site.loop & host == curr.host & type == curr.type,
-                            if_else(wave == 'Pre-heat', list(sim.inf), if_else(wave == 'Both', list(sim.inf.total), sim_inf)), sim_inf),
-          sim_rem = if_else(site == site.loop & host == curr.host & type == curr.type,
-                            if_else(wave == 'Pre-heat', list(sim.rem), if_else(wave == 'Both', list(sim.rem.total), sim_rem)), sim_rem),
-          obs_inf = if_else(site == site.loop & host == curr.host & type == curr.type,
-                            if_else(wave == 'Pre-heat', list(obs.inf), if_else(wave == 'Both', list(obs.inf.total), obs_inf)), obs_inf),
-          obs_rem = if_else(site == site.loop & host == curr.host & type == curr.type,
-                            if_else(wave == 'Pre-heat', list(obs.rem), if_else(wave == 'Both', list(obs.rem.total), obs_rem)), obs_rem)
+          sim_inf = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(sim.inf.total), sim_inf),
+          sim_rem = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(sim.rem.total), sim_rem),
+          obs_inf = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(obs.inf.total), obs_inf),
+          obs_rem = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(obs.rem.total), obs_rem)
         )
-      
-      return(sum_diff.abs) #return only the residual metric for the epidemic wave being fit to
-      # return(sum_diff) #return only the residual metric for the epidemic wave being fit to
+          
+      # return(sum_diff.abs) #return only the residual metric for the epidemic wave being fit to
+      return(sum_diff.total) #return only the residual metric for the epidemic wave being fit to
     }
     
     ############################## OPTIMIZE PARAMETERS ############################################################
     
+    # NOTE - TEMP
     # uniform or no?
     lower_bounds.tiss = c(0, 0, 0, 0, 0, 0)  # Lower bounds for betas and gammas - maybe more relaxed?
     # upper_bounds.tiss = c(0.09/N.LS.site, 0.11, 0.15/N.MS.site, 0.16, 2.0/N.HS.site, 1.0)  # Upper bounds for betas and gammas
     # upper_bounds.tiss = c(0.15/N.LS.site, 0.10, 0.15/N.MS.site, 0.10, 1.5/N.HS.site, 1.5)  # Upper bounds for betas and gammas
     # upper_bounds.tiss = c(0.003/N.LS.site, 0.01, 0.01/N.MS.site, 0.02, 0.15/N.HS.site, 0.10)  # Upper bounds for betas and gammas
-    
+
     # upper_bounds.tiss = c(1/N.LS.site, 1, 1/N.MS.site, 1, 1.5/N.HS.site, 1.5)  # Upper bounds for betas and gammas
     upper_bounds.tiss = c(4, 4, 4, 4, 4, 4)  # Upper bounds for betas and gammas
-    
+
+    # # NOTE - TEMP
+    # STOPPING POINT - 12 feb 2025; not sure what on earth is going wrong but it seems like sum of squares (sum_diff) is not porting between functions correctly...need to make sure it is, so I can properly record R-squared values. and multi-host model should actually have a quite good R-squared so something is wonky
+    #                                 - this likely applies to the single-host model as well unfortunately
+    # lower_bounds.tiss = c(0.06, 0.08, 0.29, 2.57, 3.13, 3.49)  # Lower bounds for betas and gammas - maybe more relaxed?
+    # upper_bounds.tiss = c(0.06, 0.08, 0.29, 2.57, 3.13, 3.49)  # Upper bounds for betas and gammas
     
     control = list(itermax = 200)  # Maximum number of iterations. 200 is default
     
@@ -588,7 +588,7 @@
                                     S.HS = initial_state.tiss[7], I.HS = initial_state.tiss[8], R.HS = initial_state.tiss[9]),
                                     # S.HS = initial_state[7], I.HS = initial_state[8], R.HS = initial_state[9],
                                     # P = initial_state[10]),
-                                    days.model, SIR, c(b.LS = min.beta.LS.tiss, g.LS = min.gamma.LS.tiss,
+                                    days.model, SIR.multi, c(b.LS = min.beta.LS.tiss, g.LS = min.gamma.LS.tiss,
                                                b.MS = min.beta.MS.tiss, g.MS = min.gamma.MS.tiss,
                                                b.HS = min.beta.HS.tiss, g.HS = min.gamma.HS.tiss,
                                                N.LS = initial_state.tiss[10], N.MS = initial_state.tiss[11], N.HS = initial_state.tiss[12],
@@ -599,6 +599,8 @@
     my.SIRS.multi[[i]] = SIR.out.tiss
     
   }
+  
+  ################################## Save output ##################################
   
   # #pass workspace to downstream script
   # save.image(file = here("output", "multi_SIR_workspace.RData"))
