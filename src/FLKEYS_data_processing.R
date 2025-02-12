@@ -1496,7 +1496,7 @@
   sites <- c("off", "mid", "near")
   hosts <- c("Single-host", "Multi-host")
   types <- c("Fitted", "DHW", "Projected")
-  waves = c("Pre-heat", "Post-heat", "Both")
+  waves = c("Pre-heat", "Post-heat", "Both", "Full")
   
   # Create an empty tibble with all combinations and list columns for vectors
   error_eval <- expand.grid(site = sites, 

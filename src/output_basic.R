@@ -7,6 +7,8 @@
   library(DEoptim)
   library(deSolve)
   
+  ################################## Set-up ##################################
+  
   #import workspace from upstream script
   load(here("output", "plots_obs_workspace.RData"))
   
@@ -88,8 +90,8 @@
   #lambda of 0.7: R0 is high (1.05), a late and too-strong outbreak in Midchannel still. offshore looks GREAT, though
   #lambda of 0.5: R0 is high (1.06), a somewhat late and too-strong outbreak in Midchannel
   
-  # lambda.modifier = 1.0 # NOTE - 7 feb 2025 - used this for a long time. revert to it if there are issues
-  lambda.modifier = 1.15
+  lambda.modifier = 1.0 # NOTE - 7 feb 2025 - used this for a long time. revert to it if there are issues
+  # lambda.modifier = 1.15
   offset = 1 - 1 / (1 + exp(-lambda.modifier))
   
   sites = unique(summary$site)
@@ -794,6 +796,185 @@
                                   DHW = DHW_df))
     my.SIRS.basic.DHW[[i]] = SIR.out.tiss
   }
+  
+  ################################## Model: full outbreak ##################################
+  my.SIRS.basic.full = vector('list', length(sites))
+  params.basic.full = vector('list', length(sites))
+  curr.type = 'Fitted' #the below is for a basic fitting model for single-host transmission (no DHW or projection)
+  
+  for(i in 1:length(sites)){
+    
+    site.loop = sites[i]
+    
+    # site.loop = "mid" #for testing purposes
+    # i = 1
+    # site.loop = "near" #for testing purposes
+    # i = 2
+    # site.loop = "off" #for testing purposes
+    # i = 3
+    
+    days <- days_sites %>% # NOTE - make sure this is working right with backtracked patient zero corals
+      filter(site == site.loop) %>%
+      pull(days) %>%
+      unlist()
+    
+    days.obs <- days_sites %>%
+      filter(site == site.loop) %>%
+      pull(days.obs) %>%
+      unlist() 
+    
+    days.model <- days_sites %>%
+      filter(site == site.loop) %>%
+      pull(days.model) %>%
+      unlist()
+    
+    N.site = susceptible_ref %>%
+      filter(Site == site.loop) %>%
+      slice(1) %>% #all values for N.site are the same between categories, so slice first row
+      pull(N.site)
+    
+    cover.site = susceptible_ref %>%
+      filter(Site == site.loop) %>%
+      slice(1) %>% #same as above
+      pull(cover.site)
+    
+    #sequence of infected & removed SA's for each SusCat within site. remove timepoints before the first infection (zero omit)
+    inftiss = obs.model %>%
+      filter(Site == site.loop, Category == "Total", Compartment == "Infected") %>%
+      slice(head(row_number(), n()-DHW.modifier)) %>%
+      pull(tissue)    
+    
+    remtiss = obs.model %>%
+      filter(Site == site.loop, Category == "Total", Compartment == "Dead") %>%
+      slice(head(row_number(), n()-DHW.modifier)) %>%
+      pull(tissue)
+    
+    # Trim 'inftiss' and 'remtiss' using the same indices as 'days'
+    first_valid_idx <- which(!is.na(days))[1] #find the first non-NA index
+    inftiss <- inftiss[first_valid_idx:length(inftiss)]
+    remtiss <- remtiss[first_valid_idx:length(remtiss)]
+    
+    #initial conditions
+    I.tiss = inftiss[1] #first non-NA & non-zero infection entry
+    # I.tiss = 1e-4 #m2 - equivalent to 100 mm2, which is a rough approximation of a fully infected medium-sized coral polyp
+    S.tiss = N.site - I.tiss
+    R.tiss = 0
+    
+    ################################## Optimize full outbreak ##################################
+    # Set up the data and initial conditions
+    coraldata.tiss = list(inftiss, remtiss)
+    initial_state.tiss = c(S.tiss, I.tiss, R.tiss, N.site, cover.site)
+    
+    objective_function = function(params, data, time, initial_state){
+      
+      # #testing
+      # betas = 4 #betas = 3.91
+      # gammas = 3.12 #gammas = 3.01
+      # lambdas = 1.0
+      # initial_state = initial_state.tiss
+      # time = days.model
+      # data = coraldata.tiss
+      
+      betas = params[1]
+      gammas = params[2]
+      lambdas = params[3]
+      
+      SIR.out = tryCatch({
+        data.frame(ode(c(S = initial_state[1], I = initial_state[2], R = initial_state[3]),
+                       time, SIR, c(b = betas, g = gammas,
+                                    N = initial_state[4],
+                                    l = lambdas,
+                                    C = initial_state[5])))
+      }, error = function(e) {
+        print("Error in ODE:")
+        print(e)
+        return(NA)
+      })
+      
+      # Extract simulated values
+      sim.inf.total = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'I')]
+      sim.rem.total = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R')]
+      
+      # Extract observed values
+      obs.inf.total = unlist(data[[1]])
+      obs.rem.total = unlist(data[[2]])
+      
+      # Calculate residuals
+      # diff.inf = (sim.inf - obs.inf)
+      diff.rem.total = (sim.rem.total - obs.rem.total)
+      
+      #minimize using sum of squared residuals
+      sum_diff.total = sum(diff.rem.total^2)
+      
+      # NOTE - see Kalizhanova et al. 2024 (TB SIR) for other error assessments - including mean absolute error (MAE)
+      # Total Sum of Squares (TSS) for removal only
+      mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
+      tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+      
+      #R-squared
+      r_squared_rem.total = 1 - (sum_diff.total / tss_rem.total)
+      
+      error_eval <<- error_eval %>%
+        mutate(
+          SSR = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', sum_diff.total, SSR),
+          TSS = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', tss_rem.total, TSS),
+          R_squared = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', r_squared_rem.total, R_squared),
+          
+          # Update list-columns with vectors
+          sim_inf = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(sim.inf.total), sim_inf),
+          sim_rem = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(sim.rem.total), sim_rem),
+          obs_inf = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(obs.inf.total), obs_inf),
+          obs_rem = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(obs.rem.total), obs_rem)
+        )
+      
+      return(sum_diff.total) #return only the residual metric for the epidemic wave being fit to
+    }
+    
+    # uniform
+    lower_bounds.tiss = c(0, 0, lambda.modifier)  #lower bounds for beta, gamma and lambda
+    # lower_bounds.tiss = c(0, 0.6, 1)  #lower bounds for beta, gamma and lambda
+    # upper_bounds.tiss = c(1, 1, 0.3)  #upper bounds for beta, gamma and lambda
+    upper_bounds.tiss = c(4, 4, lambda.modifier)  #upper bounds for beta, gamma and lambda
+    # upper_bounds.tiss = c(5, 5, 1)  #upper bounds for beta, gamma and lambda
+    
+    control = list(itermax = 100)  # Maximum number of iterations. 200 is default
+    
+    # Run the optimization
+    result.tiss = DEoptim(fn = objective_function, lower = lower_bounds.tiss, upper = upper_bounds.tiss,
+                          data = coraldata.tiss, time = days.model, initial_state = initial_state.tiss,
+                          control = control)
+    
+    # Extract the optimized parameters
+    optimized_params.tiss = result.tiss$optim$bestmem
+    
+    # Print the optimized parameters
+    min.beta.tiss = as.numeric(optimized_params.tiss[1])
+    min.gamma.tiss = as.numeric(optimized_params.tiss[2])
+    min.lambda.tiss = as.numeric(optimized_params.tiss[3])
+    min.beta.tiss.adj = min.beta.tiss * (1 / (1 + exp(-lambda.modifier * (cover.site))) + offset)
+    # min.beta.tiss.adj = min.beta.tiss * (min.lambda.tiss * (1-exp(-130*(cover.site))))
+    # min.beta.tiss.adj = (min.beta.tiss * (1 + min.lambda.tiss * sqrt(cover.site)))
+    # min.beta.tiss.adj = (min.beta.tiss * (min.lambda.tiss * sqrt(cover.site)))
+    R0 = min.beta.tiss.adj / min.gamma.tiss
+    cat("Optimized Tissue Model Parameters for", site.loop, " site:\n")
+    cat("Beta:", min.beta.tiss, "\n")
+    cat("Cover-adjusted beta:", min.beta.tiss.adj, "\n")
+    cat("Gamma:", min.gamma.tiss, "\n")
+    cat("Lambda:", min.lambda.tiss, "\n")
+    cat("R0:", R0, '\n')
+    
+    params.basic.full[[i]] = c(min.beta.tiss, min.beta.tiss.adj, min.gamma.tiss, min.lambda.tiss, R0, cover.site)
+    
+    #simulation using initial state variables and best-fit beta/gamma parameters
+    SIR.out.tiss = data.frame(ode(c(S = initial_state.tiss[1], I = initial_state.tiss[2], R = initial_state.tiss[3]),
+                                  days.model, SIR, c(b = min.beta.tiss, g = min.gamma.tiss,
+                                                     N = initial_state.tiss[4],
+                                                     l = min.lambda.tiss,
+                                                     C = initial_state.tiss[5])))
+    my.SIRS.basic.full[[i]] = SIR.out.tiss
+  }
+  
+  ################################## Save output ##################################
   
   # STOPPING POINT - 12 NOV 2024
   # 1.) Still need to try this with DHWs and see if I can produce a less wiggly output

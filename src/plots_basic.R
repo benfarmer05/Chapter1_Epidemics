@@ -12,6 +12,8 @@
   #import workspace from upstream script
   load(here("output/basic_SIR_workspace.RData"))
   
+  ################################## Set-up ##################################
+  
   obs.total = obs %>%
     filter(Category == 'Total') %>%
     group_by(Site, Compartment, Category) %>%
@@ -38,6 +40,9 @@
       Site == 'mid' ~ 'Midchannel',
       Site == 'near' ~ 'Nearshore'
     ))
+  
+  
+  ################################## Fitted pre-thermal stress ##################################
   
   # Nearshore
   site.loop = 'Nearshore'
@@ -236,6 +241,204 @@
     geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Dead"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
 
+  ################################## Fitted whole-outbreak ##################################
+  # Nearshore
+  site.loop = 'Nearshore'
+  order = 2
+  N.nearshore = susceptible_ref %>%
+    filter(Site == site.loop) %>%
+    slice(1) %>% #all values for N.site are the same between categories, so slice first row
+    pull(N.site)
+  
+  output.basic.nearshore.full = my.SIRS.basic.full[[order]]
+  params.basic.nearshore.full = params.basic.full[[order]] #beta, cover-adjusted beta, gamma, lambda, R0, cover
+  beta.nearshore.full = params.basic.nearshore.full[1]
+  beta.nearshore.adj.full = params.basic.nearshore.full[2]
+  gamma.nearshore.full = params.basic.nearshore.full[3]
+  lambda.nearshore.full = params.basic.nearshore.full[4]
+  R0.nearshore.full = params.basic.nearshore.full[5]
+  cover.nearshore.full = params.basic.nearshore.full[6]
+  
+  tab.nearshore.full = tibble(round(beta.nearshore.full, 2), round(beta.nearshore.adj.full, 2), round(gamma.nearshore.full, 2),
+                         round(R0.nearshore.full, 2), round(cover.nearshore.full*100, 2))
+  names(tab.nearshore.full) = c('beta', 'Adj. beta', 'gamma', 'R0', 'Cover (%)')
+  
+  output.basic.nearshore.full = pivot_longer(output.basic.nearshore.full, cols = -1, names_to = c("Compartment")) %>%
+    mutate(Compartment = ifelse(Compartment == "", "value", Compartment)) %>%
+    mutate(Compartment = ifelse(Compartment == 'S', 'Susceptible',
+                                ifelse(Compartment == 'I', 'Infected',
+                                       ifelse(Compartment == 'R', 'Dead', Compartment))))
+  
+  colnames(output.basic.nearshore.full)[1] = 'days.model'
+  colnames(output.basic.nearshore.full)[3] = 'tissue'
+  
+  p.fit.nearshore.basic.full = ggplot(data = output.basic.nearshore.full, aes(days.model, tissue, colour = Compartment)) +
+    xlab("Day of observation period") +
+    ylab("Surface area of tissue (m2)") +
+    ggtitle(paste(c("", site.loop, " - Fitted"), collapse="")) +
+    geom_line() +
+    geom_point(data = obs.total %>% filter(Site == site.loop), aes(days.inf.site, tissue, colour = Compartment)) +
+    scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
+    annotate(geom = "table", x = min(output.basic.nearshore.full$days.model), y = min(output.basic.nearshore.full$tissue)*0.7, label = list(tab.nearshore.full),
+             vjust = val.vjust, hjust = val.hjust, family = 'Georgia') +
+    theme_classic(base_family = 'Georgia')
+  
+  p.S.fit.nearshore.basic.full = ggplot(data = output.basic.nearshore.full %>% filter(Compartment == "Susceptible"), aes(days.model, tissue)) +
+    xlab("Day of observation period") +
+    ylab("Surface area of susceptible tissue") +
+    ggtitle(paste(c("", site.loop, " - Fitted"), collapse="")) +
+    geom_line() +
+    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Susceptible"), aes(days.inf.site, tissue)) +
+    theme_classic(base_family = 'Georgia')
+  
+  p.I.fit.nearshore.basic.full = ggplot(data = output.basic.nearshore.full %>% filter(Compartment == "Infected"), aes(days.model, tissue)) +
+    xlab("Day of observation period") +
+    ylab("Surface area of infected tissue") +
+    ggtitle(paste(c("", site.loop, " - Fitted"), collapse="")) +
+    geom_line() +
+    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Infected"), aes(days.inf.site, tissue)) +
+    theme_classic(base_family = 'Georgia')
+  
+  p.D.fit.nearshore.basic.full = ggplot(data = output.basic.nearshore.full %>% filter(Compartment == "Dead"), aes(days.model, tissue)) +
+    xlab("Day of observation period") +
+    ylab("Surface area of dead tissue") +
+    ggtitle(paste(c("", site.loop, " - Fitted"), collapse="")) +
+    geom_line() +
+    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Dead"), aes(days.inf.site, tissue)) +
+    theme_classic(base_family = 'Georgia')
+  
+  # Midchannel
+  site.loop = 'Midchannel'
+  order = 1
+  N.midchannel = susceptible_ref %>%
+    filter(Site == site.loop) %>%
+    slice(1) %>% #all values for N.site are the same between categories, so slice first row
+    pull(N.site)
+  
+  output.basic.midchannel.full = my.SIRS.basic.full[[order]]
+  params.basic.midchannel.full = params.basic.full[[order]] #beta, cover-adjusted beta, gamma, lambda, R0, cover
+  beta.midchannel.full = params.basic.midchannel.full[1]
+  beta.midchannel.adj.full = params.basic.midchannel.full[2]
+  gamma.midchannel.full = params.basic.midchannel.full[3]
+  lambda.midchannel.full = params.basic.midchannel.full[4]
+  R0.midchannel.full = params.basic.midchannel.full[5]
+  cover.midchannel.full = params.basic.midchannel.full[6]
+  
+  tab.midchannel.full = tibble(round(beta.midchannel.full, 2), round(beta.midchannel.adj.full, 2), round(gamma.midchannel.full, 2),
+                          round(R0.midchannel.full, 2), round(cover.midchannel.full*100, 2))
+  names(tab.midchannel.full) = c('beta', 'Adj. beta', 'gamma', 'R0', 'Cover (%)')
+  
+  output.basic.midchannel.full = pivot_longer(output.basic.midchannel.full, cols = -1, names_to = c("Compartment")) %>%
+    mutate(Compartment = ifelse(Compartment == "", "value", Compartment)) %>%
+    mutate(Compartment = ifelse(Compartment == 'S', 'Susceptible',
+                                ifelse(Compartment == 'I', 'Infected',
+                                       ifelse(Compartment == 'R', 'Dead', Compartment))))
+  
+  colnames(output.basic.midchannel.full)[1] = 'days.model'
+  colnames(output.basic.midchannel.full)[3] = 'tissue'
+  
+  p.fit.midchannel.basic.full = ggplot(data = output.basic.midchannel.full, aes(days.model, tissue, colour = Compartment)) +
+    xlab("Day of observation period") +
+    ylab("Surface area of tissue (m2)") +
+    ggtitle(paste(c("", site.loop, ' - Fitted'), collapse="")) +
+    geom_line() +
+    geom_point(data = obs.total %>% filter(Site == site.loop), aes(days.inf.site, tissue, colour = Compartment)) +
+    scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
+    annotate(geom = "table", x = min(output.basic.midchannel.full$days.model), y = min(output.basic.midchannel.full$tissue)*0.7, label = list(tab.midchannel.full),
+             vjust = val.vjust, hjust = val.hjust, family = 'Georgia') +
+    theme_classic(base_family = 'Georgia') +
+    theme(panel.background = element_rect(fill = "gray90"))
+  
+  p.S.fit.midchannel.basic.full = ggplot(data = output.basic.midchannel.full %>% filter(Compartment == "Susceptible"), aes(days.model, tissue)) +
+    xlab("Day of observation period") +
+    ylab("Surface area of susceptible tissue") +
+    ggtitle(paste(c("", site.loop, " - Fitted"), collapse="")) +
+    geom_line() +
+    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Susceptible"), aes(days.inf.site, tissue)) +
+    theme_classic(base_family = 'Georgia')
+  
+  p.I.fit.midchannel.basic.full = ggplot(data = output.basic.midchannel.full %>% filter(Compartment == "Infected"), aes(days.model, tissue)) +
+    xlab("Day of observation period") +
+    ylab("Surface area of infected tissue") +
+    ggtitle(paste(c("", site.loop, " - Fitted"), collapse="")) +
+    geom_line() +
+    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Infected"), aes(days.inf.site, tissue)) +
+    theme_classic(base_family = 'Georgia')
+  
+  p.D.fit.midchannel.basic.full = ggplot(data = output.basic.midchannel.full %>% filter(Compartment == "Dead"), aes(days.model, tissue)) +
+    xlab("Day of observation period") +
+    ylab("Surface area of dead tissue") +
+    ggtitle(paste(c("", site.loop, " - Fitted"), collapse="")) +
+    geom_line() +
+    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Dead"), aes(days.inf.site, tissue)) +
+    theme_classic(base_family = 'Georgia')
+  
+  # Offshore
+  site.loop = 'Offshore'
+  order = 3
+  N.offshore = susceptible_ref %>%
+    filter(Site == site.loop) %>%
+    slice(1) %>% #all values for N.site are the same between categories, so slice first row
+    pull(N.site)
+  
+  output.basic.offshore.full = my.SIRS.basic.full[[order]]
+  params.basic.offshore.full = params.basic.full[[order]] #beta, cover-adjusted beta, gamma, lambda, R0, cover
+  beta.offshore.full = params.basic.offshore.full[1]
+  beta.offshore.adj.full = params.basic.offshore.full[2]
+  gamma.offshore.full = params.basic.offshore.full[3]
+  lambda.offshore.full = params.basic.offshore.full[4]
+  R0.offshore.full = params.basic.offshore.full[5]
+  cover.offshore.full = params.basic.offshore.full[6]
+  
+  tab.offshore.full = tibble(round(beta.offshore.full, 2), round(beta.offshore.adj.full, 2), round(gamma.offshore.full, 2),
+                        round(R0.offshore.full, 2), round(cover.offshore.full*100, 2))
+  names(tab.offshore.full) = c('beta', 'Adj. beta', 'gamma', 'R0', 'Cover (%)')
+  
+  output.basic.offshore.full = pivot_longer(output.basic.offshore.full, cols = -1, names_to = c("Compartment")) %>%
+    mutate(Compartment = ifelse(Compartment == "", "value", Compartment)) %>%
+    mutate(Compartment = ifelse(Compartment == 'S', 'Susceptible',
+                                ifelse(Compartment == 'I', 'Infected',
+                                       ifelse(Compartment == 'R', 'Dead', Compartment))))
+  
+  colnames(output.basic.offshore.full)[1] = 'days.model'
+  colnames(output.basic.offshore.full)[3] = 'tissue'
+  
+  p.fit.offshore.basic.full = ggplot(data = output.basic.offshore.full, aes(days.model, tissue, colour = Compartment)) +
+    xlab("Day of observation period") +
+    ylab("Surface area of tissue (m2)") +
+    ggtitle(paste(c("", site.loop, ' - Fitted'), collapse="")) +
+    geom_line() +
+    geom_point(data = obs.total %>% filter(Site == site.loop), aes(days.inf.site, tissue, colour = Compartment)) +
+    scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
+    annotate(geom = "table", x = min(output.basic.offshore.full$days.model), y = min(output.basic.offshore.full$tissue)*0.7, label = list(tab.offshore.full),
+             vjust = val.vjust, hjust = val.hjust, family = 'Georgia') +
+    theme_classic(base_family = 'Georgia') + 
+    theme(panel.background = element_rect(fill = "gray90"))
+  
+  p.S.fit.offshore.basic.full = ggplot(data = output.basic.offshore.full %>% filter(Compartment == "Susceptible"), aes(days.model, tissue)) +
+    xlab("Day of observation period") +
+    ylab("Surface area of susceptible tissue") +
+    ggtitle(paste(c("", site.loop, " - Fitted"), collapse="")) +
+    geom_line() +
+    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Susceptible"), aes(days.inf.site, tissue)) +
+    theme_classic(base_family = 'Georgia')
+  
+  p.I.fit.offshore.basic.full = ggplot(data = output.basic.offshore.full %>% filter(Compartment == "Infected"), aes(days.model, tissue)) +
+    xlab("Day of observation period") +
+    ylab("Surface area of infected tissue") +
+    ggtitle(paste(c("", site.loop, " - Fitted"), collapse="")) +
+    geom_line() +
+    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Infected"), aes(days.inf.site, tissue)) +
+    theme_classic(base_family = 'Georgia')
+  
+  p.D.fit.offshore.basic.full = ggplot(data = output.basic.offshore.full %>% filter(Compartment == "Dead"), aes(days.model, tissue)) +
+    xlab("Day of observation period") +
+    ylab("Surface area of dead tissue") +
+    ggtitle(paste(c("", site.loop, " - Fitted"), collapse="")) +
+    geom_line() +
+    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Dead"), aes(days.inf.site, tissue)) +
+    theme_classic(base_family = 'Georgia')
+  
   ################################## Thermal stress  ##################################
   #Nearshore
   site.loop = 'Nearshore'
@@ -718,6 +921,7 @@
   
   #whole outbreak simulations
   (p.fit.offshore.basic | p.fit.midchannel.basic | p.fit.nearshore.basic) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+  (p.fit.offshore.basic.full | p.fit.midchannel.basic.full | p.fit.nearshore.basic.full) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
   (p.fit.offshore.basic.DHW | p.fit.midchannel.basic.DHW | p.fit.nearshore.basic.DHW) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
   
   #projection vs fitted
@@ -737,6 +941,11 @@
   #dead compartment
   (p.D.fit.offshore.basic | p.D.fit.midchannel.basic | p.D.fit.nearshore.basic) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
   (p.D.fit.offshore.basic.DHW | p.D.fit.midchannel.basic.DHW | p.D.fit.nearshore.basic.DHW) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+  
+  # STOPPING POINT - 11 FEB 2025
+  #   - need to add R-squared to projected fit. also, decide if want to project from pre-thermal stress, thermal stress, or whole-outbreak fit
+  #   - then need to do the same for multi-host model
+  
   
   ################################## Thermal projections  ##################################
   site.loop = 'Offshore'
@@ -990,10 +1199,10 @@
   offshore.to.nearshore.basic = (p.fit.offshore.basic | p.I.fit.offshore.basic | p.D.fit.offshore.basic) / (p.fit.nearshore.basic | p.I.fit.nearshore.basic | p.D.fit.nearshore.basic) / (p.fit.off.to.near.basic | p.I.fit.off.to.near.basic | p.D.fit.off.to.near.basic)  + plot_layout(guides = "collect",
                                                                                                                                                                                                                                                                                           axis_titles = 'collect') &
     theme(legend.position = 'bottom') #& xlim(0, 325)
-
-
-
-
+  
+  
+  
+  
   ################################## Save workspace  ##################################
   
   # #pass workspace to downstream script
