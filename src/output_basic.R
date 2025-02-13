@@ -263,13 +263,13 @@
     
     objective_function = function(params, data, time, initial_state){
       
-      #testing
-      betas = 4 #betas = 3.91
-      gammas = 3.12 #gammas = 3.01
-      lambdas = 1.0
-      initial_state = initial_state.tiss
-      time = days.model
-      data = coraldata.tiss
+      # #testing
+      # betas = 3.998284
+      # gammas = 3.080444
+      # lambdas = 1.0
+      # initial_state = initial_state.tiss
+      # time = days.model
+      # data = coraldata.tiss
 
       betas = params[1]
       gammas = params[2]
@@ -400,6 +400,17 @@
     # upper_bounds.tiss = c(1, 1, 0.3)  #upper bounds for beta, gamma and lambda
     upper_bounds.tiss = c(4, 4, lambda.modifier)  #upper bounds for beta, gamma and lambda
     # upper_bounds.tiss = c(5, 5, 1)  #upper bounds for beta, gamma and lambda
+    
+    
+    
+    
+    # # TEST - TEMP
+    # lower_bounds.tiss = c(4, 3.12, lambda.modifier)  #lower bounds for beta, gamma and lambda
+    # upper_bounds.tiss = c(4, 3.12, lambda.modifier)  #upper bounds for beta, gamma and lambda
+    
+    
+    
+    
     
     control = list(itermax = 100)  # Maximum number of iterations. 200 is default
     

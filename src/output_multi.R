@@ -23,7 +23,7 @@
     ))
   
   # Update Error_eval with metrics and thresholds - pulled values from output_basic upstream
-  error_eval <- error_eval %>%
+  error_eval <<- error_eval %>%
     mutate(
       SST_threshold = if_else(host == 'Multi-host', SST_threshold_value, SST_threshold),
       date_thresh = if_else(host == 'Multi-host', date_threshold, date_thresh)
@@ -157,12 +157,12 @@
   
   for(i in 1:length(sites)){
     
-    # site.loop = sites[i]
+    site.loop = sites[i]
     
     # site.loop = "mid" #for testing purposes
     # i = 1
-    site.loop = "near" #for testing purposes
-    i = 2
+    # site.loop = "near" #for testing purposes
+    # i = 2
     # site.loop = "off" #for testing purposes
     # i = 3
     
@@ -282,19 +282,37 @@
                            cover.LS.site, cover.MS.site, cover.HS.site,
                            lambda = lambda)
     
+    # STOPPING POINT - 12 feb 2025
+    #   - having some major issues here; if I need to "roll back" to a better fit, consider:
+    #       - 1.) using absolute residuals again
+    #       - 2.) using within-group sum of squares again
+    #       - 3.) Looking at version history to restore how the optimizer function returned sum of error a week or so ago
+    
     # Define the objective function for optimization
     objective_function = function(params, data, time, initial_state){
       
-      # #testing
-      # betas.LS = 0.06
-      # gammas.LS = 0.08
-      # betas.MS = 0.29
-      # gammas.MS = 2.57
-      # betas.HS = 3.13
-      # gammas.HS = 3.49
+      # #testing - for mid (within-group residuals)
+      # betas.LS = 0.002456
+      # gammas.LS = 0.213029
+      # betas.MS = 0.357782
+      # gammas.MS = 0.593120
+      # betas.HS = 3.473720
+      # gammas.HS = 2.852935
       # initial_state = initial_state.tiss
       # time = days.model
       # data = coraldata.tiss
+      
+      # #testing - for mid (residuals summed across group)
+      # betas.LS = 0.614603
+      # gammas.LS = 1.774520
+      # betas.MS = 0.014265
+      # gammas.MS = 2.748830
+      # betas.HS = 1.111736
+      # gammas.HS = 0.805012
+      # initial_state = initial_state.tiss
+      # time = days.model
+      # data = coraldata.tiss
+      
       
       betas.LS = params[1]
       gammas.LS = params[2]
@@ -366,11 +384,23 @@
       sim.rem = cbind(sim.LS.rem, sim.MS.rem, sim.HS.rem)
       obs.inf = cbind(obs.LS.inf, obs.MS.inf, obs.HS.inf)
       obs.rem = cbind(obs.LS.rem, obs.MS.rem, obs.HS.rem)
-      
+
       sim.inf.total = cbind(sim.LS.inf.total, sim.MS.inf.total, sim.HS.inf.total)
       sim.rem.total = cbind(sim.LS.rem.total, sim.MS.rem.total, sim.HS.rem.total)
       obs.inf.total = cbind(obs.LS.inf.total, obs.MS.inf.total, obs.HS.inf.total)
       obs.rem.total = cbind(obs.LS.rem.total, obs.MS.rem.total, obs.HS.rem.total)
+      
+      # # Sum for model evaluation and comparison with single-host version
+      # #   NOTE - this may result in very different output than treating residuals as within-group
+      # sim.inf = rowSums(cbind(sim.LS.inf, sim.MS.inf, sim.HS.inf), na.rm = TRUE)
+      # sim.rem = rowSums(cbind(sim.LS.rem, sim.MS.rem, sim.HS.rem), na.rm = TRUE)
+      # obs.inf = rowSums(cbind(obs.LS.inf, obs.MS.inf, obs.HS.inf), na.rm = TRUE)
+      # obs.rem = rowSums(cbind(obs.LS.rem, obs.MS.rem, obs.HS.rem), na.rm = TRUE)
+      # 
+      # sim.inf.total = rowSums(cbind(sim.LS.inf.total, sim.MS.inf.total, sim.HS.inf.total), na.rm = TRUE)
+      # sim.rem.total = rowSums(cbind(sim.LS.rem.total, sim.MS.rem.total, sim.HS.rem.total), na.rm = TRUE)
+      # obs.inf.total = rowSums(cbind(obs.LS.inf.total, obs.MS.inf.total, obs.HS.inf.total), na.rm = TRUE)
+      # obs.rem.total = rowSums(cbind(obs.LS.rem.total, obs.MS.rem.total, obs.HS.rem.total), na.rm = TRUE)
       
       # # NOTE - this as a version where rescaling was required, because infections were part of the fitting process (not *just* removal)
       # #use ratio of maximum removed value to maximum infected value to rescale removed. fits the 'I' curve better this way
@@ -427,15 +457,18 @@
       # # sum_squared_diff = sum_squared_diff_I + sum_squared_diff_R
       
       # Calculate residuals
-      diff_rem = sim.rem - obs.rem
-      diff_rem.total = sim.rem.total - obs.rem.total
+      diff.rem = sim.rem - obs.rem
+      diff.rem.total = sim.rem.total - obs.rem.total
       
       #Version where I was using absolute residuals - can reference if having issues with sum-of-squares
-      # Minimize using sum of absolute residuals
-      # sum_absolute_diff_I.abs = sum(abs(diff_inf))
-      sum_absolute_diff_R.abs = sum(abs(diff_rem))
-      # sum_diff.abs = sum_absolute_diff_I + sum_absolute_diff_R
-      sum_diff.abs = sum_absolute_diff_R.abs
+      # #version that was constrained to pre-thermal stress onset
+      # # Minimize using sum of absolute residuals
+      # # sum_absolute_diff_I.abs = sum(abs(diff_inf))
+      # sum_absolute_diff_R.abs = sum(abs(diff_rem))
+      # # sum_diff.abs = sum_absolute_diff_I + sum_absolute_diff_R
+      # sum_diff.abs = sum_absolute_diff_R.abs
+      sum_absolute_diff_R.abs.total = sum(abs(diff.rem.total))
+      sum_diff.abs = sum_absolute_diff_R.abs.total
       
       # #Version where I was including the infected compartment in the fit, and also summing squares within groups before global sum. return to this if any issues
       # #minimize using sum of squared residuals
@@ -446,8 +479,8 @@
       # sum_diff = sum_squared_diff_I + sum_squared_diff_R
       
       #minimize using sum of squared residuals
-      sum_diff = sum(diff_rem^2)
-      sum_diff.total = sum(diff_rem.total^2)
+      sum_diff = sum(diff.rem^2)
+      sum_diff.total = sum(diff.rem.total^2)
       
       # NOTE - see Kalizhanova et al. 2024 (TB SIR) for other error assessments - including mean absolute error (MAE)
       # Total Sum of Squares (TSS) for removal only
@@ -460,21 +493,62 @@
       r_squared_rem = 1 - (sum_diff / tss_rem)
       r_squared_rem.total = 1 - (sum_diff.total / tss_rem.total)
       
+      # error_eval <<- error_eval %>%
+      #   mutate(
+      #     SSR = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', sum_diff.total, SSR),
+      #     TSS = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', tss_rem.total, TSS),
+      #     R_squared = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', r_squared_rem.total, R_squared),
+      #     
+      #     # Update list-columns with vectors
+      #     sim_inf = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(sim.inf.total), sim_inf),
+      #     sim_rem = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(sim.rem.total), sim_rem),
+      #     obs_inf = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(obs.inf.total), obs_inf),
+      #     obs_rem = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(obs.rem.total), obs_rem)
+      #   )
+      
+      # # Debugging checks
+      # print(table(error_eval$wave))
+      # print(any(error_eval$wave == 'Full'))  # Should return TRUE
+      # print(str(sim.inf.total))  # Should show a valid list/vector
+      # print(str(sim.rem.total))  # Should show a valid list/vector
+      
+      # Updating error_eval with proper handling of list-columns
       error_eval <<- error_eval %>%
         mutate(
-          SSR = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', sum_diff.total, SSR),
-          TSS = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', tss_rem.total, TSS),
-          R_squared = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', r_squared_rem.total, R_squared),
+          SSR = case_when(
+            site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ sum_diff.total,
+            TRUE ~ SSR
+          ),
+          TSS = case_when(
+            site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ tss_rem.total,
+            TRUE ~ TSS
+          ),
+          R_squared = case_when(
+            site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ r_squared_rem.total,
+            TRUE ~ R_squared
+          ),
           
           # Update list-columns with vectors
-          sim_inf = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(sim.inf.total), sim_inf),
-          sim_rem = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(sim.rem.total), sim_rem),
-          obs_inf = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(obs.inf.total), obs_inf),
-          obs_rem = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(obs.rem.total), obs_rem)
+          sim_inf = case_when(
+            site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ list(sim.inf.total),
+            TRUE ~ sim_inf
+          ),
+          sim_rem = case_when(
+            site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ list(sim.rem.total),
+            TRUE ~ sim_rem
+          ),
+          obs_inf = case_when(
+            site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ list(obs.inf.total),
+            TRUE ~ obs_inf
+          ),
+          obs_rem = case_when(
+            site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ list(obs.rem.total),
+            TRUE ~ obs_rem
+          )
         )
           
-      # return(sum_diff.abs) #return only the residual metric for the epidemic wave being fit to
-      return(sum_diff.total) #return only the residual metric for the epidemic wave being fit to
+      return(sum_diff.abs) #return only the residual metric for the epidemic wave being fit to
+      # return(sum_diff.total) #return only the residual metric for the epidemic wave being fit to
     }
     
     ############################## OPTIMIZE PARAMETERS ############################################################
@@ -495,7 +569,7 @@
     # lower_bounds.tiss = c(0.06, 0.08, 0.29, 2.57, 3.13, 3.49)  # Lower bounds for betas and gammas - maybe more relaxed?
     # upper_bounds.tiss = c(0.06, 0.08, 0.29, 2.57, 3.13, 3.49)  # Upper bounds for betas and gammas
     
-    control = list(itermax = 200)  # Maximum number of iterations. 200 is default
+    control = list(itermax = 50)  # Maximum number of iterations. 200 is default
     
     # Run the optimization
     result.tiss = DEoptim(fn = objective_function, lower = lower_bounds.tiss, upper = upper_bounds.tiss,
