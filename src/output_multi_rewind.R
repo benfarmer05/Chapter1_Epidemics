@@ -7,13 +7,8 @@
   library(DEoptim)
   library(deSolve)
   
-  ################################## Set-up ##################################
-  
   #import workspace from upstream script
-  load(here("output/plots_basic_workspace.RData"))
-  
-  #all modeling output in this script is for a multi-host SIR model
-  curr.host = 'Multi-host'
+  load(here("output/plots_basic_workspace_rewind.RData"))
   
   susceptible_ref = susceptible_ref %>%
     mutate(Site = case_when(
@@ -21,13 +16,6 @@
       Site == 'Midchannel' ~ 'mid',
       Site == 'Nearshore' ~ 'near'
     ))
-  
-  # Update Error_eval with metrics and thresholds - pulled values from output_basic upstream
-  error_eval <<- error_eval %>%
-    mutate(
-      SST_threshold = if_else(host == 'Multi-host', SST_threshold_value, SST_threshold),
-      date_thresh = if_else(host == 'Multi-host', date_threshold, date_thresh)
-    )
   
   # # Scenario 1 [maximum transmission modifier of 1.0, with 100% coral cover; uniform lambda].
   #lambda of 0.0: no effect of cover; overpredicted outbreaks. [Nearshore -> Offshore/Midchannel]
@@ -90,8 +78,7 @@
   offset.MS = 1 - 1 / (1 + exp(-lambda.MS * 1.0))
   offset.HS = 1 - 1 / (1 + exp(-lambda.HS * 1.0))
   
-  ################################## Model: multi-host ##################################
-  SIR.multi = function(t,y,p){
+  SIR = function(t,y,p){
     {
       S.LS = y[1]
       I.LS = y[2]
@@ -153,7 +140,6 @@
   
   my.SIRS.multi = vector('list', length(sites))
   params.multi = vector('list', length(sites))
-  curr.type = 'Fitted' #the below is for a fitting model for multi-host transmission (no DHW or projection)
   
   for(i in 1:length(sites)){
     
@@ -272,7 +258,7 @@
     
     P.tiss = I.HS.tiss
     
-    ################################## Optimize multi-host model ##################################
+    ############################## OPTIMIZE PARAMETERS ############################################################
     # Set up the data and initial conditions
     coraldata.tiss = list(LS.inftiss, MS.inftiss, HS.inftiss, LS.remtiss, MS.remtiss, HS.remtiss)
     initial_state.tiss = c(S.LS.tiss, I.LS.tiss, R.LS.tiss, S.MS.tiss, I.MS.tiss, R.MS.tiss, S.HS.tiss, I.HS.tiss, R.HS.tiss,
@@ -282,38 +268,10 @@
                            cover.LS.site, cover.MS.site, cover.HS.site,
                            lambda = lambda)
     
-    # STOPPING POINT - 12 feb 2025
-    #   - having some major issues here; if I need to "roll back" to a better fit, consider:
-    #       - 1.) using absolute residuals again
-    #       - 2.) using within-group sum of squares again
-    #       - 3.) Looking at version history to restore how the optimizer function returned sum of error a week or so ago
-    
     # Define the objective function for optimization
     objective_function = function(params, data, time, initial_state){
       
-      # #testing - for mid (within-group residuals)
-      # betas.LS = 0.002456
-      # gammas.LS = 0.213029
-      # betas.MS = 0.357782
-      # gammas.MS = 0.593120
-      # betas.HS = 3.473720
-      # gammas.HS = 2.852935
-      # initial_state = initial_state.tiss
-      # time = days.model
-      # data = coraldata.tiss
-      
-      # #testing - for mid (residuals summed across group)
-      # betas.LS = 0.614603
-      # gammas.LS = 1.774520
-      # betas.MS = 0.014265
-      # gammas.MS = 2.748830
-      # betas.HS = 1.111736
-      # gammas.HS = 0.805012
-      # initial_state = initial_state.tiss
-      # time = days.model
-      # data = coraldata.tiss
-      
-      # #testing - old (for nearshore)
+      # #testing
       # betas.LS = 0.02
       # gammas.LS = 0.04
       # betas.MS = 0.26
@@ -323,8 +281,6 @@
       # initial_state = initial_state.tiss
       # time = days.model
       # data = coraldata.tiss
-      
-      
       
       betas.LS = params[1]
       gammas.LS = params[2]
@@ -338,7 +294,7 @@
                                  S.HS = initial_state[7], I.HS = initial_state[8], R.HS = initial_state[9]),
                                  # S.HS = initial_state[7], I.HS = initial_state[8], R.HS = initial_state[9],
                                  # P = initial_state[10]),
-                               time, SIR.multi, c(b.LS = betas.LS, g.LS = gammas.LS,
+                               time, SIR, c(b.LS = betas.LS, g.LS = gammas.LS,
                                             b.MS = betas.MS, g.MS = gammas.MS,
                                             b.HS = betas.HS, g.HS = gammas.HS,
                                             N.LS = initial_state[10], N.MS = initial_state[11], N.HS = initial_state[12],
@@ -346,73 +302,23 @@
                                             C.LS = initial_state[14], C.MS = initial_state[15], C.HS = initial_state[16],
                                             l = as.numeric(initial_state[17]))))
       
-      #SST approach
-      time_cutoff <- SST_sites %>%
-        filter(site == site.loop, date >= date_threshold, SST >= SST_threshold_value) %>%
-        summarize(first_exceed_time = min(time, na.rm = TRUE)) %>%
-        pull(first_exceed_time)
+      #extract simulated values at time points matching observations
+      sim.LS.inf = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'I.LS')]
+      sim.MS.inf = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'I.MS')]
+      sim.HS.inf = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'I.HS')]
       
-      # #DHW approach
-      # time_cutoff <- DHW_sites %>%
-      #   filter(site == site.loop, date >= date_threshold, DHW >= DHW_threshold_value) %>%
-      #   summarize(first_exceed_time = min(time, na.rm = TRUE)) %>%
-      #   pull(first_exceed_time)
-      
-      # Trim days.obs and SIR.out based on the time_cutoff
-      days.obs_trimmed <- days.obs[days.obs < time_cutoff]
-      
-      #extract simulated values
-      sim.LS.inf = SIR.out[which(SIR.out$time %in% days.obs_trimmed), which(colnames(SIR.out) %in% 'I.LS')]
-      sim.MS.inf = SIR.out[which(SIR.out$time %in% days.obs_trimmed), which(colnames(SIR.out) %in% 'I.MS')]
-      sim.HS.inf = SIR.out[which(SIR.out$time %in% days.obs_trimmed), which(colnames(SIR.out) %in% 'I.HS')]
-      sim.LS.inf.total = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'I.LS')]
-      sim.MS.inf.total = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'I.MS')]
-      sim.HS.inf.total = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'I.HS')]
-      
-      sim.LS.rem = SIR.out[which(SIR.out$time %in% days.obs_trimmed), which(colnames(SIR.out) %in% 'R.LS')]
-      sim.MS.rem = SIR.out[which(SIR.out$time %in% days.obs_trimmed), which(colnames(SIR.out) %in% 'R.MS')]
-      sim.HS.rem = SIR.out[which(SIR.out$time %in% days.obs_trimmed), which(colnames(SIR.out) %in% 'R.HS')]
-      sim.LS.rem.total = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R.LS')]
-      sim.MS.rem.total = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R.MS')]
-      sim.HS.rem.total = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R.HS')]
+      sim.LS.rem = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R.LS')]
+      sim.MS.rem = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R.MS')]
+      sim.HS.rem = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R.HS')]
       
       #extract observed values
-      obs.LS.inf = unlist(data[[1]])[days.obs < time_cutoff] # NOTE - this is a bit hard-coded; refer to this line if there are bugs
-      obs.MS.inf = unlist(data[[2]])[days.obs < time_cutoff] # NOTE - this is a bit hard-coded; refer to this line if there are bugs
-      obs.HS.inf = unlist(data[[3]])[days.obs < time_cutoff] # NOTE - this is a bit hard-coded; refer to this line if there are bugs
-      obs.LS.inf.total = unlist(data[1])
-      obs.MS.inf.total = unlist(data[2])
-      obs.HS.inf.total = unlist(data[3])
+      obs.LS.inf = unlist(data[1])
+      obs.MS.inf = unlist(data[2])
+      obs.HS.inf = unlist(data[3])
       
-      obs.LS.rem = unlist(data[[4]])[days.obs < time_cutoff]
-      obs.MS.rem = unlist(data[[5]])[days.obs < time_cutoff]
-      obs.HS.rem = unlist(data[[6]])[days.obs < time_cutoff]
-      obs.LS.rem.total = unlist(data[4])
-      obs.MS.rem.total = unlist(data[5])
-      obs.HS.rem.total = unlist(data[6])
-      
-      #bind for model evaluation and comparison with single-host version
-      sim.inf = cbind(sim.LS.inf, sim.MS.inf, sim.HS.inf)
-      sim.rem = cbind(sim.LS.rem, sim.MS.rem, sim.HS.rem)
-      obs.inf = cbind(obs.LS.inf, obs.MS.inf, obs.HS.inf)
-      obs.rem = cbind(obs.LS.rem, obs.MS.rem, obs.HS.rem)
-
-      sim.inf.total = cbind(sim.LS.inf.total, sim.MS.inf.total, sim.HS.inf.total)
-      sim.rem.total = cbind(sim.LS.rem.total, sim.MS.rem.total, sim.HS.rem.total)
-      obs.inf.total = cbind(obs.LS.inf.total, obs.MS.inf.total, obs.HS.inf.total)
-      obs.rem.total = cbind(obs.LS.rem.total, obs.MS.rem.total, obs.HS.rem.total)
-      
-      # # Sum for model evaluation and comparison with single-host version
-      # #   NOTE - this may result in very different output than treating residuals as within-group
-      # sim.inf = rowSums(cbind(sim.LS.inf, sim.MS.inf, sim.HS.inf), na.rm = TRUE)
-      # sim.rem = rowSums(cbind(sim.LS.rem, sim.MS.rem, sim.HS.rem), na.rm = TRUE)
-      # obs.inf = rowSums(cbind(obs.LS.inf, obs.MS.inf, obs.HS.inf), na.rm = TRUE)
-      # obs.rem = rowSums(cbind(obs.LS.rem, obs.MS.rem, obs.HS.rem), na.rm = TRUE)
-      # 
-      # sim.inf.total = rowSums(cbind(sim.LS.inf.total, sim.MS.inf.total, sim.HS.inf.total), na.rm = TRUE)
-      # sim.rem.total = rowSums(cbind(sim.LS.rem.total, sim.MS.rem.total, sim.HS.rem.total), na.rm = TRUE)
-      # obs.inf.total = rowSums(cbind(obs.LS.inf.total, obs.MS.inf.total, obs.HS.inf.total), na.rm = TRUE)
-      # obs.rem.total = rowSums(cbind(obs.LS.rem.total, obs.MS.rem.total, obs.HS.rem.total), na.rm = TRUE)
+      obs.LS.rem = unlist(data[4])
+      obs.MS.rem = unlist(data[5])
+      obs.HS.rem = unlist(data[6])
       
       # # NOTE - this as a version where rescaling was required, because infections were part of the fitting process (not *just* removal)
       # #use ratio of maximum removed value to maximum infected value to rescale removed. fits the 'I' curve better this way
@@ -468,118 +374,46 @@
       # # 
       # # sum_squared_diff = sum_squared_diff_I + sum_squared_diff_R
       
-      # Calculate residuals
-      diff.rem = sim.rem - obs.rem
-      diff.rem.total = sim.rem.total - obs.rem.total
+      # Vectorized calculation of differences after normalization
+      diff_inf = cbind(
+        (sim.LS.inf - obs.LS.inf),
+        (sim.MS.inf - obs.MS.inf),
+        (sim.HS.inf - obs.HS.inf)
+      )
+  
+      diff_rem = cbind(
+        (sim.LS.rem - obs.LS.rem),
+        (sim.MS.rem - obs.MS.rem),
+        (sim.HS.rem - obs.HS.rem)
+      )
+  
+      # Minimize using sum of absolute differences
+      sum_absolute_diff_I = sum(abs(diff_inf))
+      sum_absolute_diff_R = sum(abs(diff_rem))
+      # sum_diff = sum_absolute_diff_I + sum_absolute_diff_R
+      sum_diff = sum_absolute_diff_R
       
-      #Version where I was using absolute residuals - can reference if having issues with sum-of-squares
-      # #version that was constrained to pre-thermal stress onset
-      # # Minimize using sum of absolute residuals
-      # # sum_absolute_diff_I.abs = sum(abs(diff_inf))
-      # sum_absolute_diff_R.abs = sum(abs(diff_rem))
-      # # sum_diff.abs = sum_absolute_diff_I + sum_absolute_diff_R
-      # sum_diff.abs = sum_absolute_diff_R.abs
-      sum_absolute_diff_R.abs.total = sum(abs(diff.rem.total))
-      sum_diff.abs = sum_absolute_diff_R.abs.total
-      
-      # #Version where I was including the infected compartment in the fit, and also summing squares within groups before global sum. return to this if any issues
-      # #minimize using sum of squared residuals
+      # #minimize using sum of squared differences
       # sum_squared_diff_I = sum(sum(diff.LS.inf^2) + sum(diff.MS.inf^2) +
       #                            sum(diff.HS.inf^2))
       # sum_squared_diff_R = sum(sum(diff.LS.rem^2) + sum(diff.MS.rem^2) +
       #                            sum(diff.HS.rem^2))
       # sum_diff = sum_squared_diff_I + sum_squared_diff_R
-      
-      #minimize using sum of squared residuals
-      sum_diff = sum(diff.rem^2)
-      sum_diff.total = sum(diff.rem.total^2)
-      
-      # NOTE - see Kalizhanova et al. 2024 (TB SIR) for other error assessments - including mean absolute error (MAE)
-      # Total Sum of Squares (TSS) for removal only
-      mean_obs_rem <- obs.rem %>% mean(na.rm = TRUE) # Compute mean of observed removals
-      tss_rem = sum((obs.rem - mean_obs_rem)^2)   # Sum of squared differences from mean
-      mean_obs_rem.total <- obs.rem.total %>% mean(na.rm = TRUE)
-      tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
-      
-      #R-squared
-      r_squared_rem = 1 - (sum_diff / tss_rem)
-      r_squared_rem.total = 1 - (sum_diff.total / tss_rem.total)
-      
-      # error_eval <<- error_eval %>%
-      #   mutate(
-      #     SSR = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', sum_diff.total, SSR),
-      #     TSS = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', tss_rem.total, TSS),
-      #     R_squared = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', r_squared_rem.total, R_squared),
-      #     
-      #     # Update list-columns with vectors
-      #     sim_inf = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(sim.inf.total), sim_inf),
-      #     sim_rem = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(sim.rem.total), sim_rem),
-      #     obs_inf = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(obs.inf.total), obs_inf),
-      #     obs_rem = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(obs.rem.total), obs_rem)
-      #   )
-      
-      # # Debugging checks
-      # print(table(error_eval$wave))
-      # print(any(error_eval$wave == 'Full'))  # Should return TRUE
-      # print(str(sim.inf.total))  # Should show a valid list/vector
-      # print(str(sim.rem.total))  # Should show a valid list/vector
-      
-      # Updating error_eval with proper handling of list-columns
-      error_eval <<- error_eval %>%
-        mutate(
-          SSR = case_when(
-            site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ sum_diff.total,
-            TRUE ~ SSR
-          ),
-          TSS = case_when(
-            site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ tss_rem.total,
-            TRUE ~ TSS
-          ),
-          R_squared = case_when(
-            site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ r_squared_rem.total,
-            TRUE ~ R_squared
-          ),
-          
-          # Update list-columns with vectors
-          sim_inf = case_when(
-            site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ list(sim.inf.total),
-            TRUE ~ sim_inf
-          ),
-          sim_rem = case_when(
-            site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ list(sim.rem.total),
-            TRUE ~ sim_rem
-          ),
-          obs_inf = case_when(
-            site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ list(obs.inf.total),
-            TRUE ~ obs_inf
-          ),
-          obs_rem = case_when(
-            site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ list(obs.rem.total),
-            TRUE ~ obs_rem
-          )
-        )
-          
-      return(sum_diff.abs) #return only the residual metric for the epidemic wave being fit to
-      # return(sum_diff.total) #return only the residual metric for the epidemic wave being fit to
+  
+      return(sum_diff) #minimized error
     }
-    
+  
     ############################## OPTIMIZE PARAMETERS ############################################################
     
-    # NOTE - TEMP
     # uniform or no?
     lower_bounds.tiss = c(0, 0, 0, 0, 0, 0)  # Lower bounds for betas and gammas - maybe more relaxed?
     # upper_bounds.tiss = c(0.09/N.LS.site, 0.11, 0.15/N.MS.site, 0.16, 2.0/N.HS.site, 1.0)  # Upper bounds for betas and gammas
     # upper_bounds.tiss = c(0.15/N.LS.site, 0.10, 0.15/N.MS.site, 0.10, 1.5/N.HS.site, 1.5)  # Upper bounds for betas and gammas
     # upper_bounds.tiss = c(0.003/N.LS.site, 0.01, 0.01/N.MS.site, 0.02, 0.15/N.HS.site, 0.10)  # Upper bounds for betas and gammas
-
+    
     # upper_bounds.tiss = c(1/N.LS.site, 1, 1/N.MS.site, 1, 1.5/N.HS.site, 1.5)  # Upper bounds for betas and gammas
     upper_bounds.tiss = c(4, 4, 4, 4, 4, 4)  # Upper bounds for betas and gammas
-
-    # # NOTE - TEMP
-    # STOPPING POINT - 12 feb 2025; not sure what on earth is going wrong but it seems like sum of squares (sum_diff) is not porting between functions correctly...need to make sure it is, so I can properly record R-squared values. and multi-host model should actually have a quite good R-squared so something is wonky
-    #                                 - this likely applies to the single-host model as well unfortunately
-    # lower_bounds.tiss = c(0.06, 0.08, 0.29, 2.57, 3.13, 3.49)  # Lower bounds for betas and gammas - maybe more relaxed?
-    # upper_bounds.tiss = c(0.06, 0.08, 0.29, 2.57, 3.13, 3.49)  # Upper bounds for betas and gammas
+    
     
     control = list(itermax = 200)  # Maximum number of iterations. 200 is default
     
@@ -674,7 +508,7 @@
                                     S.HS = initial_state.tiss[7], I.HS = initial_state.tiss[8], R.HS = initial_state.tiss[9]),
                                     # S.HS = initial_state[7], I.HS = initial_state[8], R.HS = initial_state[9],
                                     # P = initial_state[10]),
-                                    days.model, SIR.multi, c(b.LS = min.beta.LS.tiss, g.LS = min.gamma.LS.tiss,
+                                    days.model, SIR, c(b.LS = min.beta.LS.tiss, g.LS = min.gamma.LS.tiss,
                                                b.MS = min.beta.MS.tiss, g.MS = min.gamma.MS.tiss,
                                                b.HS = min.beta.HS.tiss, g.HS = min.gamma.HS.tiss,
                                                N.LS = initial_state.tiss[10], N.MS = initial_state.tiss[11], N.HS = initial_state.tiss[12],
@@ -685,8 +519,6 @@
     my.SIRS.multi[[i]] = SIR.out.tiss
   }
   
-  ################################## Save output ##################################
-  
   #pass workspace to downstream script
-  save.image(file = here("output", "multi_SIR_workspace.RData"))
+  save.image(file = here("output", "multi_SIR_workspace_rewind.RData"))
   

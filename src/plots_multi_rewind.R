@@ -10,10 +10,7 @@
   library(deSolve)
   
   #import workspace from upstream script
-  load(here("output/multi_SIR_workspace.RData"))
-  
-  ################################## Set-up ##################################
-  
+  load(here("output/multi_SIR_workspace_rewind.RData"))
   # load(here("output/pre_DHW_integration_and_cover_ratio_9Oct2024/multi_SIR_workspace_01_125_15.RData"))
   
   # obs.multi = obs.multi %>%
@@ -42,16 +39,8 @@
   update_geom_defaults("text", list(colour = "black", family = theme_get()$text$family))
   # display.brewer.all(colorblindFriendly = TRUE)
   
-  ################################## Fitted whole-outbreak ##################################
-  
   # Nearshore
   site.loop = 'Nearshore'
-  curr.site = 'near'
-  days.obs <- days_sites %>%
-    filter(site == curr.site) %>%
-    pull(days.obs) %>%
-    unlist() 
-  
   order = 2
   
   N.LS.nearshore = susceptible_ref %>%
@@ -97,36 +86,6 @@
                          round(R0s.nearshore, 2), round(cover.nearshore*100, 2))
   names(tab.nearshore) = c('Category', 'beta', 'Adj. beta', 'gamma', 'R0', 'Cover')
   
-  
-  #calculate R-squared and update error table
-  # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
-  sim.rem.total = rowSums(output.nearshore[which(output.nearshore$time %in% days.obs), 
-                                           which(colnames(output.nearshore) %in% c('R.LS', 'R.MS', 'R.HS'))], 
-                          na.rm = TRUE)
-  obs.rem.total = obs.model %>%
-    filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
-    slice(head(row_number(), n()-DHW.modifier)) %>%
-    pull(tissue)
-  
-  # Trim obs.rem.total from the beginning to match the length of sim.rem.total. this chops off zero's
-  if (length(obs.rem.total) > length(sim.rem.total)) {
-    obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
-  }
-  
-  diff.rem.total = (sim.rem.total - obs.rem.total)
-  sum_diff.total = sum(diff.rem.total^2)
-  mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
-  tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
-  r_squared.multi.nearshore = 1 - (sum_diff.total / tss_rem.total)
-  
-  error_eval <- error_eval %>%
-    mutate(R_squared = ifelse(site == curr.site & 
-                                host == curr.host & 
-                                type == curr.type & 
-                                wave == curr.wave,
-                              r_squared.multi.nearshore,
-                              R_squared))
-  
   output.nearshore = output.nearshore %>% select(-last_col())
   
   output.nearshore = pivot_longer(output.nearshore, cols = -1, names_pattern = "(.*)(..)$", names_to = c("Compartment", "Susceptibility")) %>%
@@ -142,8 +101,6 @@
   
   colnames(output.nearshore)[1] = 'days.model'
   colnames(output.nearshore)[4] = 'tissue'
-  
-  
   
   # note - swapped color and linetype here
   p.fit.nearshore.multi = ggplot(data = output.nearshore, aes(days.model, tissue, colour = Susceptibility, linetype = Compartment)) +
@@ -243,12 +200,6 @@
   
   # Midchannel
   site.loop = 'Midchannel'
-  curr.site = 'mid'
-  days.obs <- days_sites %>%
-    filter(site == curr.site) %>%
-    pull(days.obs) %>%
-    unlist() 
-  
   order = 1
   
   N.LS.midchannel = susceptible_ref %>%
@@ -300,35 +251,6 @@
   tab.midchannel = tibble(suscat.names, round(betas.midchannel, 2), round(betas.midchannel.adj, 2), round(gammas.midchannel, 2),
                          round(R0s.midchannel, 2), round(cover.midchannel*100, 2))
   names(tab.midchannel) = c('Category', 'beta', 'Adj. beta', 'gamma', 'R0', 'Cover')
-  
-  #calculate R-squared and update error table
-  # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
-  sim.rem.total = rowSums(output.midchannel[which(output.midchannel$time %in% days.obs), 
-                                           which(colnames(output.midchannel) %in% c('R.LS', 'R.MS', 'R.HS'))], 
-                          na.rm = TRUE)
-  obs.rem.total = obs.model %>%
-    filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
-    slice(head(row_number(), n()-DHW.modifier)) %>%
-    pull(tissue)
-  
-  # Trim obs.rem.total from the beginning to match the length of sim.rem.total. this chops off zero's
-  if (length(obs.rem.total) > length(sim.rem.total)) {
-    obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
-  }
-  
-  diff.rem.total = (sim.rem.total - obs.rem.total)
-  sum_diff.total = sum(diff.rem.total^2)
-  mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
-  tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
-  r_squared.multi.midchannel = 1 - (sum_diff.total / tss_rem.total)
-  
-  error_eval <- error_eval %>%
-    mutate(R_squared = ifelse(site == curr.site & 
-                                host == curr.host & 
-                                type == curr.type & 
-                                wave == curr.wave,
-                              r_squared.multi.midchannel,
-                              R_squared))
   
   output.midchannel = output.midchannel %>% select(-last_col())
   
@@ -390,12 +312,6 @@
   
   # Offshore
   site.loop = 'Offshore'
-  curr.site = 'off'
-  days.obs <- days_sites %>%
-    filter(site == curr.site) %>%
-    pull(days.obs) %>%
-    unlist() 
-  
   order = 3
   
   N.LS.offshore = susceptible_ref %>%
@@ -447,36 +363,6 @@
   tab.offshore = tibble(suscat.names, round(betas.offshore, 2), round(betas.offshore.adj, 2), round(gammas.offshore, 2),
                           round(R0s.offshore, 2), round(cover.offshore*100, 2))
   names(tab.offshore) = c('Category', 'beta', 'Adj. beta', 'gamma', 'R0', 'Cover')
-  
-  #calculate R-squared and update error table
-  # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
-  sim.rem.total = rowSums(output.offshore[which(output.offshore$time %in% days.obs), 
-                                            which(colnames(output.offshore) %in% c('R.LS', 'R.MS', 'R.HS'))], 
-                          na.rm = TRUE)
-  obs.rem.total = obs.model %>%
-    filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
-    slice(head(row_number(), n()-DHW.modifier)) %>%
-    pull(tissue)
-  
-  # Trim obs.rem.total from the beginning to match the length of sim.rem.total. this chops off zero's
-  if (length(obs.rem.total) > length(sim.rem.total)) {
-    obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
-  }
-  
-  diff.rem.total = (sim.rem.total - obs.rem.total)
-  sum_diff.total = sum(diff.rem.total^2)
-  mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
-  tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
-  r_squared.multi.offshore = 1 - (sum_diff.total / tss_rem.total)
-  
-  error_eval <- error_eval %>%
-    mutate(R_squared = ifelse(site == curr.site & 
-                                host == curr.host & 
-                                type == curr.type & 
-                                wave == curr.wave,
-                              r_squared.multi.offshore,
-                              R_squared))
-  
   
   output.offshore = output.offshore %>% select(-last_col())
   
@@ -538,7 +424,8 @@
   
   # p.fit.offshore;p.I.fit.offshore;p.D.fit.offshore
   
-  ################################## Plots  ##################################
+  ##############################################################################################################################
+  #development
   
   # # Observations only [lines are observations]
   # #overlaid
@@ -563,9 +450,9 @@
   (p.I.fit.offshore.multi | p.I.fit.midchannel.multi | p.I.fit.nearshore.multi) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
   (p.D.fit.offshore.multi | p.D.fit.midchannel.multi | p.D.fit.nearshore.multi) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
   
+  ##############################################################################################################################
+  # PREDICT OUTBREAKS FROM INITIAL CONDTIONS
   
-  ################################## Project outbreaks  ##################################
-    
   site.loop = 'Offshore'
   
   # Calculate the indices to keep based on HS.inftiss.offshore (the high-susceptibility corals kick off the epidemic at every site)
@@ -626,12 +513,6 @@
   
   #run SIR for Offshore based on fit from Nearshore
   site.loop = 'Offshore'
-  curr.site = 'off'
-  curr.type = 'Projected'
-  days.obs <- days_sites %>%
-    filter(site == curr.site) %>%
-    pull(days.obs) %>%
-    unlist() 
   
   I.LS.offshore = LS.inftiss.offshore[1]
   S.LS.offshore = N.LS.offshore - I.LS.offshore
@@ -651,43 +532,13 @@
                                                 # S.HS = S.HS.offshore, I.HS = I.HS.offshore, R.HS = R.HS.offshore,
                                                 # P = P.offshore),
                                                 S.HS = S.HS.offshore, I.HS = I.HS.offshore, R.HS = R.HS.offshore),
-                                              days.model.offshore, SIR.multi, c(b.LS = beta.nearshore.LS, g.LS = gamma.nearshore.LS,
+                                              days.model.offshore, SIR, c(b.LS = beta.nearshore.LS, g.LS = gamma.nearshore.LS,
                                                            b.MS = beta.nearshore.MS, g.MS = gamma.nearshore.MS,
                                                            b.HS = beta.nearshore.HS, g.HS = gamma.nearshore.HS,
                                                            N.LS = N.LS.offshore, N.MS = N.MS.offshore, N.HS = N.HS.offshore,
                                                            C = cover.offshore,
                                                            C.LS = cover.offshore.LS, C.MS = cover.offshore.MS, C.HS = cover.offshore.HS,
                                                            l = lambda)))
-  
-  #calculate R-squared and update error table
-  # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
-  sim.rem.total = rowSums(output.near.to.off.multi[which(output.near.to.off.multi$time %in% days.obs), 
-                                           which(colnames(output.near.to.off.multi) %in% c('R.LS', 'R.MS', 'R.HS'))], 
-                          na.rm = TRUE)
-  obs.rem.total = obs.model %>%
-    filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
-    slice(head(row_number(), n()-DHW.modifier)) %>%
-    pull(tissue)
-  
-  # Trim obs.rem.total from the beginning to match the length of sim.rem.total. this chops off zero's
-  if (length(obs.rem.total) > length(sim.rem.total)) {
-    obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
-  }
-  
-  diff.rem.total = (sim.rem.total - obs.rem.total)
-  sum_diff.total = sum(diff.rem.total^2)
-  mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
-  tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
-  r_squared.near.to.off.multi = 1 - (sum_diff.total / tss_rem.total)
-  
-  error_eval <- error_eval %>%
-    mutate(R_squared = ifelse(site == curr.site & 
-                                host == curr.host & 
-                                type == curr.type & 
-                                wave == curr.wave,
-                              r_squared.near.to.off.multi,
-                              R_squared))
-  
   
   # NOTE / STOPPING POINT - 8 OCT 2024
   #   - it may be a real problem that lambda is not passed as a parameter from the multi-group SIR. if we end up wanting to "fit" lambda, 
@@ -780,7 +631,7 @@
                                               # S.HS = S.HS.midchannel, I.HS = I.HS.midchannel, R.HS = R.HS.midchannel,
                                               # P = P.midchannel),
                                               S.HS = S.HS.midchannel, I.HS = I.HS.midchannel, R.HS = R.HS.midchannel),
-                                            days.model.midchannel, SIR.multi, c(b.LS = beta.nearshore.LS, g.LS = gamma.nearshore.LS,
+                                            days.model.midchannel, SIR, c(b.LS = beta.nearshore.LS, g.LS = gamma.nearshore.LS,
                                                                         b.MS = beta.nearshore.MS, g.MS = gamma.nearshore.MS,
                                                                         b.HS = beta.nearshore.HS, g.HS = gamma.nearshore.HS,
                                                                         N.LS = N.LS.midchannel, N.MS = N.MS.midchannel, N.HS = N.HS.midchannel,
@@ -868,7 +719,7 @@
                                               # S.HS = S.HS.nearshore, I.HS = I.HS.nearshore, R.HS = R.HS.nearshore,
                                               # P = P.nearshore),
                                               S.HS = S.HS.nearshore, I.HS = I.HS.nearshore, R.HS = R.HS.nearshore),
-                                            days.model.nearshore, SIR.multi, c(b.LS = beta.offshore.LS, g.LS = gamma.offshore.LS,
+                                            days.model.nearshore, SIR, c(b.LS = beta.offshore.LS, g.LS = gamma.offshore.LS,
                                                                           b.MS = beta.offshore.MS, g.MS = gamma.offshore.MS,
                                                                           b.HS = beta.offshore.HS, g.HS = gamma.offshore.HS,
                                                                           N.LS = N.LS.nearshore, N.MS = N.MS.nearshore, N.HS = N.HS.nearshore,
@@ -962,7 +813,7 @@
                                               # S.HS = S.HS.midchannel, I.HS = I.HS.midchannel, R.HS = R.HS.midchannel,
                                               # P = P.midchannel),
                                               S.HS = S.HS.midchannel, I.HS = I.HS.midchannel, R.HS = R.HS.midchannel),
-                                           days.model.midchannel, SIR.multi, c(b.LS = beta.offshore.LS, g.LS = gamma.offshore.LS,
+                                           days.model.midchannel, SIR, c(b.LS = beta.offshore.LS, g.LS = gamma.offshore.LS,
                                                                          b.MS = beta.offshore.MS, g.MS = gamma.offshore.MS,
                                                                          b.HS = beta.offshore.HS, g.HS = gamma.offshore.HS,
                                                                          N.LS = N.LS.midchannel, N.MS = N.MS.midchannel, N.HS = N.HS.midchannel,
@@ -1055,8 +906,7 @@
     theme(legend.position = 'bottom') #& xlim(0, 325)
   
   
-  ################################## Save workspace  ##################################
   
-  # #pass workspace to downstream script
-  # save.image(file = here("output", "plots_multi_workspace.RData"))
+  #pass workspace to downstream script
+  save.image(file = here("output", "plots_multi_workspace_rewind.RData"))
   
