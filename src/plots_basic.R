@@ -11,8 +11,12 @@
   
   #import workspace from upstream script
   load(here("output/basic_SIR_workspace.RData"))
+  # load(here("output/basic_SIR_workspace_abs.RData"))
+  # load(here("output/basic_SIR_workspace_abs_correct.RData"))
   
   ################################## Set-up ##################################
+  
+  curr.host = 'Single-host'
   
   obs.total = obs %>%
     filter(Category == 'Total') %>%
@@ -46,7 +50,14 @@
   
   # Nearshore
   site.loop = 'Nearshore'
+  curr.site = 'near'
+  days.obs <- days_sites %>%
+    filter(site == curr.site) %>%
+    pull(days.obs) %>%
+    unlist() 
+  
   order = 2
+  
   N.nearshore = susceptible_ref %>%
     filter(Site == site.loop) %>%
     slice(1) %>% #all values for N.site are the same between categories, so slice first row
@@ -64,6 +75,42 @@
   tab.nearshore = tibble(round(beta.nearshore, 2), round(beta.nearshore.adj, 2), round(gamma.nearshore, 2),
                           round(R0.nearshore, 2), round(cover.nearshore*100, 2))
   names(tab.nearshore) = c('beta', 'Adj. beta', 'gamma', 'R0', 'Cover (%)')
+  
+  
+  
+  
+  
+  
+  
+  #calculate R-squared and update error table
+  # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
+  curr.type = 'DHW'
+  curr.wave = 'Pre-heat'
+  
+  sim.rem.total = output.basic.nearshore[which(output.basic.nearshore$time %in% days.obs), which(colnames(output.basic.nearshore) %in% 'R')]
+  obs.rem.total = obs.model %>%
+    filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
+    slice(head(row_number(), n()-DHW.modifier)) %>%
+    pull(tissue)
+  
+  # Trim obs.rem.total from the beginning to match the length of sim.rem.total. this chops off zero's
+  if (length(obs.rem.total) > length(sim.rem.total)) {
+    obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
+  }
+  
+  diff.rem.total = (sim.rem.total - obs.rem.total)
+  sum_diff.total = sum(diff.rem.total^2)
+  mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
+  tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+  r_squared.basic.nearshore = 1 - (sum_diff.total / tss_rem.total)
+  
+  error_eval <- error_eval %>%
+    mutate(R_squared = ifelse(site == curr.site & 
+                                host == curr.host & 
+                                type == curr.type & 
+                                wave == curr.wave,
+                              r_squared.basic.nearshore,
+                              R_squared))
   
   output.basic.nearshore = pivot_longer(output.basic.nearshore, cols = -1, names_to = c("Compartment")) %>%
     mutate(Compartment = ifelse(Compartment == "", "value", Compartment)) %>%
@@ -111,7 +158,14 @@
   
   # Midchannel
   site.loop = 'Midchannel'
+  curr.site = 'mid'
+  days.obs <- days_sites %>%
+    filter(site == curr.site) %>%
+    pull(days.obs) %>%
+    unlist() 
+  
   order = 1
+  
   N.midchannel = susceptible_ref %>%
     filter(Site == site.loop) %>%
     slice(1) %>% #all values for N.site are the same between categories, so slice first row
@@ -129,6 +183,42 @@
   tab.midchannel = tibble(round(beta.midchannel, 2), round(beta.midchannel.adj, 2), round(gamma.midchannel, 2),
                           round(R0.midchannel, 2), round(cover.midchannel*100, 2))
   names(tab.midchannel) = c('beta', 'Adj. beta', 'gamma', 'R0', 'Cover (%)')
+  
+  
+  
+  #calculate R-squared and update error table
+  # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
+  curr.type = 'DHW'
+  curr.wave = 'Pre-heat'
+  
+  sim.rem.total = output.basic.midchannel[which(output.basic.midchannel$time %in% days.obs), which(colnames(output.basic.midchannel) %in% 'R')]
+  obs.rem.total = obs.model %>%
+    filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
+    slice(head(row_number(), n()-DHW.modifier)) %>%
+    pull(tissue)
+  
+  # Trim obs.rem.total from the beginning to match the length of sim.rem.total. this chops off zero's
+  if (length(obs.rem.total) > length(sim.rem.total)) {
+    obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
+  }
+  
+  diff.rem.total = (sim.rem.total - obs.rem.total)
+  sum_diff.total = sum(diff.rem.total^2)
+  mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
+  tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+  r_squared.basic.nearshore = 1 - (sum_diff.total / tss_rem.total)
+  
+  error_eval <- error_eval %>%
+    mutate(R_squared = ifelse(site == curr.site & 
+                                host == curr.host & 
+                                type == curr.type & 
+                                wave == curr.wave,
+                              r_squared.basic.nearshore,
+                              R_squared))
+  
+  
+  
+  
   
   output.basic.midchannel = pivot_longer(output.basic.midchannel, cols = -1, names_to = c("Compartment")) %>%
     mutate(Compartment = ifelse(Compartment == "", "value", Compartment)) %>%
@@ -177,7 +267,14 @@
   
   # Offshore
   site.loop = 'Offshore'
+  curr.site = 'off'
+  days.obs = days_sites %>%
+    filter(site == curr.site) %>%
+    pull(days.obs) %>%
+    unlist()
+  
   order = 3
+  
   N.offshore = susceptible_ref %>%
     filter(Site == site.loop) %>%
     slice(1) %>% #all values for N.site are the same between categories, so slice first row
@@ -195,6 +292,41 @@
   tab.offshore = tibble(round(beta.offshore, 2), round(beta.offshore.adj, 2), round(gamma.offshore, 2),
                           round(R0.offshore, 2), round(cover.offshore*100, 2))
   names(tab.offshore) = c('beta', 'Adj. beta', 'gamma', 'R0', 'Cover (%)')
+  
+  
+  
+  
+  
+  
+  #calculate R-squared and update error table
+  # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
+  curr.type = 'DHW'
+  curr.wave = 'Pre-heat'
+  
+  sim.rem.total = output.basic.offshore[which(output.basic.offshore$time %in% days.obs), which(colnames(output.basic.offshore) %in% 'R')]
+  obs.rem.total = obs.model %>%
+    filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
+    slice(head(row_number(), n()-DHW.modifier)) %>%
+    pull(tissue)
+  
+  # Trim obs.rem.total from the beginning to match the length of sim.rem.total. this chops off zero's
+  if (length(obs.rem.total) > length(sim.rem.total)) {
+    obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
+  }
+  
+  diff.rem.total = (sim.rem.total - obs.rem.total)
+  sum_diff.total = sum(diff.rem.total^2)
+  mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
+  tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+  r_squared.basic.offshore = 1 - (sum_diff.total / tss_rem.total)
+  
+  error_eval <- error_eval %>%
+    mutate(R_squared = ifelse(site == curr.site & 
+                                host == curr.host & 
+                                type == curr.type & 
+                                wave == curr.wave,
+                              r_squared.basic.offshore,
+                              R_squared))
   
   output.basic.offshore = pivot_longer(output.basic.offshore, cols = -1, names_to = c("Compartment")) %>%
     mutate(Compartment = ifelse(Compartment == "", "value", Compartment)) %>%
@@ -244,6 +376,12 @@
   ################################## Fitted whole-outbreak ##################################
   # Nearshore
   site.loop = 'Nearshore'
+  curr.site = 'near'
+  days.obs <- days_sites %>%
+    filter(site == curr.site) %>%
+    pull(days.obs) %>%
+    unlist() 
+  
   order = 2
   N.nearshore = susceptible_ref %>%
     filter(Site == site.loop) %>%
@@ -262,6 +400,36 @@
   tab.nearshore.full = tibble(round(beta.nearshore.full, 2), round(beta.nearshore.adj.full, 2), round(gamma.nearshore.full, 2),
                          round(R0.nearshore.full, 2), round(cover.nearshore.full*100, 2))
   names(tab.nearshore.full) = c('beta', 'Adj. beta', 'gamma', 'R0', 'Cover (%)')
+  
+  #calculate R-squared and update error table
+  # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
+  curr.type = 'Fitted'
+  curr.wave = 'Full'
+  
+  sim.rem.total = output.basic.nearshore.full[which(output.basic.nearshore.full$time %in% days.obs), which(colnames(output.basic.nearshore.full) %in% 'R')]
+  obs.rem.total = obs.model %>%
+    filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
+    slice(head(row_number(), n()-DHW.modifier)) %>%
+    pull(tissue)
+  
+  # Trim obs.rem.total from the beginning to match the length of sim.rem.total. this chops off zero's
+  if (length(obs.rem.total) > length(sim.rem.total)) {
+    obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
+  }
+  
+  diff.rem.total = (sim.rem.total - obs.rem.total)
+  sum_diff.total = sum(diff.rem.total^2)
+  mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
+  tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+  r_squared.basic.nearshore.full = 1 - (sum_diff.total / tss_rem.total)
+  
+  error_eval <- error_eval %>%
+    mutate(R_squared = ifelse(site == curr.site & 
+                                host == curr.host & 
+                                type == curr.type & 
+                                wave == curr.wave,
+                              r_squared.basic.nearshore.full,
+                              R_squared))
   
   output.basic.nearshore.full = pivot_longer(output.basic.nearshore.full, cols = -1, names_to = c("Compartment")) %>%
     mutate(Compartment = ifelse(Compartment == "", "value", Compartment)) %>%
@@ -309,7 +477,14 @@
   
   # Midchannel
   site.loop = 'Midchannel'
+  curr.site = 'mid'
+  days.obs <- days_sites %>%
+    filter(site == curr.site) %>%
+    pull(days.obs) %>%
+    unlist() 
+  
   order = 1
+  
   N.midchannel = susceptible_ref %>%
     filter(Site == site.loop) %>%
     slice(1) %>% #all values for N.site are the same between categories, so slice first row
@@ -327,6 +502,36 @@
   tab.midchannel.full = tibble(round(beta.midchannel.full, 2), round(beta.midchannel.adj.full, 2), round(gamma.midchannel.full, 2),
                           round(R0.midchannel.full, 2), round(cover.midchannel.full*100, 2))
   names(tab.midchannel.full) = c('beta', 'Adj. beta', 'gamma', 'R0', 'Cover (%)')
+  
+  #calculate R-squared and update error table
+  # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
+  curr.type = 'Fitted'
+  curr.wave = 'Full'
+  
+  sim.rem.total = output.basic.midchannel.full[which(output.basic.midchannel.full$time %in% days.obs), which(colnames(output.basic.midchannel.full) %in% 'R')]
+  obs.rem.total = obs.model %>%
+    filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
+    slice(head(row_number(), n()-DHW.modifier)) %>%
+    pull(tissue)
+  
+  # Trim obs.rem.total from the beginning to match the length of sim.rem.total. this chops off zero's
+  if (length(obs.rem.total) > length(sim.rem.total)) {
+    obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
+  }
+  
+  diff.rem.total = (sim.rem.total - obs.rem.total)
+  sum_diff.total = sum(diff.rem.total^2)
+  mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
+  tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+  r_squared.basic.midchannel.full = 1 - (sum_diff.total / tss_rem.total)
+  
+  error_eval <- error_eval %>%
+    mutate(R_squared = ifelse(site == curr.site & 
+                                host == curr.host & 
+                                type == curr.type & 
+                                wave == curr.wave,
+                              r_squared.basic.midchannel.full,
+                              R_squared))
   
   output.basic.midchannel.full = pivot_longer(output.basic.midchannel.full, cols = -1, names_to = c("Compartment")) %>%
     mutate(Compartment = ifelse(Compartment == "", "value", Compartment)) %>%
@@ -375,7 +580,14 @@
   
   # Offshore
   site.loop = 'Offshore'
+  curr.site = 'off'
+  days.obs <- days_sites %>%
+    filter(site == curr.site) %>%
+    pull(days.obs) %>%
+    unlist() 
+  
   order = 3
+  
   N.offshore = susceptible_ref %>%
     filter(Site == site.loop) %>%
     slice(1) %>% #all values for N.site are the same between categories, so slice first row
@@ -393,6 +605,36 @@
   tab.offshore.full = tibble(round(beta.offshore.full, 2), round(beta.offshore.adj.full, 2), round(gamma.offshore.full, 2),
                         round(R0.offshore.full, 2), round(cover.offshore.full*100, 2))
   names(tab.offshore.full) = c('beta', 'Adj. beta', 'gamma', 'R0', 'Cover (%)')
+  
+  #calculate R-squared and update error table
+  # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
+  curr.type = 'Fitted'
+  curr.wave = 'Full'
+  
+  sim.rem.total = output.basic.offshore.full[which(output.basic.offshore.full$time %in% days.obs), which(colnames(output.basic.offshore.full) %in% 'R')]
+  obs.rem.total = obs.model %>%
+    filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
+    slice(head(row_number(), n()-DHW.modifier)) %>%
+    pull(tissue)
+  
+  # Trim obs.rem.total from the beginning to match the length of sim.rem.total. this chops off zero's
+  if (length(obs.rem.total) > length(sim.rem.total)) {
+    obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
+  }
+  
+  diff.rem.total = (sim.rem.total - obs.rem.total)
+  sum_diff.total = sum(diff.rem.total^2)
+  mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
+  tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+  r_squared.basic.offshore.full = 1 - (sum_diff.total / tss_rem.total)
+  
+  error_eval <- error_eval %>%
+    mutate(R_squared = ifelse(site == curr.site & 
+                                host == curr.host & 
+                                type == curr.type & 
+                                wave == curr.wave,
+                              r_squared.basic.offshore.full,
+                              R_squared))
   
   output.basic.offshore.full = pivot_longer(output.basic.offshore.full, cols = -1, names_to = c("Compartment")) %>%
     mutate(Compartment = ifelse(Compartment == "", "value", Compartment)) %>%
@@ -442,6 +684,12 @@
   ################################## Thermal stress  ##################################
   #Nearshore
   site.loop = 'Nearshore'
+  curr.site = 'near'
+  days.obs <- days_sites %>%
+    filter(site == curr.site) %>%
+    pull(days.obs) %>%
+    unlist() 
+  
   order = 2
   
   output.basic.nearshore.DHW = my.SIRS.basic.DHW[[order]]
@@ -452,6 +700,37 @@
   tab.nearshore = tibble(round(beta.nearshore, 2), round(beta.nearshore.adj, 2), round(gamma.nearshore, 2),
                           round(R0.nearshore, 2), round(cover.nearshore*100, 2))
   names(tab.nearshore) = c('beta', 'Adj. beta', 'gamma', 'R0', 'Cover (%)')
+  
+  
+  #calculate R-squared and update error table
+  # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
+  curr.type = 'DHW'
+  curr.wave = 'Full'
+  
+  sim.rem.total = output.basic.nearshore.DHW[which(output.basic.nearshore.DHW$time %in% days.obs), which(colnames(output.basic.nearshore.DHW) %in% 'R')]
+  obs.rem.total = obs.model %>%
+    filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
+    slice(head(row_number(), n()-DHW.modifier)) %>%
+    pull(tissue)
+  
+  # Trim obs.rem.total from the beginning to match the length of sim.rem.total. this chops off zero's
+  if (length(obs.rem.total) > length(sim.rem.total)) {
+    obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
+  }
+  
+  diff.rem.total = (sim.rem.total - obs.rem.total)
+  sum_diff.total = sum(diff.rem.total^2)
+  mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
+  tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+  r_squared.basic.nearshore.DHW = 1 - (sum_diff.total / tss_rem.total)
+  
+  error_eval <- error_eval %>%
+    mutate(R_squared = ifelse(site == curr.site & 
+                                host == curr.host & 
+                                type == curr.type & 
+                                wave == curr.wave,
+                              r_squared.basic.nearshore.DHW,
+                              R_squared))
   
   output.basic.nearshore.DHW = pivot_longer(output.basic.nearshore.DHW, cols = -1, names_to = c("Compartment")) %>%
     mutate(Compartment = ifelse(Compartment == "", "value", Compartment)) %>%
@@ -500,6 +779,12 @@
   
   #Midchannel
   site.loop = 'Midchannel'
+  curr.site = 'mid'
+  days.obs <- days_sites %>%
+    filter(site == curr.site) %>%
+    pull(days.obs) %>%
+    unlist() 
+  
   order = 1
   
   output.basic.midchannel.DHW = my.SIRS.basic.DHW[[order]]
@@ -510,6 +795,36 @@
   tab.midchannel = tibble(round(beta.midchannel, 2), round(beta.midchannel.adj, 2), round(gamma.midchannel, 2),
                           round(R0.midchannel, 2), round(cover.midchannel*100, 2))
   names(tab.midchannel) = c('beta', 'Adj. beta', 'gamma', 'R0', 'Cover (%)')
+  
+  #calculate R-squared and update error table
+  # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
+  curr.type = 'DHW'
+  curr.wave = 'Full'
+  
+  sim.rem.total = output.basic.midchannel.DHW[which(output.basic.midchannel.DHW$time %in% days.obs), which(colnames(output.basic.midchannel.DHW) %in% 'R')]
+  obs.rem.total = obs.model %>%
+    filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
+    slice(head(row_number(), n()-DHW.modifier)) %>%
+    pull(tissue)
+  
+  # Trim obs.rem.total from the beginning to match the length of sim.rem.total. this chops off zero's
+  if (length(obs.rem.total) > length(sim.rem.total)) {
+    obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
+  }
+  
+  diff.rem.total = (sim.rem.total - obs.rem.total)
+  sum_diff.total = sum(diff.rem.total^2)
+  mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
+  tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+  r_squared.basic.midchannel.DHW = 1 - (sum_diff.total / tss_rem.total)
+  
+  error_eval <- error_eval %>%
+    mutate(R_squared = ifelse(site == curr.site & 
+                                host == curr.host & 
+                                type == curr.type & 
+                                wave == curr.wave,
+                              r_squared.basic.midchannel.DHW,
+                              R_squared))
   
   output.basic.midchannel.DHW = pivot_longer(output.basic.midchannel.DHW, cols = -1, names_to = c("Compartment")) %>%
     mutate(Compartment = ifelse(Compartment == "", "value", Compartment)) %>%
@@ -558,6 +873,12 @@
   
   #Offshore
   site.loop = 'Offshore'
+  curr.site = 'off'
+  days.obs <- days_sites %>%
+    filter(site == curr.site) %>%
+    pull(days.obs) %>%
+    unlist() 
+  
   order = 3
   
   output.basic.offshore.DHW = my.SIRS.basic.DHW[[order]]
@@ -568,6 +889,36 @@
   tab.offshore = tibble(round(beta.offshore, 2), round(beta.offshore.adj, 2), round(gamma.offshore, 2),
                          round(R0.offshore, 2), round(cover.offshore*100, 2))
   names(tab.offshore) = c('beta', 'Adj. beta', 'gamma', 'R0', 'Cover (%)')
+  
+  #calculate R-squared and update error table
+  # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
+  curr.type = 'DHW'
+  curr.wave = 'Full'
+  
+  sim.rem.total = output.basic.offshore.DHW[which(output.basic.offshore.DHW$time %in% days.obs), which(colnames(output.basic.offshore.DHW) %in% 'R')]
+  obs.rem.total = obs.model %>%
+    filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
+    slice(head(row_number(), n()-DHW.modifier)) %>%
+    pull(tissue)
+  
+  # Trim obs.rem.total from the beginning to match the length of sim.rem.total. this chops off zero's
+  if (length(obs.rem.total) > length(sim.rem.total)) {
+    obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
+  }
+  
+  diff.rem.total = (sim.rem.total - obs.rem.total)
+  sum_diff.total = sum(diff.rem.total^2)
+  mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
+  tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+  r_squared.basic.offshore.DHW = 1 - (sum_diff.total / tss_rem.total)
+  
+  error_eval <- error_eval %>%
+    mutate(R_squared = ifelse(site == curr.site & 
+                                host == curr.host & 
+                                type == curr.type & 
+                                wave == curr.wave,
+                              r_squared.basic.offshore.DHW,
+                              R_squared))
   
   output.basic.offshore.DHW = pivot_longer(output.basic.offshore.DHW, cols = -1, names_to = c("Compartment")) %>%
     mutate(Compartment = ifelse(Compartment == "", "value", Compartment)) %>%
@@ -1214,21 +1565,24 @@
   (p.fit.offshore.basic.DHW | p.fit.midchannel.basic.DHW | p.fit.nearshore.basic.DHW) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
   
   #projection vs fitted
-  (p.fit.offshore.basic | p.fit.near.to.off.basic)
-  (p.fit.nearshore.basic | p.fit.off.to.near.basic)
-  (p.fit.midchannel.basic | p.fit.near.to.mid.basic)
+  (p.fit.offshore.basic.full | p.fit.near.to.off.basic)
+  (p.fit.nearshore.basic.full | p.fit.off.to.near.basic)
+  (p.fit.midchannel.basic.full | p.fit.near.to.mid.basic)
   
   #susceptible compartment
   (p.S.fit.offshore.basic | p.S.fit.midchannel.basic | p.S.fit.nearshore.basic) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+  (p.S.fit.offshore.basic.full | p.S.fit.midchannel.basic.full | p.S.fit.nearshore.basic.full) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
   (p.S.fit.offshore.basic.DHW | p.S.fit.midchannel.basic.DHW | p.S.fit.nearshore.basic.DHW) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
   
   #infected compartment
   (p.I.fit.offshore.basic | p.I.fit.midchannel.basic | p.I.fit.nearshore.basic) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+  (p.I.fit.offshore.basic.full | p.I.fit.midchannel.basic.full | p.I.fit.nearshore.basic.full) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
   (p.I.fit.offshore.basic.DHW | p.I.fit.midchannel.basic.DHW | p.I.fit.nearshore.basic.DHW) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
-  (p.I.fit.near.to.off.basic | p.I.fit.off.to.near.basic)
+  # (p.I.fit.near.to.off.basic | p.I.fit.off.to.near.basic)
   
   #dead compartment
   (p.D.fit.offshore.basic | p.D.fit.midchannel.basic | p.D.fit.nearshore.basic) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+  (p.D.fit.offshore.basic.full | p.D.fit.midchannel.basic.full | p.D.fit.nearshore.basic.full) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
   (p.D.fit.offshore.basic.DHW | p.D.fit.midchannel.basic.DHW | p.D.fit.nearshore.basic.DHW) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
   
   # STOPPING POINT - 11 FEB 2025

@@ -480,7 +480,7 @@
       # # sum_diff.abs = sum_absolute_diff_I + sum_absolute_diff_R
       # sum_diff.abs = sum_absolute_diff_R.abs
       sum_absolute_diff_R.abs.total = sum(abs(diff.rem.total))
-      sum_diff.abs = sum_absolute_diff_R.abs.total
+      sum_diff.abs.total = sum_absolute_diff_R.abs.total
       
       # #Version where I was including the infected compartment in the fit, and also summing squares within groups before global sum. return to this if any issues
       # #minimize using sum of squared residuals
@@ -494,17 +494,17 @@
       sum_diff = sum(diff.rem^2)
       sum_diff.total = sum(diff.rem.total^2)
       
-      # NOTE - see Kalizhanova et al. 2024 (TB SIR) for other error assessments - including mean absolute error (MAE)
-      # Total Sum of Squares (TSS) for removal only
-      mean_obs_rem <- obs.rem %>% mean(na.rm = TRUE) # Compute mean of observed removals
-      tss_rem = sum((obs.rem - mean_obs_rem)^2)   # Sum of squared differences from mean
-      mean_obs_rem.total <- obs.rem.total %>% mean(na.rm = TRUE)
-      tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
-      
-      #R-squared
-      r_squared_rem = 1 - (sum_diff / tss_rem)
-      r_squared_rem.total = 1 - (sum_diff.total / tss_rem.total)
-      
+      # # NOTE - see Kalizhanova et al. 2024 (TB SIR) for other error assessments - including mean absolute error (MAE)
+      # # Total Sum of Squares (TSS) for removal only
+      # mean_obs_rem <- obs.rem %>% mean(na.rm = TRUE) # Compute mean of observed removals
+      # tss_rem = sum((obs.rem - mean_obs_rem)^2)   # Sum of squared differences from mean
+      # mean_obs_rem.total <- obs.rem.total %>% mean(na.rm = TRUE)
+      # tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+      # 
+      # #R-squared
+      # r_squared_rem = 1 - (sum_diff / tss_rem)
+      # r_squared_rem.total = 1 - (sum_diff.total / tss_rem.total)
+      # 
       # error_eval <<- error_eval %>%
       #   mutate(
       #     SSR = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', sum_diff.total, SSR),
@@ -524,42 +524,42 @@
       # print(str(sim.inf.total))  # Should show a valid list/vector
       # print(str(sim.rem.total))  # Should show a valid list/vector
       
-      # Updating error_eval with proper handling of list-columns
-      error_eval <<- error_eval %>%
-        mutate(
-          SSR = case_when(
-            site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ sum_diff.total,
-            TRUE ~ SSR
-          ),
-          TSS = case_when(
-            site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ tss_rem.total,
-            TRUE ~ TSS
-          ),
-          R_squared = case_when(
-            site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ r_squared_rem.total,
-            TRUE ~ R_squared
-          ),
+      # # Updating error_eval with proper handling of list-columns
+      # error_eval <<- error_eval %>%
+      #   mutate(
+      #     SSR = case_when(
+      #       site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ sum_diff.total,
+      #       TRUE ~ SSR
+      #     ),
+      #     TSS = case_when(
+      #       site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ tss_rem.total,
+      #       TRUE ~ TSS
+      #     ),
+      #     R_squared = case_when(
+      #       site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ r_squared_rem.total,
+      #       TRUE ~ R_squared
+      #     ),
+      #     
+      #     # Update list-columns with vectors
+      #     sim_inf = case_when(
+      #       site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ list(sim.inf.total),
+      #       TRUE ~ sim_inf
+      #     ),
+      #     sim_rem = case_when(
+      #       site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ list(sim.rem.total),
+      #       TRUE ~ sim_rem
+      #     ),
+      #     obs_inf = case_when(
+      #       site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ list(obs.inf.total),
+      #       TRUE ~ obs_inf
+      #     ),
+      #     obs_rem = case_when(
+      #       site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ list(obs.rem.total),
+      #       TRUE ~ obs_rem
+      #     )
+      #   )
           
-          # Update list-columns with vectors
-          sim_inf = case_when(
-            site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ list(sim.inf.total),
-            TRUE ~ sim_inf
-          ),
-          sim_rem = case_when(
-            site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ list(sim.rem.total),
-            TRUE ~ sim_rem
-          ),
-          obs_inf = case_when(
-            site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ list(obs.inf.total),
-            TRUE ~ obs_inf
-          ),
-          obs_rem = case_when(
-            site == site.loop & host == curr.host & type == curr.type & wave == 'Full' ~ list(obs.rem.total),
-            TRUE ~ obs_rem
-          )
-        )
-          
-      return(sum_diff.abs) #return only the residual metric for the epidemic wave being fit to
+      return(sum_diff.abs.total) #return only the residual metric for the epidemic wave being fit to
       # return(sum_diff.total) #return only the residual metric for the epidemic wave being fit to
     }
     
@@ -581,7 +581,7 @@
     # lower_bounds.tiss = c(0.06, 0.08, 0.29, 2.57, 3.13, 3.49)  # Lower bounds for betas and gammas - maybe more relaxed?
     # upper_bounds.tiss = c(0.06, 0.08, 0.29, 2.57, 3.13, 3.49)  # Upper bounds for betas and gammas
     
-    control = list(itermax = 200)  # Maximum number of iterations. 200 is default
+    control = list(itermax = 300)  # Maximum number of iterations. 200 is default
     
     # Run the optimization
     result.tiss = DEoptim(fn = objective_function, lower = lower_bounds.tiss, upper = upper_bounds.tiss,
@@ -687,6 +687,6 @@
   
   ################################## Save output ##################################
   
-  #pass workspace to downstream script
-  save.image(file = here("output", "multi_SIR_workspace.RData"))
+  # #pass workspace to downstream script
+  # save.image(file = here("output", "multi_SIR_workspace.RData"))
   

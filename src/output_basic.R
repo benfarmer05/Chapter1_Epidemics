@@ -270,7 +270,7 @@
       # initial_state = initial_state.tiss
       # time = days.model
       # data = coraldata.tiss
-
+      
       betas = params[1]
       gammas = params[2]
       lambdas = params[3]
@@ -338,60 +338,56 @@
       # # sim.rem = sim.rem/rem.inf.ratio
       
       # Calculate residuals
-      # diff.inf = (sim.inf - obs.inf)
+      diff.inf = (sim.inf - obs.inf)
       diff.rem = (sim.rem - obs.rem)
+      diff.inf.total = (sim.inf.total - obs.inf.total)
       diff.rem.total = (sim.rem.total - obs.rem.total)
       
-      # #aggregate sum of absolute residuals
-      # # NOTE - this is not sum of squares and should be clearly stated/defended in the manuscript if used
-      # sum_abs_diff_I = sum(sum(abs(diff.inf))) #can multiply this by 2 or similar to weight it extra
-      # sum_abs_diff_R = sum(sum(abs(diff.rem)))
-      # # sum_diff = sum_abs_diff_I + sum_abs_diff_R #this is the version where infections AND removal are fitted, not *just* removal
-      # sum_diff = sum_abs_diff_R
-      
-      # #decided to just focus on removal for fit
-      # #minimize using sum of squared residuals
-      # sum_squared_diff_I = sum(diff.inf^2)
-      # sum_squared_diff_R = sum(diff.rem^2)
-      # # sum_diff = sum_squared_diff_I + sum_squared_diff_R #this is the version where infections AND removal are fitted, not *just* removal
-      # sum_diff = sum_squared_diff_R
+      #aggregate sum of absolute residuals
+      # NOTE - this is not sum of squares and should be clearly stated/defended in the manuscript if used
+      sum_abs_diff_I = sum(sum(abs(diff.inf)))
+      sum_abs_diff_R = sum(sum(abs(diff.rem)))
+      sum_diff.abs = sum_abs_diff_R
+      sum_abs_diff_I.total = sum(sum(abs(diff.inf.total)))
+      sum_abs_diff_R.total = sum(sum(abs(diff.rem.total)))
+      sum_diff.abs.total = sum_abs_diff_R.total
       
       #minimize using sum of squared residuals
       sum_diff = sum(diff.rem^2)
       sum_diff.total = sum(diff.rem.total^2)
       
-      # NOTE - see Kalizhanova et al. 2024 (TB SIR) for other error assessments - including mean absolute error (MAE)
-      # Total Sum of Squares (TSS) for removal only
-      mean_obs_rem = mean(obs.rem, na.rm = TRUE)  # Compute mean of observed removals
-      tss_rem = sum((obs.rem - mean_obs_rem)^2)   # Sum of squared differences from mean
-      mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
-      tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+      # # NOTE - see Kalizhanova et al. 2024 (TB SIR) for other error assessments - including mean absolute error (MAE)
+      # # Total Sum of Squares (TSS) for removal only
+      # mean_obs_rem = mean(obs.rem, na.rm = TRUE)  # Compute mean of observed removals
+      # tss_rem = sum((obs.rem - mean_obs_rem)^2)   # Sum of squared differences from mean
+      # mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
+      # tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+      # 
+      # #R-squared
+      # r_squared_rem = 1 - (sum_diff / tss_rem)
+      # r_squared_rem.total = 1 - (sum_diff.total / tss_rem.total)
+      # 
+      # error_eval <<- error_eval %>%
+      #   mutate(
+      #     SSR = if_else(site == site.loop & host == curr.host & type == curr.type, 
+      #                   if_else(wave == 'Pre-heat', sum_diff, if_else(wave == 'Both', sum_diff.total, SSR)), SSR),
+      #     TSS = if_else(site == site.loop & host == curr.host & type == curr.type, 
+      #                   if_else(wave == 'Pre-heat', tss_rem, if_else(wave == 'Both', tss_rem.total, TSS)), TSS),
+      #     R_squared = if_else(site == site.loop & host == curr.host & type == curr.type, 
+      #                         if_else(wave == 'Pre-heat', r_squared_rem, if_else(wave == 'Both', r_squared_rem.total, R_squared)), R_squared),
+      #     
+      #     # Update list-columns with vectors
+      #     sim_inf = if_else(site == site.loop & host == curr.host & type == curr.type, 
+      #                       if_else(wave == 'Pre-heat', list(sim.inf), if_else(wave == 'Both', list(sim.inf.total), sim_inf)), sim_inf),
+      #     sim_rem = if_else(site == site.loop & host == curr.host & type == curr.type, 
+      #                       if_else(wave == 'Pre-heat', list(sim.rem), if_else(wave == 'Both', list(sim.rem.total), sim_rem)), sim_rem),
+      #     obs_inf = if_else(site == site.loop & host == curr.host & type == curr.type, 
+      #                       if_else(wave == 'Pre-heat', list(obs.inf), if_else(wave == 'Both', list(obs.inf.total), obs_inf)), obs_inf),
+      #     obs_rem = if_else(site == site.loop & host == curr.host & type == curr.type, 
+      #                       if_else(wave == 'Pre-heat', list(obs.rem), if_else(wave == 'Both', list(obs.rem.total), obs_rem)), obs_rem)
+      #   )
       
-      #R-squared
-      r_squared_rem = 1 - (sum_diff / tss_rem)
-      r_squared_rem.total = 1 - (sum_diff.total / tss_rem.total)
-      
-      error_eval <<- error_eval %>%
-        mutate(
-          SSR = if_else(site == site.loop & host == curr.host & type == curr.type, 
-                        if_else(wave == 'Pre-heat', sum_diff, if_else(wave == 'Both', sum_diff.total, SSR)), SSR),
-          TSS = if_else(site == site.loop & host == curr.host & type == curr.type, 
-                        if_else(wave == 'Pre-heat', tss_rem, if_else(wave == 'Both', tss_rem.total, TSS)), TSS),
-          R_squared = if_else(site == site.loop & host == curr.host & type == curr.type, 
-                              if_else(wave == 'Pre-heat', r_squared_rem, if_else(wave == 'Both', r_squared_rem.total, R_squared)), R_squared),
-          
-          # Update list-columns with vectors
-          sim_inf = if_else(site == site.loop & host == curr.host & type == curr.type, 
-                            if_else(wave == 'Pre-heat', list(sim.inf), if_else(wave == 'Both', list(sim.inf.total), sim_inf)), sim_inf),
-          sim_rem = if_else(site == site.loop & host == curr.host & type == curr.type, 
-                            if_else(wave == 'Pre-heat', list(sim.rem), if_else(wave == 'Both', list(sim.rem.total), sim_rem)), sim_rem),
-          obs_inf = if_else(site == site.loop & host == curr.host & type == curr.type, 
-                            if_else(wave == 'Pre-heat', list(obs.inf), if_else(wave == 'Both', list(obs.inf.total), obs_inf)), obs_inf),
-          obs_rem = if_else(site == site.loop & host == curr.host & type == curr.type, 
-                            if_else(wave == 'Pre-heat', list(obs.rem), if_else(wave == 'Both', list(obs.rem.total), obs_rem)), obs_rem)
-        )
-      
-      return(sum_diff) #return only the residual metric for the epidemic wave being fit to
+      return(sum_diff.abs) #return only the residual metric for the epidemic wave being fit to
     }
     
     # uniform
@@ -682,7 +678,7 @@
       sim.rem <- SIR.out[which(SIR.out$time %in% days.obs_trimmed), which(colnames(SIR.out) %in% 'R')]
       sim.inf.total = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'I')]
       sim.rem.total = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R')]
-
+      
       # Extract observed values for the trimmed days.obs
       obs.inf <- unlist(data[[1]])[days.obs >= time_cutoff]  # NOTE - this is a bit hard-coded; refer to this line if there are bugs
       obs.rem <- unlist(data[[2]])[days.obs >= time_cutoff]  # NOTE - this is a bit hard-coded; refer to this line if there are bugs
@@ -713,61 +709,57 @@
       # # sim.rem = sim.rem/rem.inf.ratio
       
       # Calculate residuals
-      # diff.inf = (sim.inf - obs.inf)
+      diff.inf = (sim.inf - obs.inf)
       diff.rem = (sim.rem - obs.rem)
+      diff.inf.total = (sim.inf.total - obs.inf.total)
       diff.rem.total = (sim.rem.total - obs.rem.total)
       
-      # #aggregate sum of absolute differences
-      # # NOTE - this is not sum of squares and should be clearly stated/defended in the manuscript
-      # sum_abs_diff_I = sum(sum(abs(diff.inf))) #can multiply this by 2 or similar to weight it extra
-      # sum_abs_diff_R = sum(sum(abs(diff.rem)))
-      # # sum_diff = sum_abs_diff_I + sum_abs_diff_R #this is the version where infections AND removal are fitted, not *just* removal
-      # sum_diff = sum_abs_diff_R
-      
-      # # # decided to just focus on removal for fit
-      # #minimize using sum of squared differences
-      # sum_squared_diff_I = sum(sum(diff.inf^2))
-      # sum_squared_diff_R = sum(sum(diff.rem^2))
-      # sum_diff = sum_squared_diff_I + sum_squared_diff_R #this is the version where infections AND removal are fitted, not *just* removal
-      # sum_diff = sum_squared_diff_R
+      #aggregate sum of absolute residuals
+      # NOTE - this is not sum of squares and should be clearly stated/defended in the manuscript if used
+      sum_abs_diff_I = sum(sum(abs(diff.inf)))
+      sum_abs_diff_R = sum(sum(abs(diff.rem)))
+      sum_diff.abs = sum_abs_diff_R
+      sum_abs_diff_I.total = sum(sum(abs(diff.inf.total)))
+      sum_abs_diff_R.total = sum(sum(abs(diff.rem.total)))
+      sum_diff.abs.total = sum_abs_diff_R.total
       
       #minimize using sum of squared residuals
       sum_diff = sum(diff.rem^2)
       sum_diff.total = sum(diff.rem.total^2)
       
-      # NOTE - see Kalizhanova et al. 2024 (TB SIR) for other error assessments - including mean absolute error (MAE)
-      # Total Sum of Squares (TSS) for removal only
-      mean_obs_rem = mean(obs.rem, na.rm = TRUE)  # Compute mean of observed removals
-      tss_rem = sum((obs.rem - mean_obs_rem)^2)   # Sum of squared differences from mean
-      mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)  # Compute mean of observed removals
-      tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)   # Sum of squared differences from mean
+      # # NOTE - see Kalizhanova et al. 2024 (TB SIR) for other error assessments - including mean absolute error (MAE)
+      # # Total Sum of Squares (TSS) for removal only
+      # mean_obs_rem = mean(obs.rem, na.rm = TRUE)  # Compute mean of observed removals
+      # tss_rem = sum((obs.rem - mean_obs_rem)^2)   # Sum of squared differences from mean
+      # mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)  # Compute mean of observed removals
+      # tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)   # Sum of squared differences from mean
+      # 
+      # #R-squared
+      # r_squared_rem = 1 - (sum_diff / tss_rem)
+      # r_squared_rem.total = 1 - (sum_diff.total / tss_rem.total)
+      # 
+      # # Update the Error_eval dataframe with current settings using dplyr
+      # error_eval <<- error_eval %>%
+      #   mutate(
+      #     SSR = if_else(site == site.loop & host == curr.host & type == curr.type, 
+      #                   if_else(wave == 'Post-heat', sum_diff, if_else(wave == 'Both', sum_diff.total, SSR)), SSR),
+      #     TSS = if_else(site == site.loop & host == curr.host & type == curr.type, 
+      #                   if_else(wave == 'Post-heat', tss_rem, if_else(wave == 'Both', tss_rem.total, TSS)), TSS),
+      #     R_squared = if_else(site == site.loop & host == curr.host & type == curr.type, 
+      #                         if_else(wave == 'Post-heat', r_squared_rem, if_else(wave == 'Both', r_squared_rem.total, R_squared)), R_squared),
+      #     
+      #     # Update list-columns with vectors
+      #     sim_inf = if_else(site == site.loop & host == curr.host & type == curr.type, 
+      #                       if_else(wave == 'Post-heat', list(sim.inf), if_else(wave == 'Both', list(sim.inf.total), sim_inf)), sim_inf),
+      #     sim_rem = if_else(site == site.loop & host == curr.host & type == curr.type, 
+      #                       if_else(wave == 'Post-heat', list(sim.rem), if_else(wave == 'Both', list(sim.rem.total), sim_rem)), sim_rem),
+      #     obs_inf = if_else(site == site.loop & host == curr.host & type == curr.type, 
+      #                       if_else(wave == 'Post-heat', list(obs.inf), if_else(wave == 'Both', list(obs.inf.total), obs_inf)), obs_inf),
+      #     obs_rem = if_else(site == site.loop & host == curr.host & type == curr.type, 
+      #                       if_else(wave == 'Post-heat', list(obs.rem), if_else(wave == 'Both', list(obs.rem.total), obs_rem)), obs_rem)
+      #   )
       
-      #R-squared
-      r_squared_rem = 1 - (sum_diff / tss_rem)
-      r_squared_rem.total = 1 - (sum_diff.total / tss_rem.total)
-      
-      # Update the Error_eval dataframe with current settings using dplyr
-      error_eval <<- error_eval %>%
-        mutate(
-          SSR = if_else(site == site.loop & host == curr.host & type == curr.type, 
-                        if_else(wave == 'Post-heat', sum_diff, if_else(wave == 'Both', sum_diff.total, SSR)), SSR),
-          TSS = if_else(site == site.loop & host == curr.host & type == curr.type, 
-                        if_else(wave == 'Post-heat', tss_rem, if_else(wave == 'Both', tss_rem.total, TSS)), TSS),
-          R_squared = if_else(site == site.loop & host == curr.host & type == curr.type, 
-                              if_else(wave == 'Post-heat', r_squared_rem, if_else(wave == 'Both', r_squared_rem.total, R_squared)), R_squared),
-          
-          # Update list-columns with vectors
-          sim_inf = if_else(site == site.loop & host == curr.host & type == curr.type, 
-                            if_else(wave == 'Post-heat', list(sim.inf), if_else(wave == 'Both', list(sim.inf.total), sim_inf)), sim_inf),
-          sim_rem = if_else(site == site.loop & host == curr.host & type == curr.type, 
-                            if_else(wave == 'Post-heat', list(sim.rem), if_else(wave == 'Both', list(sim.rem.total), sim_rem)), sim_rem),
-          obs_inf = if_else(site == site.loop & host == curr.host & type == curr.type, 
-                            if_else(wave == 'Post-heat', list(obs.inf), if_else(wave == 'Both', list(obs.inf.total), obs_inf)), obs_inf),
-          obs_rem = if_else(site == site.loop & host == curr.host & type == curr.type, 
-                            if_else(wave == 'Post-heat', list(obs.rem), if_else(wave == 'Both', list(obs.rem.total), obs_rem)), obs_rem)
-        )
-      
-      return(sum_diff)
+      return(sum_diff.abs)
     }
 
     # lower_bounds.tiss = c(0.01, 0.01)  # Lower bounds for zeta and eta
@@ -911,34 +903,41 @@
       obs.rem.total = unlist(data[[2]])
       
       # Calculate residuals
-      # diff.inf = (sim.inf - obs.inf)
+      diff.inf.total = (sim.inf.total - obs.inf.total)
       diff.rem.total = (sim.rem.total - obs.rem.total)
+      
+      #aggregate sum of absolute residuals
+      # NOTE - this is not sum of squares and should be clearly stated/defended in the manuscript if used
+      sum_abs_diff_I.total = sum(sum(abs(diff.inf.total))) #can multiply this by 2 or similar to weight it extra
+      sum_abs_diff_R.total = sum(sum(abs(diff.rem.total)))
+      # sum_diff = sum_abs_diff_I + sum_abs_diff_R #this is the version where infections AND removal are fitted, not *just* removal
+      sum_diff.abs.total = sum_abs_diff_R.total
       
       #minimize using sum of squared residuals
       sum_diff.total = sum(diff.rem.total^2)
       
-      # NOTE - see Kalizhanova et al. 2024 (TB SIR) for other error assessments - including mean absolute error (MAE)
-      # Total Sum of Squares (TSS) for removal only
-      mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
-      tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+      # # NOTE - see Kalizhanova et al. 2024 (TB SIR) for other error assessments - including mean absolute error (MAE)
+      # # Total Sum of Squares (TSS) for removal only
+      # mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
+      # tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+      # 
+      # #R-squared
+      # r_squared_rem.total = 1 - (sum_diff.total / tss_rem.total)
+      # 
+      # error_eval <<- error_eval %>%
+      #   mutate(
+      #     SSR = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', sum_diff.total, SSR),
+      #     TSS = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', tss_rem.total, TSS),
+      #     R_squared = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', r_squared_rem.total, R_squared),
+      #     
+      #     # Update list-columns with vectors
+      #     sim_inf = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(sim.inf.total), sim_inf),
+      #     sim_rem = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(sim.rem.total), sim_rem),
+      #     obs_inf = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(obs.inf.total), obs_inf),
+      #     obs_rem = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(obs.rem.total), obs_rem)
+      #   )
       
-      #R-squared
-      r_squared_rem.total = 1 - (sum_diff.total / tss_rem.total)
-      
-      error_eval <<- error_eval %>%
-        mutate(
-          SSR = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', sum_diff.total, SSR),
-          TSS = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', tss_rem.total, TSS),
-          R_squared = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', r_squared_rem.total, R_squared),
-          
-          # Update list-columns with vectors
-          sim_inf = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(sim.inf.total), sim_inf),
-          sim_rem = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(sim.rem.total), sim_rem),
-          obs_inf = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(obs.inf.total), obs_inf),
-          obs_rem = if_else(site == site.loop & host == curr.host & type == curr.type & wave == 'Full', list(obs.rem.total), obs_rem)
-        )
-      
-      return(sum_diff.total) #return only the residual metric for the epidemic wave being fit to
+      return(sum_diff.abs.total) #return only the residual metric for the epidemic wave being fit to
     }
     
     # uniform
@@ -1004,5 +1003,5 @@
   #       - Not done yet!
   
   # #pass workspace to downstream script
-  # save.image(file = here("output", "basic_SIR_workspace.RData"))
+  # save.image(file = here("output", "basic_SIR_workspace_abs_correct.RData"))
   
