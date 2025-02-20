@@ -22,6 +22,36 @@
       Site == 'Nearshore' ~ 'near'
     ))
   
+  
+  # # NOTE - 19 Feb 2025 - something I was testing to change the starting values of infected tissue
+  # # Find the smallest nonzero tissue value across all categories within each Site
+  # obs.model_updated <- obs.model %>%
+  #   filter(Compartment == "Infected") %>%
+  #   group_by(Site) %>%
+  #   mutate(min_tissue = min(tissue[tissue > 0], na.rm = TRUE)) %>%
+  #   ungroup()
+  # 
+  # # Apply changes only to "Total" and "High"
+  # obs.model_updated <- obs.model_updated %>%
+  #   arrange(Site, date) %>%
+  #   group_by(Site, Category) %>%  # Ensure min(which(tissue > 0)) is calculated within each Category
+  #   mutate(tissue = case_when(
+  #     Category %in% c("Total", "High") & row_number() == min(which(tissue > 0)) ~ min_tissue / case_when(
+  #       Site == "near" ~ polyp_SA.minimizer.nearshore,
+  #       Site == "mid" ~ polyp_SA.minimizer.midchannel,
+  #       Site == "off" ~ polyp_SA.minimizer.offshore
+  #     ),
+  #     TRUE ~ tissue
+  #   )) %>%
+  #   ungroup() %>%
+  #   select(-min_tissue)
+  # 
+  # # Update obs.model in-place without changing row count
+  # obs.model <- obs.model %>%
+  #   rows_update(obs.model_updated, by = c("Site", "date", "Compartment", "Category"))
+  
+  
+  
   # Update Error_eval with metrics and thresholds - pulled values from output_basic upstream
   error_eval <<- error_eval %>%
     mutate(
@@ -687,6 +717,7 @@
   
   ################################## Save output ##################################
   
-  # #pass workspace to downstream script
+  #pass workspace to downstream script
   # save.image(file = here("output", "multi_SIR_workspace.RData"))
+  # save.image(file = here("output", "multi_SIR_workspace_lower_start.RData"))
   

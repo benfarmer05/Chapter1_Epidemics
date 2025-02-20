@@ -1030,6 +1030,20 @@
   S.offshore = N.offshore - I.offshore
   R.offshore = 0
   
+  
+  
+  
+  # # TESTING
+
+  lambda = 1.0
+
+  offset = 1 - 1 / (1 + exp(-lambda * 1.0))
+  # # TESTING
+  
+  
+  
+  
+  
   #simulation using initial state variables from naive site and parameters from fitted site
   output.basic.offshore.transfer = data.frame(ode(c(S = S.offshore, I = I.offshore, R = R.offshore),
                                             days.model.offshore, SIR, c(b = beta.nearshore, g = gamma.nearshore,# NOTE - g = gamma.nearshore or 0.60 / 0.66 to run a test, b = beta.nearshore or .82 / 0.89 to run a test 6 dec 2024
@@ -1578,12 +1592,13 @@
   (p.I.fit.offshore.basic | p.I.fit.midchannel.basic | p.I.fit.nearshore.basic) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
   (p.I.fit.offshore.basic.full | p.I.fit.midchannel.basic.full | p.I.fit.nearshore.basic.full) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
   (p.I.fit.offshore.basic.DHW | p.I.fit.midchannel.basic.DHW | p.I.fit.nearshore.basic.DHW) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
-  # (p.I.fit.near.to.off.basic | p.I.fit.off.to.near.basic)
+  (p.I.fit.near.to.off.basic | p.I.fit.off.to.near.basic)
   
   #dead compartment
   (p.D.fit.offshore.basic | p.D.fit.midchannel.basic | p.D.fit.nearshore.basic) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
   (p.D.fit.offshore.basic.full | p.D.fit.midchannel.basic.full | p.D.fit.nearshore.basic.full) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
   (p.D.fit.offshore.basic.DHW | p.D.fit.midchannel.basic.DHW | p.D.fit.nearshore.basic.DHW) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+  (p.D.fit.near.to.off.basic | p.D.fit.off.to.near.basic)
   
   # STOPPING POINT - 11 FEB 2025
   #   - need to add R-squared to projected fit. also, decide if want to project from pre-thermal stress, thermal stress, or whole-outbreak fit

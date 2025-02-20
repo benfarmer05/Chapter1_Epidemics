@@ -9,6 +9,8 @@
   library(ggthemes)
   library(scales)
   
+  ################################## Set-up ##################################
+  
   # #this was required for me to run at least once on an M1 Macbook (last updated December 2024)
   # font_import() 
   # loadfonts(device = "pdf")
@@ -17,11 +19,9 @@
   # https://www.rforecology.com/post/exporting-plots-in-r/
   
   #import workspace from upstream script
-  # load(here("output/pre_DHW_integration_and_cover_ratio_9Oct2024/plots_multi_workspace_01_125_15.RData"))
-  load(here("output/plots_multi_workspace.RData"))
-  # load(here("output/data_processing_workspace.RData"))
-  
-  ################################## TABLE 1  ##################################
+  load(here("output/error_eval_workspace.RData"))
+
+  ################################## Table 1 ##################################
   
   # NOTE - the coral cover conversions done here are not ratios based on particular taxa. this could be improved by re-analyzing CPCe output,
   #         but may not be worth it for this study. the main thing it would affect is presentation of this table, and some interpretation
@@ -87,16 +87,20 @@
   susceptible_ref_unique <- susceptible_ref %>%
     select(Site, SA.cover.ratio) %>%
     distinct(Site, .keep_all = TRUE)  # Remove duplicates, keeping the first occurrence
-  
+
   # Calculate cover and add species full names
   final_table <- summary_species_cover %>%
+    mutate(site = case_when(
+      site == "mid"  ~ "Midchannel",
+      site == "near" ~ "Nearshore",
+      site == "off"  ~ "Offshore",
+      TRUE ~ site  # Keep unchanged if not one of the above
+    )) %>%
     left_join(susceptible_ref_unique, by = c("site" = "Site")) %>%
     mutate(
-      # cover = tottiss / SA.cover.ratio / 100,  # Calculate cover using the site-specific ratio
-      cover = tottiss / SA.cover.ratio,  #no need to divide by 100 since this is for cover % presentation purposes
-      species_name = recode(spp, !!!species_names)  # Map species codes to full names
+      cover = tottiss / SA.cover.ratio,
+      species_name = recode(spp, !!!species_names)
     ) %>%
-    # Fill missing 'susc' values by taking the first non-NA 'susc' value within the same 'site' and 'species_name' group
     group_by(species_name) %>%
     mutate(susc = ifelse(is.na(susc), first(na.omit(susc)), susc)) %>%
     ungroup() %>%
@@ -111,32 +115,75 @@
   final_table_summary <- final_table %>%
     group_by(susc, species_name, site) %>%
     summarise(
+      total_SA = sum(tottiss, na.rm = TRUE),
       total_cover = sum(cover, na.rm = TRUE),
+      total_num = sum(totnum, na.rm = TRUE),
       .groups = "drop"
     )
   
-  # Step 2: Format the cover in (X, X, X) format for each species and site.
+  # # Step 2: Format the cover and SA in (X, X, X) format for each species and site.
+  # final_table_formatted <- final_table_summary %>%
+  #   group_by(susc, species_name) %>%
+  #   reframe(
+  #     cover = paste(
+  #       ifelse(round(total_cover[site == "Offshore"], 2) == 0, "<0.01", round(total_cover[site == "Offshore"], 2)), 
+  #       ifelse(round(total_cover[site == "Midchannel"], 2) == 0, "<0.01", round(total_cover[site == "Midchannel"], 2)), 
+  #       ifelse(round(total_cover[site == "Nearshore"], 2) == 0, "<0.01", round(total_cover[site == "Nearshore"], 2)), 
+  #       sep = ", "
+  #     ),
+  #     number = paste(
+  #       ifelse(round(total_num[site == "Offshore"], 2) == 0, "<0.01", round(total_num[site == "Offshore"], 2)), 
+  #       ifelse(round(total_num[site == "Midchannel"], 2) == 0, "<0.01", round(total_num[site == "Midchannel"], 2)), 
+  #       ifelse(round(total_num[site == "Nearshore"], 2) == 0, "<0.01", round(total_num[site == "Nearshore"], 2)), 
+  #       sep = ", "
+  #     ),
+  #     SA = paste(
+  #       ifelse(round(total_SA[site == "Offshore"], 2) == 0, "<0.01", round(total_SA[site == "Offshore"], 2)), 
+  #       ifelse(round(total_SA[site == "Midchannel"], 2) == 0, "<0.01", round(total_SA[site == "Midchannel"], 2)), 
+  #       ifelse(round(total_SA[site == "Nearshore"], 2) == 0, "<0.01", round(total_SA[site == "Nearshore"], 2)), 
+  #       sep = ", "
+  #     )
+  #   ) %>%
+  #   arrange(susc, species_name)
+  
+  # Step 2: Format the cover and SA in (X, X, X) format for each species and site.
   final_table_formatted <- final_table_summary %>%
     group_by(susc, species_name) %>%
     reframe(
       cover = paste(
-        # round(total_cover[site == "off"], 2), 
-        # round(total_cover[site == "mid"], 2), 
-        # round(total_cover[site == "near"], 2), 
-        
-        # Apply conditional check for each site to ensure print-out does not reduce very small cover values to 0
-        ifelse(round(total_cover[site == "off"], 2) == 0, "<0.01", round(total_cover[site == "off"], 2)), 
-        ifelse(round(total_cover[site == "mid"], 2) == 0, "<0.01", round(total_cover[site == "mid"], 2)), 
-        ifelse(round(total_cover[site == "near"], 2) == 0, "<0.01", round(total_cover[site == "near"], 2)), 
+        ifelse(total_cover[site == "Offshore"] == 0, "0.00", 
+               ifelse(round(total_cover[site == "Offshore"], 2) == 0, "<0.01", round(total_cover[site == "Offshore"], 2))), 
+        ifelse(total_cover[site == "Midchannel"] == 0, "0.00", 
+               ifelse(round(total_cover[site == "Midchannel"], 2) == 0, "<0.01", round(total_cover[site == "Midchannel"], 2))), 
+        ifelse(total_cover[site == "Nearshore"] == 0, "0.00", 
+               ifelse(round(total_cover[site == "Nearshore"], 2) == 0, "<0.01", round(total_cover[site == "Nearshore"], 2))), 
+        sep = ", "
+      ),
+      number = paste(
+        ifelse(total_num[site == "Offshore"] == 0, "0", 
+               ifelse(round(total_num[site == "Offshore"], 2) == 0, "<0.01", round(total_num[site == "Offshore"], 2))), 
+        ifelse(total_num[site == "Midchannel"] == 0, "0", 
+               ifelse(round(total_num[site == "Midchannel"], 2) == 0, "<0.01", round(total_num[site == "Midchannel"], 2))), 
+        ifelse(total_num[site == "Nearshore"] == 0, "0", 
+               ifelse(round(total_num[site == "Nearshore"], 2) == 0, "<0.01", round(total_num[site == "Nearshore"], 2))), 
+        sep = ", "
+      ),
+      SA = paste(
+        ifelse(total_SA[site == "Offshore"] == 0, "0.00", 
+               ifelse(round(total_SA[site == "Offshore"], 2) == 0, "<0.01", round(total_SA[site == "Offshore"], 2))), 
+        ifelse(total_SA[site == "Midchannel"] == 0, "0.00", 
+               ifelse(round(total_SA[site == "Midchannel"], 2) == 0, "<0.01", round(total_SA[site == "Midchannel"], 2))), 
+        ifelse(total_SA[site == "Nearshore"] == 0, "0.00", 
+               ifelse(round(total_SA[site == "Nearshore"], 2) == 0, "<0.01", round(total_SA[site == "Nearshore"], 2))), 
         sep = ", "
       )
     ) %>%
     arrange(susc, species_name)
   
-  # Step 3: Add the gross pathology information based on susceptibility group
+  
+  # Step 3: Add in total and grand total
   final_table_output <- final_table_formatted %>%
-    mutate(
-    ) %>%
+    mutate(across(where(is.numeric), ~sprintf("%.2f", .))) %>%
     # Add the "Total" row
     bind_rows(
       final_table_summary %>%
@@ -144,14 +191,21 @@
         summarise(
           species_name = "Total",
           cover = paste(
-            # sum(total_cover[site == "off"], na.rm = TRUE), 
-            # sum(total_cover[site == "mid"], na.rm = TRUE), 
-            # sum(total_cover[site == "near"], na.rm = TRUE),
-            
-            # Apply rounding to "Total" values
-            ifelse(round(sum(total_cover[site == "off"], na.rm = TRUE), 2) == 0, "<0.01", round(sum(total_cover[site == "off"], na.rm = TRUE), 2)),
-            ifelse(round(sum(total_cover[site == "mid"], na.rm = TRUE), 2) == 0, "<0.01", round(sum(total_cover[site == "mid"], na.rm = TRUE), 2)),
-            ifelse(round(sum(total_cover[site == "near"], na.rm = TRUE), 2) == 0, "<0.01", round(sum(total_cover[site == "near"], na.rm = TRUE), 2)),
+            ifelse(round(sum(total_cover[site == "Offshore"], na.rm = TRUE), 2) == 0, "<0.01", sprintf("%.2f", round(sum(total_cover[site == "Offshore"], na.rm = TRUE), 2))),
+            ifelse(round(sum(total_cover[site == "Midchannel"], na.rm = TRUE), 2) == 0, "<0.01", sprintf("%.2f", round(sum(total_cover[site == "Midchannel"], na.rm = TRUE), 2))),
+            ifelse(round(sum(total_cover[site == "Nearshore"], na.rm = TRUE), 2) == 0, "<0.01", sprintf("%.2f", round(sum(total_cover[site == "Nearshore"], na.rm = TRUE), 2))),
+            sep = ", "
+          ),
+          number = paste(
+            sum(total_num[site == "Offshore"], na.rm = TRUE),
+            sum(total_num[site == "Midchannel"], na.rm = TRUE),
+            sum(total_num[site == "Nearshore"], na.rm = TRUE),
+            sep = ", "
+          ),
+          SA = paste(
+            ifelse(round(sum(total_SA[site == "Offshore"], na.rm = TRUE), 2) == 0, "<0.01", sprintf("%.2f", round(sum(total_SA[site == "Offshore"], na.rm = TRUE), 2))),
+            ifelse(round(sum(total_SA[site == "Midchannel"], na.rm = TRUE), 2) == 0, "<0.01", sprintf("%.2f", round(sum(total_SA[site == "Midchannel"], na.rm = TRUE), 2))),
+            ifelse(round(sum(total_SA[site == "Nearshore"], na.rm = TRUE), 2) == 0, "<0.01", sprintf("%.2f", round(sum(total_SA[site == "Nearshore"], na.rm = TRUE), 2))),
             sep = ", "
           ),
           .groups = "drop"
@@ -164,9 +218,21 @@
         summarise(
           species_name = "Grand Total",
           cover = paste(
-            ifelse(round(sum(total_cover[site == "off"], na.rm = TRUE), 2) == 0, "<0.01", round(sum(total_cover[site == "off"], na.rm = TRUE), 2)),
-            ifelse(round(sum(total_cover[site == "mid"], na.rm = TRUE), 2) == 0, "<0.01", round(sum(total_cover[site == "mid"], na.rm = TRUE), 2)),
-            ifelse(round(sum(total_cover[site == "near"], na.rm = TRUE), 2) == 0, "<0.01", round(sum(total_cover[site == "near"], na.rm = TRUE), 2)),
+            ifelse(round(sum(total_cover[site == "Offshore"], na.rm = TRUE), 2) == 0, "<0.01", sprintf("%.2f", round(sum(total_cover[site == "Offshore"], na.rm = TRUE), 2))),
+            ifelse(round(sum(total_cover[site == "Midchannel"], na.rm = TRUE), 2) == 0, "<0.01", sprintf("%.2f", round(sum(total_cover[site == "Midchannel"], na.rm = TRUE), 2))),
+            ifelse(round(sum(total_cover[site == "Nearshore"], na.rm = TRUE), 2) == 0, "<0.01", sprintf("%.2f", round(sum(total_cover[site == "Nearshore"], na.rm = TRUE), 2))),
+            sep = ", "
+          ),
+          number = paste(
+            sum(total_num[site == "Offshore"], na.rm = TRUE),
+            sum(total_num[site == "Midchannel"], na.rm = TRUE),
+            sum(total_num[site == "Nearshore"], na.rm = TRUE),
+            sep = ", "
+          ),
+          SA = paste(
+            ifelse(round(sum(total_SA[site == "Offshore"], na.rm = TRUE), 2) == 0, "<0.01", sprintf("%.2f", round(sum(total_SA[site == "Offshore"], na.rm = TRUE), 2))),
+            ifelse(round(sum(total_SA[site == "Midchannel"], na.rm = TRUE), 2) == 0, "<0.01", sprintf("%.2f", round(sum(total_SA[site == "Midchannel"], na.rm = TRUE), 2))),
+            ifelse(round(sum(total_SA[site == "Nearshore"], na.rm = TRUE), 2) == 0, "<0.01", sprintf("%.2f", round(sum(total_SA[site == "Nearshore"], na.rm = TRUE), 2))),
             sep = ", "
           ),
           .groups = "drop"
@@ -175,28 +241,28 @@
     # Sort so that "Total" and "Grand Total" are at the bottom of each 'susc' group
     arrange(susc, species_name == "Total", species_name == "Grand Total", species_name)
   
-  #option to remove comma separation
-  final_table_output2 <- final_table_output %>%
-    mutate(
-      cover = gsub(", ", "\t", cover)  # Replace commas with tabs
-    )
+  # #option to remove comma separation
+  # final_table_output2 <- final_table_output %>%
+  #   mutate(
+  #     cover = gsub(", ", "\t", cover)  # Replace commas with tabs
+  #   )
   
-  final_table_output3 = final_table_output %>%
-    select(cover)
+  # final_table_output3 = final_table_output %>%
+  #   select(cover)
   
   # Use the "here" package to specify the file path
   output_path <- here("output", "formatted_table.csv")
   
-  # # Write the table to a CSV file without row names
-  # write.csv(final_table_output, output_path, row.names = FALSE)
-  # 
-  # # Print the file path for confirmation
-  # cat("Table saved to: ", output_path, "\n")  
-  # # Print the final table
-  # print(final_table_output)
+  # Write the table to a CSV file without row names
+  write.csv(final_table_output, output_path, row.names = FALSE)
+
+  # Print the file path for confirmation
+  cat("Table saved to: ", output_path, "\n")
+  # Print the final table
+  print(final_table_output)
   
   
-  ################################## PREP PLOTTING DATA FOR FIGURES ##################################
+  ################################## Figure prep ##################################
   # # List of all data frames
   # dfs <- list(
   #   output.basic.midchannel = output.basic.midchannel,
@@ -291,7 +357,7 @@
   
   
   
-  ################################## FIGURE 2  ##################################
+  ################################## Figure 2  ##################################
   
   # NOTE - need to make the top row of fig2 proportional (see teams chat Jan 30 2025)
   
@@ -510,7 +576,7 @@
   # ggsave(here("output", "fig2.pdf"), plot = combined_plot, width = 5, height = 3, units = "in")   #18 inches max width
   
   
-  ################################## FIGURE 3  ##################################
+  ################################## Figure 3 ##################################
   p.fit.nearshore.basic / p.fit.offshore.basic / p.fit.near.to.off.basic
   p.fit.nearshore.multi / p.fit.offshore.multi / p.fit.near.to.off.multi
   p.fit.nearshore.basic.DHW
@@ -859,4 +925,9 @@
   
   # # Close the Quartz device
   # dev.off()
+  
+  
+  ################################## Save output ##################################
+
+  # save.image(file = here("output", "tables_figures_workspace.RData"))
   
