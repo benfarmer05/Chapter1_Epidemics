@@ -181,13 +181,27 @@
     with(as.list(p),{
       
       # Introduce a non-linear effect of cover on the transmission rate
-      # transmission_rate = b * (1 + l * sqrt(C)) #setting lambda to zero nullifies the effect of cover and reverts the model to a basic SIR
-      # transmission_rate = b * (l * sqrt(C))
-      # transmission_rate = b * (l * (1-exp(-130*(C)))) #20
-      transmission_rate = b * (1 / (1 + exp(-l * (C))) + offset)
+      # transmission_modifier = (1 + l * sqrt(C)) #setting lambda to zero nullifies the effect of cover and reverts the model to a basic SIR
+      # transmission_modifier = (l * sqrt(C))
+      # transmission_modifier = (l * (1-exp(-130*(C)))) #20
+      transmission_modifier = (1 / (1 + exp(-l * (C))) + offset)
       
-      dS.dt = -transmission_rate * S * I / N 
-      dI.dt = transmission_rate * S * I / N - g * I
+      
+      ### testing
+      
+      #null conditions
+      transmission_modifier.LS = 1
+      transmission_modifier.MS = 1
+      # transmission_modifier.HS = 1
+      
+      
+      ### testing
+
+      
+      
+      
+      dS.dt = -b * S * I / N * transmission_modifier
+      dI.dt = b * S * I / N * transmission_modifier - g * I
       dR.dt = g * I
       
       return(list(c(dS.dt, dI.dt, dR.dt)))

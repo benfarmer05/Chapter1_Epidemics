@@ -104,21 +104,43 @@
   # lambda.MS = 1.25 # quite good off.to.near (closer to reality); no change near.to.off (still quite bad)
   # lambda.HS = 5.0 # underpredicted off.to.near (even worse); about right near.to.off (closer to reality)
   
-  # 01/125/15 experiment
-  # comparing to 05/125/5 experiment above
-  lambda.LS = 0.1 # overpredicted off.to.near (got worse); no change near.to.off (still quite bad)
-  lambda.MS = 1.25 # overpredicted off.to.near (a bit worse but still good); underpredicted near.to.off (bad but better)
-  lambda.HS = 15.0 # underpredicted off.to.near (still bad but a lot better); shape changed near.to.off (still pretty good)
-  
   # # 0/05/20 experiment
   # # comparing to 01/125/15 experiment above
   # lambda.LS = 0 # overpredicted off.to.near (still bad and got worse); no change near.to.off (still quite bad)
   # lambda.MS = 0.5 # overpredicted off.to.near (not pretty good but got worse); underpredicted near.to.of (still bad but slightly better)
   # lambda.HS = 20.0 # underpredicted off.to.near (off but still getting better); shape changed near.to.off (still pretty good)
   
+  # 01/125/15 experiment
+  # comparing to 05/125/5 experiment above
+  lambda.LS = 0.1 # overpredicted off.to.near (got worse); no change near.to.off (still quite bad)
+  lambda.MS = 1.25 # overpredicted off.to.near (a bit worse but still good); underpredicted near.to.off (bad but better)
+  lambda.HS = 15.0 # underpredicted off.to.near (still bad but a lot better); shape changed near.to.off (still pretty good)
+  
+  # # experiment based off of post-run optimization
+  # # comparing to 05/125/5 experiment above
+  # lambda.LS = 0 # overpredicted off.to.near (got worse); no change near.to.off (still quite bad)
+  # lambda.MS = 0.2 # overpredicted off.to.near (a bit worse but still good); underpredicted near.to.off (bad but better)
+  # lambda.HS = 13 # underpredicted off.to.near (still bad but a lot better); shape changed near.to.off (still pretty good)
+  
   offset.LS = 1 - 1 / (1 + exp(-lambda.LS * 1.0))
   offset.MS = 1 - 1 / (1 + exp(-lambda.MS * 1.0))
   offset.HS = 1 - 1 / (1 + exp(-lambda.HS * 1.0))
+  
+  
+  # ### testing
+  # 
+  # #null conditions
+  # lambda.LS = 1
+  # lambda.MS = 1
+  # lambda.HS = 1
+  # offset.LS = 0
+  # offset.MS = 0
+  # offset.HS = 0
+  # 
+  # 
+  # ### testing
+  
+  
   
   ################################## Model: multi-host ##################################
   SIR.multi = function(t,y,p){
@@ -146,6 +168,17 @@
       transmission_modifier.LS = (1 / (1 + exp(-lambda.LS * (C.LS))) + offset.LS)
       transmission_modifier.MS = (1 / (1 + exp(-lambda.MS * (C.MS))) + offset.MS)
       transmission_modifier.HS = (1 / (1 + exp(-lambda.HS * (C.HS))) + offset.HS)
+      
+      ### testing
+      
+      #null conditions
+      transmission_modifier.LS = 1
+      transmission_modifier.MS = 1
+      # transmission_modifier.HS = 1
+      
+      
+      ### testing
+      
       
       dS.LS.dt = -b.LS*S.LS*(P) / N.LS * transmission_modifier.LS
       dI.LS.dt = b.LS*S.LS*(P) / N.LS * transmission_modifier.LS - g.LS*I.LS
@@ -718,6 +751,6 @@
   ################################## Save output ##################################
   
   #pass workspace to downstream script
-  # save.image(file = here("output", "multi_SIR_workspace.RData"))
+  save.image(file = here("output", "multi_SIR_workspace.RData"))
   # save.image(file = here("output", "multi_SIR_workspace_lower_start.RData"))
   

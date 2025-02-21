@@ -648,13 +648,25 @@
   lambda.MS = 0.2
   lambda.HS = 13
   
+  lambda.LS = 0
+  lambda.MS = 0
+  lambda.HS = 0
+  
   
   offset.LS = 1 - 1 / (1 + exp(-lambda.LS * 1.0))
   offset.MS = 1 - 1 / (1 + exp(-lambda.MS * 1.0))
   offset.HS = 1 - 1 / (1 + exp(-lambda.HS * 1.0))
+  
+  
+  # #null conditions
+  # lambda.LS = 1
+  # lambda.MS = 1
+  # lambda.HS = 1
+  # offset.LS = 0
+  # offset.MS = 0
+  # offset.HS = 0
+  
   # # TESTING
-  
-  
   
   #simulation using initial state variables from naive site and parameters from fitted site
   output.near.to.off.multi = data.frame(ode(c(S.LS = S.LS.offshore, I.LS = I.LS.offshore, R.LS = R.LS.offshore,
@@ -1191,6 +1203,6 @@
   
   #pass workspace to downstream script
   # save.image(file = here("output", "plots_multi_workspace_betterproj.RData"))
-  # save.image(file = here("output", "plots_multi_workspace.RData"))
+  save.image(file = here("output", "plots_multi_workspace.RData"))
   # save.image(file = here("output", "plots_multi_workspace_lower_start.RData"))
   
