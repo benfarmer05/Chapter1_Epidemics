@@ -6,15 +6,17 @@
   library(ggplot2)
   library(dplyr)
   
+  ################################## Set-up ##################################
+  
   #import workspace from FLKEYS_data_processing.R
-  load(here("output", "data_processing_workspace.RData"))
+  load(here("output", "FLKEYS_data_processing_workspace.RData"))
   
   obs.total = obs %>%
     filter(Category == 'Total')
   obs.multi = obs %>%
     filter(Category != "Total")
   
-  # MULTI-GROUP SIR
+  ################################## Multi-host SIR ##################################
   # scaled plots
   #Offshore
   # display.brewer.all(colorblindFriendly = TRUE)
@@ -123,7 +125,8 @@
     geom_line() +
     theme_classic()
   
-  # unscaled plots
+  ################################## Single-host SIR ##################################
+  # scaled plots
   #Offshore
   # display.brewer.all(colorblindFriendly = TRUE)
   p.SIR.offshore.multi = ggplot(data = obs.multi %>%
@@ -221,7 +224,6 @@
     geom_line() +
     theme_classic()
   
-  # BASIC SIR
   # scaled plots
   #Offshore
   # display.brewer.all(colorblindFriendly = TRUE)
@@ -402,6 +404,8 @@
     ggtitle(paste(c("", 'Nearshore'), collapse="")) +
     geom_line() +
     theme_classic()
+  
+  ################################## Save output ##################################
   
   # #save workspace for returning to plots
   # save.image(file = here("output", "plots_obs_workspace.RData"))

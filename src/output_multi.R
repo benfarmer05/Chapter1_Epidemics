@@ -174,7 +174,7 @@
       #null conditions
       transmission_modifier.LS = 1
       transmission_modifier.MS = 1
-      # transmission_modifier.HS = 1
+      transmission_modifier.HS = 1
       
       
       ### testing

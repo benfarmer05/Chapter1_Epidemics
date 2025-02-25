@@ -7,6 +7,8 @@
   library(mgcv)
   library(gratia)
   
+  ################################## Set-up ##################################
+  
   survey = read.csv(here("data", "SCTLD_END_Vpub_ts.csv"))
   cover = read.csv(here("data", "cover_long.csv"))
   prograte = read.csv(here("data", "SWG_SCTLDprogrates.csv"))
@@ -612,8 +614,8 @@
     mutate(surpdead = 'N', died = 'N') %>%
     arrange(coral_numID, date)
   
-  # 'SURPRISE DEAD CORALS'
-  #
+  ################################## Surprise-dead corals ##################################
+  
   #there were 57 corals that died suddenly between timepoints but were otherwise observed as healthy. these were all quite small and likely died from
   # SCTLD during the first and second infection waves. to account for this cryptic tissue loss, convert those final timepoints into 100% mortality from
   # disease
@@ -730,11 +732,10 @@
     rename(inftiss = inftiss.x) %>%
     select(-inftiss.y) %>%
     arrange(coral_numID, date)
-  #
-  # 'SURPRISE DEAD CORALS'
   
-  # 'CORALS DOCUMENTED AS DISEASED'
-  #
+  
+  ################################## Corals documented as diseased ##################################
+  
   #steps:
   # 1.) backtrack percloss of current timepoint to last timepoint (account for patient zeros somehow): percloss/progdays
   #      - assumes that the coral became infected right as the surveyor was ascending back to the surface (convenient)
@@ -950,22 +951,18 @@
   ###           - I checked all of them, and each ended up also having SCTLD in near or immediately adjacent timepoints - fair assumption that all loss was SCTLD
   ###           - Solenastrea might be a bit more susceptible than I'd thought. a few cases of total mortality in 3-4 weeks. also seeing evidence that 
   ###           -   PCLI can sustain long infections; might match up well with susceptibility knowledge from VI
-  #
-  # 'CORALS DOCUMENTED AS DISEASED'
 
-  # REMOVED / REMAINING TISSUE CALCULATION
-  #
-  survey_tissue = survey_tissue %>%
+  ################################## Removed / remaining tissue calculation ##################################
+
+    survey_tissue = survey_tissue %>%
     mutate(
       cum_tissloss = (cum_percloss/100) * starttiss,
       remaintiss = starttiss - ifelse(is.na(inftiss), 0, inftiss) - ifelse(is.na(cum_tissloss), 0, cum_tissloss), #subtract non-NA infected and accumulated dead tissue from starting tissue to get remaining tissue
       remaintiss = coalesce(remaintiss, starttiss)  #anywhere 'remaintiss' is NA (no tissue loss has begun), revert to starting tissue value
     )
-  #
-  # REMOVED / REMAINING TISSUE CALCULATION
+
+  ################################## Patient zero special cases ##################################
   
-  # PATIENT ZERO SPECIAL CASES
-  #
   #true patient zero is 2_p27_t2_s0_c1_DSTO on 10-30-2018. assume its 90% tissue loss occurred over 14 days since we don't have info
   #   except 3 months prior when colony was healthy
   progdays.new = 14
@@ -1070,11 +1067,9 @@
       TRUE ~ inftiss  # Keep the original inftiss if conditions don't match
     )) %>%
     select(-min_inftiss, -earliest_date)  # Remove the joined columns after use
-  #
-  # PATIENT ZERO SPECIAL CASES
+
+  ################################## Aggregate data into summary tables ##################################
   
-  # AGGREGATE DATA INTO SUMMARY TABLES
-  #
   summary_grouped = survey_tissue %>%
     # filter(!grepl('Unaffected', susc)) %>% #remove presumed SCTLD-unaffected corals, mainly PAST
     mutate(TP = sprintf("%02d", dense_rank(date))) %>%
@@ -1230,11 +1225,9 @@
       sustiss.host.ratio = tot.sustiss / tot.susnum,
       inftiss.host.ratio = tot.inftiss / tot.infnum
     )
-  #
-  # AGGREGATE DATA INTO SUMMARY TABLES
+
+  ################################## Track days since first infection ##################################
   
-  # TRACK DAYS SINCE FIRST INFECTION(S)
-  #
   # Identify the first timepoint and first infection date for each site
   summary = summary %>%
     group_by(site) %>%
@@ -1274,11 +1267,9 @@
   #         especially SCTLD, a coral is probably always still "susceptible" even when it is infected...perhaps another argument for
   #         using a tissue model. but it will be interesting to plot the rise and fall of susceptible hosts, even as susceptible
   #         tissue SA does nothing but stagnate or fall (by necessity and design)
-  #
-  # TRACK DAYS SINCE FIRST INFECTION(S)
 
-  ### PLOTTING PREPARATIONS
-  #
+  ################################## Plotting preparations ##################################
+  
   # Get the list of infected counts for all sites
   sample_day_list = summary %>%
     group_by(site) %>%
@@ -1332,8 +1323,8 @@
     filter(Category == Category_count) %>%
     select(Site = site, Category, tissue_ref, count_ref)
 
-  ### ESTIMATION OF SITE AND GROUP-LEVEL PERCENT COVER
-  #
+  ################################## Estimation of site- and group-level percent cover ##################################
+  
   # here, the CPCe-derived observations of coral cover from Williams et al. (2021) are used to estimate percent cover
   #   - Williams' cover values included all corals at the site, including those unaffected by SCTLD. it also is not provided by species,
   #     but at a site-level
@@ -1373,11 +1364,9 @@
       cover_ref = tissue_ref / SA.cover.ratio / 100,
       # cover_ref.prior = tissue_ref / rectangle.area.site / SA.cover.ratio.prior
     )
-  #
-  ### ESTIMATION OF SITE AND GROUP-LEVEL PERCENT COVER
-  
-  ### LAST STEPS TO PREP FOR PLOTTING AND DOWNSTREAM MODELING SCRIPTS
-  #
+
+  ################################## Last steps to prep for plotting and downstream modeling scripts ##################################
+
   # Create a function to generate the observations
   create_observations = function(data, comp, tissue_col, count_col, cat) {
     data %>%
@@ -1471,10 +1460,8 @@
         TRUE ~ Site
       )
     )
-  #
-  ### LAST STEPS TO PREP FOR PLOTTING AND DOWNSTREAM MODELING SCRIPTS
-  
-  # ### CREATE ERROR EVALUATION DATAFRAME
+
+  ################################## Create error evaluation dataframe ##################################
   # # Define combinations of sites, hosts, and model types
   # sites <- c("off", "mid", "near")
   # hosts <- c("Single-host", "Multi-host")
@@ -1488,9 +1475,6 @@
   #                           TSS = NA, 
   #                           R_squared = NA, 
   #                           stringsAsFactors = FALSE)
-  # ### CREATE ERROR EVALUATION DATAFRAME
-  
-  library(tibble)
   
   # Define combinations of sites, hosts, and model types
   sites <- c("off", "mid", "near")
@@ -1519,6 +1503,8 @@
       obs_rem = vector("list", n())   # List-column for observed removed
     )
   
+  ################################## Save output ##################################
+
   # #save workspace for use in subsequent scripts
-  # save.image(file = here("output", "data_processing_workspace.RData"))
+  # save.image(file = here("output", "FLKEYS_data_processing_workspace.RData"))
   

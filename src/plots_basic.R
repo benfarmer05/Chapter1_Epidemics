@@ -1,19 +1,19 @@
 
   # .rs.restartR(clean = TRUE)
   rm(list=ls())
-  
+
   library(here)
   library(tidyverse)
   library(ggplot2)
   library(ggpmisc)
   library(patchwork)
   library(deSolve)
-  
+
   #import workspace from upstream script
   load(here("output/basic_SIR_workspace.RData"))
   # load(here("output/basic_SIR_workspace_abs.RData"))
   # load(here("output/basic_SIR_workspace_abs_correct.RData"))
-  
+
   ################################## Set-up ##################################
   
   curr.host = 'Single-host'

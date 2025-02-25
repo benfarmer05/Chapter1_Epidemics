@@ -1203,6 +1203,6 @@
   
   #pass workspace to downstream script
   # save.image(file = here("output", "plots_multi_workspace_betterproj.RData"))
-  save.image(file = here("output", "plots_multi_workspace.RData"))
+  # save.image(file = here("output", "plots_multi_workspace.RData"))
   # save.image(file = here("output", "plots_multi_workspace_lower_start.RData"))
   
