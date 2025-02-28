@@ -1,19 +1,19 @@
-
+  
   # .rs.restartR(clean = TRUE)
   rm(list=ls())
-
+  
   library(here)
   library(tidyverse)
   library(ggplot2)
   library(ggpmisc)
   library(patchwork)
   library(deSolve)
-
+  
   #import workspace from upstream script
   load(here("output/basic_SIR_workspace.RData"))
   # load(here("output/basic_SIR_workspace_abs.RData"))
   # load(here("output/basic_SIR_workspace_abs_correct.RData"))
-
+  
   ################################## Set-up ##################################
   
   curr.host = 'Single-host'
@@ -992,9 +992,9 @@
   curr.type <- "Projected"
   curr.wave = "Full"
   
-  days.model.offshore = unique(output.basic.offshore$days.model)
-  days.model.midchannel = unique(output.basic.midchannel$days.model)
-  days.model.nearshore = unique(output.basic.nearshore$days.model)
+  days.model.offshore = unique(output.basic.offshore.full$days.model)
+  days.model.midchannel = unique(output.basic.midchannel.full$days.model)
+  days.model.nearshore = unique(output.basic.nearshore.full$days.model)
   
   site.loop = 'Offshore'
   inftiss.offshore = obs.total %>%
@@ -1046,10 +1046,10 @@
   
   #simulation using initial state variables from naive site and parameters from fitted site
   output.basic.offshore.transfer = data.frame(ode(c(S = S.offshore, I = I.offshore, R = R.offshore),
-                                            days.model.offshore, SIR, c(b = beta.nearshore, g = gamma.nearshore,# NOTE - g = gamma.nearshore or 0.60 / 0.66 to run a test, b = beta.nearshore or .82 / 0.89 to run a test 6 dec 2024
+                                            days.model.offshore, SIR, c(b = beta.nearshore.full, g = gamma.nearshore.full,
                                                 N = N.offshore,
-                                                l = lambda.nearshore,
-                                                C = cover.offshore)))
+                                                l = lambda.nearshore.full,
+                                                C = cover.offshore.full)))
 
   #calculate R-squared and update error table
   # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
@@ -1092,7 +1092,7 @@
     scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
     theme_classic(base_family = 'Georgia')
   
-  beta.offshore.transfer = beta.nearshore * (1 / (1 + exp(-lambda.modifier * (cover.offshore))) + offset)
+  beta.offshore.transfer = beta.nearshore.full * (1 / (1 + exp(-lambda.modifier * (cover.offshore.full))) + offset)
   
   # #NOTE - test! 6 dec 2024
   # gamma.offshore.transfer = gamma.nearshore * (1 / (1 + exp(-lambda.modifier * (cover.offshore))) + offset)
@@ -1103,8 +1103,8 @@
   # beta.offshore.transfer = (beta.nearshore * (lambda.nearshore * (1-exp(-130*(cover.offshore)))))
   # (beta.nearshore * (1 + lambda.nearshore * sqrt(cover.offshore)))
   # (beta.nearshore * (1 + lambda.nearshore * sqrt(cover.nearshore)))
-  R0.offshore.transfer = beta.offshore.transfer / gamma.nearshore
-  tab.offshore.transfer = tibble(round(beta.nearshore, 2), round(beta.offshore.transfer, 2), round(gamma.nearshore, 2), round(R0.offshore.transfer, 2), round(cover.offshore*100, 2))
+  R0.offshore.transfer = beta.offshore.transfer / gamma.nearshore.full
+  tab.offshore.transfer = tibble(round(beta.nearshore.full, 2), round(beta.offshore.transfer, 2), round(gamma.nearshore.full, 2), round(R0.offshore.transfer, 2), round(cover.offshore.full*100, 2))
   names(tab.offshore.transfer) = c('beta', 'Adj. beta', 'gamma', 'Adj. R0', 'Cover (%)')
 
   p.fit.near.to.off.basic = p.fit.near.to.off.basic +
@@ -1145,10 +1145,10 @@
   
   #simulation using initial state variables from naive site.loop and parameters from fitted site.loop
   output.basic.midchannel.transfer = data.frame(ode(c(S = S.midchannel, I = I.midchannel, R = R.midchannel),
-                                            days.model.midchannel, SIR, c(b = beta.nearshore, g = gamma.nearshore,
+                                            days.model.midchannel, SIR, c(b = beta.nearshore.full, g = gamma.nearshore.full,
                                                          N = N.midchannel,
-                                                         l = lambda.nearshore,
-                                                         C = cover.midchannel)))
+                                                         l = lambda.nearshore.full,
+                                                         C = cover.midchannel.full)))
   
   output.basic.midchannel.transfer = pivot_longer(output.basic.midchannel.transfer, cols = -1, names_to = c("Compartment")) %>%
     mutate(Compartment = ifelse(Compartment == "", "value", Compartment)) %>%
@@ -1168,12 +1168,12 @@
     theme_classic(base_family = 'Georgia') #+
     # xlim(0, 325)
   
-  beta.midchannel.transfer = beta.nearshore * (1 / (1 + exp(-lambda.modifier * (cover.midchannel))) + offset)
+  beta.midchannel.transfer = beta.nearshore.full * (1 / (1 + exp(-lambda.modifier * (cover.midchannel.full))) + offset)
   # beta.midchannel.transfer = (beta.nearshore * (lambda.nearshore * (1-exp(-130*(cover.midchannel)))))
   # (beta.nearshore * (1 + lambda.nearshore * sqrt(cover.midchannel)))
   # (beta.nearshore * (1 + lambda.nearshore * sqrt(cover.nearshore)))
-  R0.midchannel.transfer = beta.midchannel.transfer / gamma.nearshore
-  tab.midchannel.transfer = tibble(round(beta.nearshore, 2), round(beta.midchannel.transfer, 2), round(gamma.nearshore, 2), round(R0.midchannel.transfer, 2), round(cover.midchannel*100, 2))
+  R0.midchannel.transfer = beta.midchannel.transfer / gamma.nearshore.full
+  tab.midchannel.transfer = tibble(round(beta.nearshore.full, 2), round(beta.midchannel.transfer, 2), round(gamma.nearshore.full, 2), round(R0.midchannel.transfer, 2), round(cover.midchannel.full*100, 2))
   names(tab.midchannel.transfer) = c('beta', 'Adj. beta', 'gamma', 'Adj. R0', 'Cover (%)')
   
   p.fit.near.to.mid.basic = p.fit.near.to.mid.basic +
@@ -1214,10 +1214,10 @@
   
   #simulation using initial state variables from naive site.loop and parameters from fitted site.loop
   output.basic.nearshore.transfer = data.frame(ode(c(S = S.nearshore, I = I.nearshore, R = R.nearshore),
-                                              days.model.nearshore, SIR, c(b = beta.offshore, g = gamma.offshore,
+                                              days.model.nearshore, SIR, c(b = beta.offshore.full, g = gamma.offshore.full,
                                                                             N = N.nearshore,
-                                                                            l = lambda.offshore,
-                                                                            C = cover.nearshore)))
+                                                                            l = lambda.offshore.full,
+                                                                            C = cover.nearshore.full)))
   
   output.basic.nearshore.transfer = pivot_longer(output.basic.nearshore.transfer, cols = -1, names_to = c("Compartment")) %>%
     mutate(Compartment = ifelse(Compartment == "", "value", Compartment)) %>%
@@ -1237,12 +1237,12 @@
     theme_classic(base_family = 'Georgia') #+
   # xlim(0, 325)
   
-  beta.nearshore.transfer = beta.offshore * (1 / (1 + exp(-lambda.modifier * (cover.nearshore))) + offset)
+  beta.nearshore.transfer = beta.offshore.full * (1 / (1 + exp(-lambda.modifier * (cover.nearshore.full))) + offset)
   # beta.nearshore.transfer = (beta.offshore * (lambda.offshore * (1-exp(-130*(cover.nearshore)))))
   # (beta.offshore * (1 + lambda.offshore * sqrt(cover.nearshore)))
   # (beta.offshore * (1 + lambda.offshore * sqrt(cover.offshore)))
-  R0.nearshore.transfer = beta.nearshore.transfer / gamma.offshore
-  tab.nearshore.transfer = tibble(round(beta.offshore, 2), round(beta.nearshore.transfer, 2), round(gamma.offshore, 2), round(R0.nearshore.transfer, 2), round(cover.nearshore*100, 2))
+  R0.nearshore.transfer = beta.nearshore.transfer / gamma.offshore.full
+  tab.nearshore.transfer = tibble(round(beta.offshore.full, 2), round(beta.nearshore.transfer, 2), round(gamma.offshore.full, 2), round(R0.nearshore.transfer, 2), round(cover.nearshore.full*100, 2))
   names(tab.nearshore.transfer) = c('beta', 'Adj. beta', 'gamma', 'Adj. R0', 'Cover (%)')
   
   p.fit.off.to.near.basic = p.fit.off.to.near.basic +
@@ -1273,33 +1273,6 @@
     geom_line() +
     geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Dead"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
-  
-  # Combine the plots
-  # nearshore.to.offshore.basic = (p.fit.nearshore.basic | p.fit.offshore.basic | p.fit.offshore.transfer.basic) + plot_layout(guides = "collect",
-  #   axis_titles = 'collect') &
-  #   theme(legend.position = 'bottom') #& xlim(0, 325)
-  # 
-  # nearshore.to.midchannel.basic = (p.fit.nearshore.basic | p.fit.midchannel.basic | p.fit.midchannel.transfer.basic) + plot_layout(guides = "collect",
-  #   axis_titles = 'collect') &
-  #   theme(legend.position = 'bottom') #& xlim(0, 325)
-  # 
-  # offshore.to.nearshore.basic = (p.fit.offshore.basic | p.fit.nearshore.basic | p.fit.nearshore.transfer.basic) + plot_layout(guides = "collect",
-  #   axis_titles = 'collect') &
-  #   theme(legend.position = 'bottom') #& xlim(0, 325)
-  
-  nearshore.to.offshore.basic = (p.fit.nearshore.basic | p.I.fit.nearshore.basic | p.D.fit.nearshore.basic) / (p.fit.offshore.basic | p.I.fit.offshore.basic | p.D.fit.offshore.basic) / (p.fit.near.to.off.basic | p.I.fit.near.to.off.basic | p.D.fit.near.to.off.basic) + plot_layout(guides = "collect",
-                                                                                                                                                                                                                                                                                         axis_titles = 'collect') &
-    theme(legend.position = 'bottom') #& xlim(0, 325)
-  # nearshore.to.offshore.basic = (p.fit.nearshore.basic | p.I.fit.nearshore.basic | p.D.fit.nearshore.basic) / (p.fit.offshore.basic | p.I.fit.offshore.basic | p.D.fit.offshore.basic) / (p.fit.near.to.off.basic | p.I.fit.near.to.off.basic | p.D.fit.near.to.off.basic) + plot_layout(guides = "collect") &
-  #   theme(legend.position = 'bottom') #& xlim(0, 325)
-  
-  nearshore.to.midchannel.basic = (p.fit.nearshore.basic | p.I.fit.nearshore.basic | p.D.fit.nearshore.basic) / (p.fit.midchannel.basic | p.I.fit.midchannel.basic | p.D.fit.midchannel.basic) / (p.fit.near.to.mid.basic | p.I.fit.near.to.mid.basic | p.D.fit.near.to.mid.basic)  + plot_layout(guides = "collect",
-                                                                                                                                                                                                                                                                                                  axis_titles = 'collect') &
-    theme(legend.position = 'bottom') # & xlim(0, 325)
-  
-  offshore.to.nearshore.basic = (p.fit.offshore.basic | p.I.fit.offshore.basic | p.D.fit.offshore.basic) / (p.fit.nearshore.basic | p.I.fit.nearshore.basic | p.D.fit.nearshore.basic) / (p.fit.off.to.near.basic | p.I.fit.off.to.near.basic | p.D.fit.off.to.near.basic)  + plot_layout(guides = "collect",
-                                                                                                                                                                                                                                                                                          axis_titles = 'collect') &
-    theme(legend.position = 'bottom') #& xlim(0, 325)
   
   ################################## Thermal projections  ##################################
   site.loop = 'Offshore'
@@ -1598,7 +1571,7 @@
   (p.D.fit.offshore.basic | p.D.fit.midchannel.basic | p.D.fit.nearshore.basic) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
   (p.D.fit.offshore.basic.full | p.D.fit.midchannel.basic.full | p.D.fit.nearshore.basic.full) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
   (p.D.fit.offshore.basic.DHW | p.D.fit.midchannel.basic.DHW | p.D.fit.nearshore.basic.DHW) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
-  (p.D.fit.near.to.off.basic | p.D.fit.off.to.near.basic)
+  (p.D.fit.near.to.off.basic | p.D.fit.off.to.near.basic | p.D.fit.near.to.mid.basic)
   
   # STOPPING POINT - 11 FEB 2025
   #   - need to add R-squared to projected fit. also, decide if want to project from pre-thermal stress, thermal stress, or whole-outbreak fit

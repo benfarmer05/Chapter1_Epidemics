@@ -98,7 +98,6 @@
                          round(R0s.nearshore, 2), round(cover.nearshore*100, 2))
   names(tab.nearshore) = c('Category', 'beta', 'Adj. beta', 'gamma', 'R0', 'Cover')
   
-  
   #calculate R-squared and update error table
   # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
   sim.rem.total = rowSums(output.nearshore[which(output.nearshore$time %in% days.obs), 
@@ -144,9 +143,6 @@
   colnames(output.nearshore)[1] = 'days.model'
   colnames(output.nearshore)[4] = 'tissue'
   
-  
-  
-  # note - swapped color and linetype here
   p.fit.nearshore.multi = ggplot(data = output.nearshore, aes(days.model, tissue, colour = Susceptibility, linetype = Compartment)) +
     xlab("Day of observation period") +
     ylab("Surface area of tissue (m2)") +
@@ -158,59 +154,6 @@
              vjust = 1, hjust = 1) +
     theme_classic()
   
-  # # NOTE - STOPPING POINT - 25 Nov 2024
-  # #   this makes for a much nicer plot this way. should apply to rest of scripts in some way that makes sense
-  # # Ensure Compartment is a factor with the desired order
-  # output.nearshore$Compartment <- factor(output.nearshore$Compartment, levels = c("Susceptible", "Infected", "Dead"))
-  # obs.multi$Compartment <- factor(obs.multi$Compartment, levels = c("Susceptible", "Infected", "Dead"))
-  # 
-  # # Updated plot
-  # p.fit.nearshore.multi <- ggplot(data = output.nearshore, 
-  #                                 aes(x = days.model, y = tissue, 
-  #                                     colour = Category, linetype = Compartment)) +
-  #   xlab("Day of observation period") +
-  #   ylab("Surface area of tissue (m2)") +
-  #   ggtitle("Nearshore - Fitted") +
-  #   # Add lines for fitted data
-  #   geom_line() +
-  #   # Add points for observed data
-  #   geom_point(data = obs.multi %>% filter(Site == site.loop), 
-  #              aes(x = days.inf.site, y = tissue, 
-  #                  colour = Category, shape = Compartment)) +
-  #   # Updated color scale for Category
-  #   scale_color_manual(
-  #     name = 'Susceptibility',
-  #     values = c("LS" = "#66c2a5", "MS" = "#fc8d62", "HS" = "#8da0cb"),
-  #     labels = c("Low", "Moderate", "High")
-  #   ) +
-  #   # Updated line types for Compartment
-  #   scale_linetype_manual(
-  #     name = 'Compartment',
-  #     values = c("Susceptible" = "solid", "Infected" = "dotted", "Dead" = "longdash")
-  #   ) +
-  #   # Updated shape for points
-  #   scale_shape_manual(
-  #     name = 'Compartment',
-  #     values = c("Susceptible" = 15, "Infected" = 17, "Dead" = 16)
-  #   ) +
-  #   # Table annotation
-  #   annotate(geom = "table", 
-  #            x = max(output.nearshore$days.model), 
-  #            y = max(output.nearshore$tissue) * 0.7, 
-  #            label = list(tab.nearshore), 
-  #            vjust = 1, hjust = 1) +
-  #   # Clean up the theme
-  #   theme_classic() +
-  #   theme(
-  #     legend.position = "right", # Move legend to the right
-  #     legend.box = "vertical"   # Stack legends vertically
-  #   )
-  # 
-  # # Print the plot
-  # print(p.fit.nearshore.multi)
-  
-  # 
-  
   p.S.fit.nearshore.multi = ggplot(data = output.nearshore %>% filter(Compartment == "Susceptible"), aes(days.model, tissue, linetype = Susceptibility)) +
     xlab("Day of observation period") +
     ylab("Surface area of live tissue (m2)") +
@@ -219,15 +162,12 @@
     geom_point(data = obs.multi %>% filter(Site == site.loop, Compartment == "Susceptible"), aes(days.inf.site, tissue, shape = Susceptibility)) +
     theme_classic()
   
-  # note - experimented with color mapping here
   p.I.fit.nearshore.multi = ggplot(data = output.nearshore %>% filter(Compartment == "Infected"), aes(days.model, tissue, linetype = Susceptibility)) +
     xlab("Day of observation period") +
     ylab("Surface area of infected tissue (m2)") +
     ggtitle(paste(c("", site.loop, ' - Fitted'), collapse="")) +
     geom_line() +
     geom_point(data = obs.multi %>% filter(Site == site.loop, Compartment == "Infected"), aes(days.inf.site, tissue, shape = Susceptibility)) +
-    # geom_line(color = '#fc8e62') +
-    # geom_point(data = obs.multi %>% filter(Site == site.loop, Compartment == "Infected"), aes(days.inf.site, tissue, shape = ç), color = '#fc8e62') +
     theme_classic() + 
     guides(color = 'none')
   
@@ -237,8 +177,6 @@
     ggtitle(paste(c("", site.loop, ' - Fitted'), collapse="")) +
     geom_line() +
     geom_point(data = obs.multi %>% filter(Site == site.loop, Compartment == "Dead"), aes(days.inf.site, tissue, shape = Susceptibility)) +
-    # geom_line(color = '#66c2a4') +
-    # geom_point(data = obs.multi %>% filter(Site == site.loop, Compartment == "Dead"), aes(days.inf.site, tissue, shape = Susceptibility), color = '#66c2a4') +
     theme_classic() +
     guides(color = 'none')
   
@@ -265,13 +203,6 @@
   output.raw.midchannel = my.SIRS.multi[[order]]
   output.midchannel = output.raw.midchannel
   params.midchannel = params.multi[[order]]
-  
-  # order: c(min.beta.LS.tiss, min.beta.LS.tiss.adj, min.gamma.LS.tiss,
-  #                 min.beta.MS.tiss, min.beta.MS.tiss.adj, min.gamma.HS.tiss,
-  #                 min.beta.HS.tiss, min.beta.MS.tiss.adj, min.gamma.HS.tiss,
-  #                 R0.LS, R0.MS, R0.HS,
-  #                 cover.site,
-  #                 cover.LS.site, cover.MS.site, cover.HS.site)
   
   cover.midchannel.LS = params.midchannel[14]
   cover.midchannel.MS = params.midchannel[15]
@@ -366,15 +297,12 @@
     geom_point(data = obs.multi %>% filter(Site == site.loop, Compartment == "Susceptible"), aes(days.inf.site, tissue, shape = Susceptibility)) +
     theme_classic()
   
-  # note - experimented with color mapping here
   p.I.fit.midchannel.multi = ggplot(data = output.midchannel %>% filter(Compartment == "Infected"), aes(days.model, tissue, linetype = Susceptibility)) +
     xlab("Day of observation period") +
     ylab("Surface area of infected tissue (m2)") +
     ggtitle(paste(c("", site.loop, ' - Fitted'), collapse="")) +
     geom_line() +
     geom_point(data = obs.multi %>% filter(Site == site.loop, Compartment == "Infected"), aes(days.inf.site, tissue, shape = Susceptibility)) +
-    # geom_line(color = '#fc8e62') +
-    # geom_point(data = obs.multi %>% filter(Site == site.loop, Compartment == "Infected"), aes(days.inf.site, tissue, shape = Susceptibility), color = '#fc8e62') +
     theme_classic() + 
     guides(color = 'none')
   
@@ -384,8 +312,6 @@
     ggtitle(paste(c("", site.loop, ' - Fitted'), collapse="")) +
     geom_line() +
     geom_point(data = obs.multi %>% filter(Site == site.loop, Compartment == "Dead"), aes(days.inf.site, tissue, shape = Susceptibility)) +
-    # geom_line(color = '#66c2a4') +
-    # geom_point(data = obs.multi %>% filter(Site == site.loop, Compartment == "Dead"), aes(days.inf.site, tissue, shape = Susceptibility), color = '#66c2a4') +
     theme_classic() +
     guides(color = 'none')  
   
@@ -412,13 +338,6 @@
   output.raw.offshore = my.SIRS.multi[[order]]
   output.offshore = output.raw.offshore
   params.offshore = params.multi[[order]]
-  
-  # order: c(min.beta.LS.tiss, min.beta.LS.tiss.adj, min.gamma.LS.tiss,
-  #                 min.beta.MS.tiss, min.beta.MS.tiss.adj, min.gamma.HS.tiss,
-  #                 min.beta.HS.tiss, min.beta.MS.tiss.adj, min.gamma.HS.tiss,
-  #                 R0.LS, R0.MS, R0.HS,
-  #                 cover.site,
-  #                 cover.LS.site, cover.MS.site, cover.HS.site)
   
   cover.offshore.LS = params.offshore[14]
   cover.offshore.MS = params.offshore[15]
@@ -612,7 +531,6 @@
   # HS.inftiss.offshore[1] = HS.inftiss.offshore[1] / 10
   # TESTING
   
-  
   I.LS.offshore = LS.inftiss.offshore[1]
   S.LS.offshore = N.LS.offshore - I.LS.offshore
   R.LS.offshore = 0
@@ -624,8 +542,6 @@
   R.HS.offshore = 0
   
   P.offshore = I.LS.offshore + I.MS.offshore + I.HS.offshore
-  
-  
   
   # # TESTING
   # days.model.offshore <- c(days.model.offshore, max(days.model.offshore) + 1:max(days.model.offshore) + 100)
@@ -652,11 +568,9 @@
   lambda.MS = 0
   lambda.HS = 0
   
-  
   offset.LS = 1 - 1 / (1 + exp(-lambda.LS * 1.0))
   offset.MS = 1 - 1 / (1 + exp(-lambda.MS * 1.0))
   offset.HS = 1 - 1 / (1 + exp(-lambda.HS * 1.0))
-  
   
   # #null conditions
   # lambda.LS = 1
@@ -666,13 +580,9 @@
   # offset.MS = 0
   # offset.HS = 0
   
-  # # TESTING
-  
   #simulation using initial state variables from naive site and parameters from fitted site
   output.near.to.off.multi = data.frame(ode(c(S.LS = S.LS.offshore, I.LS = I.LS.offshore, R.LS = R.LS.offshore,
                                                 S.MS = S.MS.offshore, I.MS = I.MS.offshore, R.MS = R.MS.offshore,
-                                                # S.HS = S.HS.offshore, I.HS = I.HS.offshore, R.HS = R.HS.offshore,
-                                                # P = P.offshore),
                                                 S.HS = S.HS.offshore, I.HS = I.HS.offshore, R.HS = R.HS.offshore),
                                               days.model.offshore, SIR.multi, c(b.LS = beta.nearshore.LS, g.LS = gamma.nearshore.LS,
                                                            b.MS = beta.nearshore.MS, g.MS = gamma.nearshore.MS,
@@ -1195,14 +1105,10 @@
   (p.D.fit.offshore.multi | p.D.fit.midchannel.multi | p.D.fit.nearshore.multi) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
   (p.D.fit.near.to.off.multi | p.D.fit.off.to.near.multi | p.D.fit.near.to.mid.multi)
   
-  
-  
-  
-  
   ################################## Save workspace  ##################################
   
-  #pass workspace to downstream script
-  # save.image(file = here("output", "plots_multi_workspace_betterproj.RData"))
+  # #pass workspace to downstream script
+  # # save.image(file = here("output", "plots_multi_workspace_betterproj.RData"))
   # save.image(file = here("output", "plots_multi_workspace.RData"))
-  # save.image(file = here("output", "plots_multi_workspace_lower_start.RData"))
+  # # save.image(file = here("output", "plots_multi_workspace_lower_start.RData"))
   

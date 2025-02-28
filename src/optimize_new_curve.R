@@ -64,7 +64,7 @@
   
   for (i in alpha_values) {
     
-    alpha_val = alpha_values[i] # NOTE - bad and hard-coded way to feed parameter into the SIR function - should look at this further
+    alpha_val = i # NOTE - bad and hard-coded way to feed parameter into the SIR function - should look at this further
     
     # Run the model
     output.basic.offshore.transfer = data.frame(ode(c(S = S.offshore, I = I.offshore, R = R.offshore),
@@ -78,6 +78,7 @@
     sim.rem.total = output.basic.offshore.transfer[which(output.basic.offshore.transfer$time %in% days.obs),
                                                    which(colnames(output.basic.offshore.transfer) %in% c('R'))]
     
+    # NOTE - this asssumes that obs.rem.total is pulling data for offshore correctly from the upstream environment. note if any issues
     if (length(obs.rem.total) > length(sim.rem.total)) {
       obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
     }
@@ -99,7 +100,7 @@
   print(best_alpha)
   print(best_r_squared)
   
-  
+  #best alpha value was: 0.07107107
   
   
   
@@ -126,6 +127,16 @@
     with(as.list(p),{
       P = (I.LS + I.MS + I.HS)
       
+      ### TEST ###
+      transmission_modifier.LS = (1 - 0) + 0*((1 - exp(-3*0.01460644)) / (1 - exp(-3)))
+      transmission_modifier.MS = (1 - alpha_val) + alpha_val*((1 - exp(-3*0.003109595)) / (1 - exp(-3)))
+      transmission_modifier.HS = (1 - alpha_val) + alpha_val*((1 - exp(-3*0.0009200924)) / (1 - exp(-3)))
+      
+      transmission_modifier.LS
+      transmission_modifier.MS
+      transmission_modifier.HS
+      ### TEST ###
+      
       transmission_modifier.LS = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C.LS)) / (1 - exp(-k_val)))
       transmission_modifier.MS = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C.MS)) / (1 - exp(-k_val)))
       transmission_modifier.HS = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C.HS)) / (1 - exp(-k_val)))
@@ -148,8 +159,8 @@
   
   
   # Define the search space
-  alpha_values <- seq(0.1, 1, length.out = 1000)
-  # alpha_values <- seq(0, 1, length.out = 1000)
+  # alpha_values <- seq(0.1, 1, length.out = 1000)
+  alpha_values <- seq(0, 1, length.out = 1000)
   # alpha_values <- seq(0, 0, length.out = 10)
   k_val = 3
   
@@ -167,6 +178,7 @@
   for (i in alpha_values) {
     
     alpha_val = i # NOTE - bad and hard-coded way to feed parameter into the SIR function - should look at this further
+    # alpha_val = 0 #test
     
     # Run the model
     output.near.to.off.multi = data.frame(ode(c(S.LS = S.LS.offshore, I.LS = I.LS.offshore, R.LS = R.LS.offshore,
@@ -205,4 +217,183 @@
   # Print the best parameters
   print(best_alpha)
   print(best_r_squared)
+  
+  
+  
+  #best alpha value was: 0.004004004
+  
+  
+  
+  
+  
+  ################################## sandbox for manually tweaking alpha ##################################
+  
+  #sandbox conditions
+  beta.nearshore.sand = 0.65137 # 0.76 #0.64
+  gamma.nearshore.sand = 0.5622153 # 0.56
+  alpha_val = 0.07107107 # 0.03 # 0.07107107 # 0
+  k_val = 3
+  lambda_val = 1.0
+  offset_val = 1 - 1 / (1 + exp(-lambda * 1.0))
+  
+  
+  SIR.sand.no_cover = function(t,y,p){ # 'p' is parameters or params
+    {
+      S = y[1]
+      I = y[2]
+      R = y[3]
+    }
+    with(as.list(p),{
+      
+      #null conditions
+      transmission_modifier = 1
+      
+      # #with effect of coral cover
+      # transmission_modifier = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C)) / (1 - exp(-k_val)))
+      
+      dS.dt = -b * S * I / N * transmission_modifier
+      dI.dt = b * S * I / N * transmission_modifier - g * I
+      dR.dt = g * I
+      
+      return(list(c(dS.dt, dI.dt, dR.dt)))
+    })
+  }
+  
+  SIR.sand.cover = function(t,y,p){ # 'p' is parameters or params
+    {
+      S = y[1]
+      I = y[2]
+      R = y[3]
+    }
+    with(as.list(p),{
+      
+      # #null conditions
+      # transmission_modifier = 1
+      
+      #with effect of coral cover
+      transmission_modifier = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C)) / (1 - exp(-k_val)))
+      # transmission_modifier = (1 / (1 + exp(-lambda_val * (C))) + offset_val)
+      
+      dS.dt = -b * S * I / N * transmission_modifier
+      dI.dt = b * S * I / N * transmission_modifier - g * I
+      dR.dt = g * I
+      
+      return(list(c(dS.dt, dI.dt, dR.dt)))
+    })
+  }
+  
+  #run nearshore model with rates we have already fitted with null condition for coral cover effect 
+  curr.site = 'near'
+  days.obs <- days_sites %>%
+    filter(site == curr.site) %>%
+    pull(days.obs) %>%
+    unlist() 
+  
+  output.basic.nearshore.sand = data.frame(ode(c(S = S.nearshore, I = I.nearshore, R = R.nearshore),
+                                                  days.model.nearshore, SIR.sand.no_cover, c(b = beta.nearshore.sand, g = gamma.nearshore.sand,
+                                                                              N = N.nearshore,
+                                                                              l = lambda.nearshore,
+                                                                              C = cover.nearshore)))
+  
+  sim.rem.total = output.basic.nearshore.sand[which(output.basic.nearshore.sand$time %in% days.obs), which(colnames(output.basic.nearshore.sand) %in% 'R')]
+  obs.rem.total = obs.model %>%
+    filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
+    slice(head(row_number(), n()-DHW.modifier)) %>%
+    pull(tissue)
+  if (length(obs.rem.total) > length(sim.rem.total)) {
+    obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
+  }
+  
+  diff.rem.total = (sim.rem.total - obs.rem.total)
+  sum_diff.total = sum(diff.rem.total^2)
+  mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
+  tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+  r_squared.basic.nearshore.sand.no_cover = 1 - (sum_diff.total / tss_rem.total)
+  
+  #run nearshore model with rates we already have but also with new alpha values (effect of coral cover)
+  output.basic.nearshore.sand = data.frame(ode(c(S = S.nearshore, I = I.nearshore, R = R.nearshore),
+                                               days.model.nearshore, SIR.sand.cover, c(b = beta.nearshore.sand, g = gamma.nearshore.sand,
+                                                                                          N = N.nearshore,
+                                                                                          l = lambda.nearshore,
+                                                                                          C = cover.nearshore)))
+  
+  sim.rem.total = output.basic.nearshore.sand[which(output.basic.nearshore.sand$time %in% days.obs), which(colnames(output.basic.nearshore.sand) %in% 'R')]
+  obs.rem.total = obs.model %>%
+    filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
+    slice(head(row_number(), n()-DHW.modifier)) %>%
+    pull(tissue)
+  if (length(obs.rem.total) > length(sim.rem.total)) {
+    obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
+  }
+  
+  diff.rem.total = (sim.rem.total - obs.rem.total)
+  sum_diff.total = sum(diff.rem.total^2)
+  mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
+  tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+  r_squared.basic.nearshore.sand.cover = 1 - (sum_diff.total / tss_rem.total)
+  
+  #project model to offshore
+  curr.site = 'off'
+  days.obs <- days_sites %>%
+    filter(site == curr.site) %>%
+    pull(days.obs) %>%
+    unlist() 
+  
+  output.basic.offshore.transfer.sand = data.frame(ode(c(S = S.offshore, I = I.offshore, R = R.offshore),
+                                                  days.model.offshore, SIR.sand.cover, c(b = beta.nearshore.sand, g = gamma.nearshore.sand,
+                                                                              N = N.offshore,
+                                                                              l = lambda.nearshore,
+                                                                              C = cover.offshore)))
+  
+  #calculate R-squared and update error table
+  # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
+  sim.rem.total = output.basic.offshore.transfer.sand[which(output.basic.offshore.transfer.sand$time %in% days.obs), which(colnames(output.basic.offshore.transfer.sand) %in% 'R')]
+  obs.rem.total = obs.model %>%
+    filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
+    slice(head(row_number(), n()-DHW.modifier)) %>%
+    pull(tissue)
+  if (length(obs.rem.total) > length(sim.rem.total)) {
+    obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
+  }
+  
+  diff.rem.total = (sim.rem.total - obs.rem.total)
+  sum_diff.total = sum(diff.rem.total^2)
+  mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
+  tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+  r_squared.near.to.off.basic.sand = 1 - (sum_diff.total / tss_rem.total)
+  
+  #project model to midchannel
+  curr.site = 'mid'
+  days.obs <- days_sites %>%
+    filter(site == curr.site) %>%
+    pull(days.obs) %>%
+    unlist() 
+  
+  output.basic.midchannel.transfer.sand = data.frame(ode(c(S = S.midchannel, I = I.midchannel, R = R.midchannel),
+                                                       days.model.midchannel, SIR.sand.cover, c(b = beta.nearshore.sand, g = gamma.nearshore.sand,
+                                                                                              N = N.midchannel,
+                                                                                              l = lambda.nearshore,
+                                                                                              C = cover.midchannel)))
+  
+  #calculate R-squared and update error table
+  # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
+  sim.rem.total = output.basic.midchannel.transfer.sand[which(output.basic.midchannel.transfer.sand$time %in% days.obs), which(colnames(output.basic.midchannel.transfer.sand) %in% 'R')]
+  obs.rem.total = obs.model %>%
+    filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
+    slice(head(row_number(), n()-DHW.modifier)) %>%
+    pull(tissue)
+  if (length(obs.rem.total) > length(sim.rem.total)) {
+    obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
+  }
+  
+  diff.rem.total = (sim.rem.total - obs.rem.total)
+  sum_diff.total = sum(diff.rem.total^2)
+  mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
+  tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+  r_squared.near.to.mid.basic.sand = 1 - (sum_diff.total / tss_rem.total)
+  
+  r_squared.basic.nearshore.sand.no_cover
+  r_squared.basic.nearshore.sand.cover
+  r_squared.near.to.off.basic.sand
+  r_squared.near.to.mid.basic.sand
   

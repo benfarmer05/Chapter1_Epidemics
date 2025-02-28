@@ -162,23 +162,15 @@
     with(as.list(p),{
       P = (I.LS + I.MS + I.HS)
 
-      # transmission_modifier.LS = (1 / (1 + exp(-l * (C.LS))) + offset)
-      # transmission_modifier.MS = (1 / (1 + exp(-l * (C.MS))) + offset)
-      # transmission_modifier.HS = (1 / (1 + exp(-l * (C.HS))) + offset)
-      transmission_modifier.LS = (1 / (1 + exp(-lambda.LS * (C.LS))) + offset.LS)
-      transmission_modifier.MS = (1 / (1 + exp(-lambda.MS * (C.MS))) + offset.MS)
-      transmission_modifier.HS = (1 / (1 + exp(-lambda.HS * (C.HS))) + offset.HS)
+      # #null conditions
+      # transmission_modifier.LS = 1
+      # transmission_modifier.MS = 1
+      # transmission_modifier.HS = 1
       
-      ### testing
-      
-      #null conditions
-      transmission_modifier.LS = 1
-      transmission_modifier.MS = 1
-      transmission_modifier.HS = 1
-      
-      
-      ### testing
-      
+      #with effect of coral cover
+      transmission_modifier.LS = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C.LS)) / (1 - exp(-k_val)))
+      transmission_modifier.MS = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C.MS)) / (1 - exp(-k_val)))
+      transmission_modifier.HS = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C.HS)) / (1 - exp(-k_val)))
       
       dS.LS.dt = -b.LS*S.LS*(P) / N.LS * transmission_modifier.LS
       dI.LS.dt = b.LS*S.LS*(P) / N.LS * transmission_modifier.LS - g.LS*I.LS
@@ -345,27 +337,10 @@
                            cover.LS.site, cover.MS.site, cover.HS.site,
                            lambda = lambda)
     
-    # STOPPING POINT - 12 feb 2025
-    #   - having some major issues here; if I need to "roll back" to a better fit, consider:
-    #       - 1.) using absolute residuals again
-    #       - 2.) using within-group sum of squares again
-    #       - 3.) Looking at version history to restore how the optimizer function returned sum of error a week or so ago
-    
     # Define the objective function for optimization
     objective_function = function(params, data, time, initial_state){
       
-      # #testing - for mid (within-group residuals)
-      # betas.LS = 0.002456
-      # gammas.LS = 0.213029
-      # betas.MS = 0.357782
-      # gammas.MS = 0.593120
-      # betas.HS = 3.473720
-      # gammas.HS = 2.852935
-      # initial_state = initial_state.tiss
-      # time = days.model
-      # data = coraldata.tiss
-      
-      # #testing - for mid (residuals summed across group)
+      # #testing - for mid
       # betas.LS = 0.614603
       # gammas.LS = 1.774520
       # betas.MS = 0.014265
@@ -375,20 +350,7 @@
       # initial_state = initial_state.tiss
       # time = days.model
       # data = coraldata.tiss
-      
-      # #testing - old (for nearshore)
-      # betas.LS = 0.02
-      # gammas.LS = 0.04
-      # betas.MS = 0.26
-      # gammas.MS = 2.02
-      # betas.HS = 3.39
-      # gammas.HS = 2.72
-      # initial_state = initial_state.tiss
-      # time = days.model
-      # data = coraldata.tiss
-      
-      
-      
+
       betas.LS = params[1]
       gammas.LS = params[2]
       betas.MS = params[3]
@@ -399,8 +361,6 @@
       SIR.out = data.frame(ode(c(S.LS = initial_state[1], I.LS = initial_state[2], R.LS = initial_state[3],
                                  S.MS = initial_state[4], I.MS = initial_state[5], R.MS = initial_state[6],
                                  S.HS = initial_state[7], I.HS = initial_state[8], R.HS = initial_state[9]),
-                                 # S.HS = initial_state[7], I.HS = initial_state[8], R.HS = initial_state[9],
-                                 # P = initial_state[10]),
                                time, SIR.multi, c(b.LS = betas.LS, g.LS = gammas.LS,
                                             b.MS = betas.MS, g.MS = gammas.MS,
                                             b.HS = betas.HS, g.HS = gammas.HS,
@@ -535,7 +495,7 @@
       diff.rem = sim.rem - obs.rem
       diff.rem.total = sim.rem.total - obs.rem.total
       
-      #Version where I was using absolute residuals - can reference if having issues with sum-of-squares
+      #Version using absolute residuals - can reference if having issues with sum-of-squares
       # #version that was constrained to pre-thermal stress onset
       # # Minimize using sum of absolute residuals
       # # sum_absolute_diff_I.abs = sum(abs(diff_inf))
@@ -750,7 +710,7 @@
   
   ################################## Save output ##################################
   
-  #pass workspace to downstream script
-  save.image(file = here("output", "multi_SIR_workspace.RData"))
-  # save.image(file = here("output", "multi_SIR_workspace_lower_start.RData"))
+  # #pass workspace to downstream script
+  # save.image(file = here("output", "multi_SIR_workspace.RData"))
+  # # save.image(file = here("output", "multi_SIR_workspace_lower_start.RData"))
   
