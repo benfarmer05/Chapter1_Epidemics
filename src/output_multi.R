@@ -160,7 +160,7 @@
       # P = y[10]
     }
     with(as.list(p),{
-      P = (I.LS + I.MS + I.HS)
+        P = (I.LS + I.MS + I.HS)
 
       # #null conditions
       # transmission_modifier.LS = 1
@@ -184,11 +184,11 @@
       dI.HS.dt = b.HS*S.HS*(P) / N.HS * transmission_modifier.HS - g.HS*I.HS
       dR.HS.dt = g.HS*I.HS
       
-      if (any((S.LS + I.LS + R.LS > N.LS) | 
-              (S.MS + I.MS + R.MS > N.MS) | 
-              (S.HS + I.HS + R.HS > N.HS))) {
-        warning("Sum of S, I, and R exceeds N for at least one group during fitting process.")
-      }
+      # if (any((S.LS + I.LS + R.LS > N.LS) | 
+      #         (S.MS + I.MS + R.MS > N.MS) | 
+      #         (S.HS + I.HS + R.HS > N.HS))) {
+      #   warning("Sum of S, I, and R exceeds N for at least one group during fitting process.")
+      # }
       
       # # Update dP using the sum of infected individuals
       # # NOTE - make sure this is "right" - because why exactly does 'P' get updated by 'dP.dt' when that isn't the case for other compartments?

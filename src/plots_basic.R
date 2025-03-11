@@ -1300,7 +1300,7 @@
   p.fit.near.to.off.basic.DHW = ggplot(data = output.basic.offshore.transfer.DHW, aes(days.model, tissue, colour = Compartment)) +
     xlab("Day of observation period") +
     ylab("Surface area of tissue (m2)") +
-    ggtitle(paste(c("", site.loop, '- Projected'), collapse="")) +
+    ggtitle(paste(c("", site.loop, '- Projected with thermal stress'), collapse="")) +
     geom_line() +
     geom_point(data = obs.total %>% filter(Site == site.loop), aes(days.inf.site, tissue, colour = Compartment)) +
     scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
@@ -1381,10 +1381,10 @@
   tab.midchannel.transfer.DHW = tibble(round(beta.nearshore, 2), round(beta.midchannel.transfer.DHW, 2), round(gamma.nearshore, 2), round(R0.midchannel.transfer.DHW, 2), round(cover.midchannel*100, 2))
   names(tab.midchannel.transfer.DHW) = c('beta', 'Adj. beta', 'gamma', 'Adj. R0', 'Cover (%)')
   
-  p.fit.near.to.mid.basic.DHW = p.fit.near.to.mid.basic.DHW +
-    annotate(geom = "table", x = min(p.fit.near.to.mid.basic.DHW$data$days.model), y = min(p.fit.near.to.mid.basic.DHW$data$tissue)*0.7, label = list(tab.midchannel.transfer.DHW),
-             family = 'Georgia', hjust = val.hjust, vjust = val.vjust)
-  # geom_text(aes(x = max(days)*0.9, y = max(tissue)*0.9, label = paste("R0:", R0.midchannel.transfer)), color = "black", hjust = 1, family = 'Georgia', vjust = 1, size = 4)
+  # p.fit.near.to.mid.basic.DHW = p.fit.near.to.mid.basic.DHW +
+  #   annotate(geom = "table", x = min(p.fit.near.to.mid.basic.DHW$data$days.model), y = min(p.fit.near.to.mid.basic.DHW$data$tissue)*0.7, label = list(tab.midchannel.transfer.DHW),
+  #            family = 'Georgia', hjust = val.hjust, vjust = val.vjust)
+  # # geom_text(aes(x = max(days)*0.9, y = max(tissue)*0.9, label = paste("R0:", R0.midchannel.transfer)), color = "black", hjust = 1, family = 'Georgia', vjust = 1, size = 4)
   
   p.S.fit.near.to.mid.basic.DHW = ggplot(data = output.basic.midchannel.transfer.DHW %>% filter(Compartment == "Susceptible"), aes(days.model, tissue)) +
     xlab("Day of observation period") +
@@ -1456,7 +1456,6 @@
   #       7.) work with Dan to finalize typesetting on figs. 2-3 (or 2-4)
   #       8.) update manuscript accordingly to all above. ensure any necessary references to SIR methods are included
   
-  
   p.fit.off.to.near.basic.DHW = ggplot(data = output.basic.nearshore.transfer.DHW, aes(days.model, tissue, colour = Compartment)) +
     xlab("Day of observation period") +
     ylab("Surface area of tissue (m2)") +
@@ -1472,9 +1471,9 @@
   tab.nearshore.transfer.DHW = tibble(round(beta.offshore, 2), round(beta.nearshore.transfer.DHW, 2), round(gamma.offshore, 2), round(R0.nearshore.transfer.DHW, 2), round(cover.nearshore*100, 2))
   names(tab.nearshore.transfer.DHW) = c('beta', 'Adj. beta', 'gamma', 'Adj. R0', 'Cover (%)')
   
-  p.fit.near.to.off.basic.DHW = p.fit.near.to.off.basic.DHW +
-    annotate(geom = "table", x = min(p.fit.near.to.off.basic.DHW$data$days.model), y = min(p.fit.near.to.off.basic.DHW$data$tissue)*0.7, label = list(tab.nearshore.transfer.DHW ),
-             vjust = val.vjust, hjust = val.hjust, family = 'Georgia')
+  # p.fit.near.to.off.basic.DHW = p.fit.near.to.off.basic.DHW +
+  #   annotate(geom = "table", x = min(p.fit.near.to.off.basic.DHW$data$days.model), y = min(p.fit.near.to.off.basic.DHW$data$tissue)*0.7, label = list(tab.nearshore.transfer.DHW ),
+  #            vjust = val.vjust, hjust = val.hjust, family = 'Georgia')
   
   p.S.fit.near.to.off.basic.DHW = ggplot(data = output.basic.nearshore.transfer.DHW %>% filter(Compartment == "Susceptible"), aes(days.model, tissue)) +
     xlab("Day of observation period") +
@@ -1552,10 +1551,10 @@
   (p.fit.offshore.basic.DHW | p.fit.midchannel.basic.DHW | p.fit.nearshore.basic.DHW) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
   
   #projection vs fitted
-  (p.fit.offshore.basic.full | p.fit.near.to.off.basic)
-  (p.fit.nearshore.basic.full | p.fit.off.to.near.basic)
-  (p.fit.midchannel.basic.full | p.fit.near.to.mid.basic)
-  
+  (p.fit.offshore.basic.full | p.fit.near.to.off.basic | p.fit.near.to.off.basic.DHW)
+  (p.fit.nearshore.basic.full | p.fit.off.to.near.basic | p.fit.off.to.near.basic.DHW)
+  (p.fit.midchannel.basic.full | p.fit.near.to.mid.basic | p.fit.near.to.mid.basic.DHW)
+
   #susceptible compartment
   (p.S.fit.offshore.basic | p.S.fit.midchannel.basic | p.S.fit.nearshore.basic) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
   (p.S.fit.offshore.basic.full | p.S.fit.midchannel.basic.full | p.S.fit.nearshore.basic.full) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')

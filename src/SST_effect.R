@@ -171,12 +171,10 @@
   
   ################################## Maybe better simplified function, 0 to 1 ##################################
   
-  
   # Define parameters
   SST_threshold <- 30.5  # Temperature threshold
-  z_values <- seq(0, 1, length.out = 8)  # Constrained z values between 0 and 1
-  e_values <- seq(0, 1, length.out = 8)  # Constrained e values between 0 and 1
-  SST_range <- seq(30.5, 34, by = 0.01)  # SST from 30.5°C onward
+  z_values <- seq(0, 1, length.out = 8)  # Zeta values including 0
+  SST_range <- seq(30.5, 34, by = 0.01)  # SST range
   
   # Set up plot
   plot(NULL, xlim = range(SST_range), ylim = c(0, 1), 
@@ -184,25 +182,17 @@
        ylab = "Scaling Factor", 
        main = "Effect of SST on Transmission and Mortality Rates")
   
-  # Define colors and line types
-  colors <- colorRampPalette(c("blue", "red"))(length(z_values))  # Gradient color scheme
-  linetypes <- c(1, 2)  # Solid for transmission, dashed for mortality
+  # Define colors
+  colors <- colorRampPalette(c("blue", "red"))(length(z_values)) 
   
-  # Plot transmission rate curves (only for SST > 30.5)
+  # Adjusted scaling function
   for (i in seq_along(z_values)) {
     z <- z_values[i]
-    scaling_factor_z <- 1 - exp(-z * (SST_range - SST_threshold))
-    lines(SST_range, scaling_factor_z, col = colors[i], lwd = 2, lty = linetypes[1])
-  }
-  
-  # Plot mortality rate curves (only for SST > 30.5)
-  for (i in seq_along(e_values)) {
-    e <- e_values[i]
-    scaling_factor_e <- 1 - exp(-e * (SST_range - SST_threshold))
-    lines(SST_range, scaling_factor_e, col = colors[i], lwd = 2, lty = linetypes[2])
+    scaling_factor_z <- exp(-z * (SST_range - SST_threshold))  # Exponential decay
+    lines(SST_range, scaling_factor_z, col = colors[i], lwd = 2)
   }
   
   # Add legend
   legend("bottomright", legend = paste("Rates (z, e) =", round(z_values, 2)), 
-         col = colors, lwd = 2, lty = 1)
+         col = colors, lwd = 2)
   

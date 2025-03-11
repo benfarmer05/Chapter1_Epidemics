@@ -114,6 +114,6 @@
   
   ################################## Save output ##################################
   
-  save.image(file = here("output", "error_eval_workspace.RData"))
+  # save.image(file = here("output", "error_eval_workspace.RData"))
   # save.image(file = here("output", "error_eval_workspace_lower_start.RData"))
   

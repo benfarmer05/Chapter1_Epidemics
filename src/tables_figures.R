@@ -361,24 +361,6 @@
   
   # NOTE - need to make the top row of fig2 proportional (see teams chat Jan 30 2025)
   
-  # #version with "Total" included in legend directly
-  # obs.total.figures = obs.total %>%
-  #   rename(Susceptibility = Category)
-  # 
-  # obs.figures = bind_rows(obs.total.figures, obs.multi) %>%
-  #   mutate(Site = factor(Site, levels = c("Offshore", "Midchannel", "Nearshore")))
-  # 
-  # ggplot(data = obs.figures %>% filter(Compartment == "Infected"),
-  #                      aes(x = days.inf.site, y = tissue, linetype = Susceptibility)) +
-  #   geom_line(size = 1) +  # Adjust line size for all lines
-  #   facet_wrap(~ Site, scales = "free_y") +  # Facet by Site
-  #   xlab("Day of outbreak") +
-  #   ylab("Tissue Surface Area (m²)") +
-  #   # scale_color_manual(values = c("Total" = "black", "Low" = "blue", "Moderate" = "green", "High" = "red")) +  # Customize colors
-  #   # scale_linetype_manual(values = c("Summed" = "solid", "Low" = "dashed", "Moderate" = "dotted", "High" = "dotdash")) +  # Customize linetypes
-  #   theme_classic(base_family = "Georgia") +
-  #   theme(legend.position = "bottom")
-  
   #version where "Total" is its own thing, not part of the legend
   obs.total.figures <- obs.total %>%
     rename(Susceptibility = Category) %>%
@@ -406,89 +388,6 @@
   #   - important for creating tidy, comparable time-based plots when necessary
   max_days_all_sites <- max(obs.total.figures$days.inf.site, na.rm = TRUE)
   
-  # # VERSION WITH ONE ROW
-  # # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
-  # # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
-  # # quartz(h = 5, w = 3.35)
-  # # quartz(h = 6, w = 7.087)
-  # quartz(h = 3, w = 5)
-  # 
-  # # Create the plot
-  # # NOTE
-  # #    - 'days' need to be
-  # ggplot() +
-  # 
-  #   # #black and grey version
-  #   # # Add the original lines from obs.total.figures
-  #   # geom_line(data = obs.total.figures %>% filter(Compartment == "Infected"),
-  #   #           aes(x = days.inf.site, y = tissue),
-  #   #           color = "gray30", linewidth = 0.75) + #2.0
-  #   # # Add the shaded area beneath the "Total" line
-  #   # geom_ribbon(data = obs.total.figures %>% filter(Compartment == "Infected"),
-  #   #             aes(x = days.inf.site, ymin = 0, ymax = tissue),
-  #   #             fill = "gray80", alpha = 0.5) +  # Adjust alpha for transparency
-  #   # # Add the multi-group lines from obs.multi.figures
-  #   # geom_line(data = obs.multi.figures %>% filter(Compartment == "Infected"),
-  #   #           aes(x = days.inf.site, y = tissue, linetype = Susceptibility),
-  #   #           color = "black", linewidth = 0.75) +
-  #   # # # Add the multi-group lines from obs.multi.figures
-  #   # # geom_line(data = obs.multi.figures %>% filter(Compartment == "Infected"),
-  #   # #           aes(x = days.inf.site, y = tissue, linetype = Susceptibility, color = Susceptibility),
-  #   # #           linewidth = 0.75) +
-  # 
-  #   #color version
-  #   # Add the shaded area beneath the "Total" line
-  #   geom_ribbon(data = obs.total.figures %>% filter(Compartment == "Infected"),
-  #               aes(x = days.inf.site, ymin = 0, ymax = tissue),
-  #               fill = "gray80", alpha = 0.8) +  # Adjust alpha for transparency
-  #   # Add the multi-group lines from obs.multi.figures
-  #   geom_line(data = obs.multi.figures %>% filter(Compartment == "Infected"),
-  #             aes(x = days.inf.site, y = tissue, color = Susceptibility),
-  #             linewidth = 0.75) +
-  #   # scale_color_brewer(name = 'Susceptibility', palette = 'YlOrRd') +
-  #   # scale_color_manual(values = c("Low" = "#4477AA", "Moderate" = "#AA3377", "High" = "#FF4444")) +
-  #   # scale_color_manual(values = c("Low" = "#FFDD44", "Moderate" = "#FF8844", "High" = "#FF4444")) +
-  #   scale_color_manual(values = c("Low" = "#1E90FF",   # Yellow
-  #                                 "Moderate" = "#FFD700", # Blue
-  #                                 "High" = "#FF1493")) +  # Red (or Deep Pink)
-  # 
-  #   # Facet by Site
-  #   facet_wrap(~ Site, scales = "free") + #free y- and x-axes
-  #   # facet_wrap(~ Site, scales = "free_y") + #just free y-axis (only makes sense if plotting dates)
-  #   # facet_wrap(~ Site) + #fixed
-  #   # Add labels and theme
-  #   xlab("Day of outbreak") + # "Day of outbreak"
-  #   ylab("Tissue surface area (m²)") + # "Infected tissue surface area (m²)"
-  #   scale_y_continuous(labels = label_number(accuracy = 0.001)) + # Control decimal places
-  #   # scale_y_continuous(labels = scales::label_scientific()) +
-  #   # scale_y_continuous(labels = function(x) scales::number(x, accuracy = 0.001, trim = TRUE)) +
-  #   # scale_linetype_manual(values = c("dotted", "dashed", "solid", "dotdash", "longdash")) +
-  #   scale_linetype_manual(values = c("dotdash", "longdash", "solid")) +
-  #   # theme_tufte(base_family = "Georgia") + #theme_classic
-  #   theme_classic(base_family = "Georgia") + #theme_classic
-  #   theme(legend.position = "bottom",
-  #         axis.title = element_text(size = 9),  # Set axis title font size to 6 points
-  #         axis.text = element_text(size = 7),    # Set axis text font size to 6 points
-  #         strip.text = element_text(size = 8),
-  #         legend.text = element_text(size = 7),
-  #         legend.title = element_text(size = 9),
-  #         legend.key.height = unit(0, "cm")
-  #         # legend.margin = margin(t = 0, b = 0),  # Reduce the margin above and below the legend
-  #         # legend.spacing.y = unit(0.5, "lines"), # Reduce vertical spacing between legend items
-  #         # legend.spacing.x = unit(0.5, "lines")  # Reduce horizontal spacing between legend items (if needed)
-  #   )
-  # 
-  # # # Save the Quartz output directly as a PDF
-  # # quartz.save(file = here("output", "sample_plot.pdf"), type = "pdf")
-  # 
-  # # # Close the Quartz device
-  # # dev.off()
-  # 
-  # # # Save the plot with specified width and height, using here for the file path
-  # # # ggsave(here("output", "fig1.pdf"), plot = fig1)
-  # # ggsave(here("output", "fig1.pdf"), plot = fig1, width = 5, height = 3, units = "in")   #18 inches max width
-  
-  #VERSION WITH TWO ROWS
   # Absolute Values Plot (Free Scales)
   absolute_plot <- ggplot() +
    geom_ribbon(data = obs.total.figures %>% filter(Compartment == "Infected"),

@@ -163,3 +163,25 @@ source("script3.R")
     - also maybe symbols become red or open afterwards? symbols should also be smaller and perhaps have some transparency
 - finally, make a projected single-host DHW nearshore to offshore and just see what happens !
 
+# Notes 11 March 2025:
+  #   - so ... last steps really are:
+  #       1.) making sure if I want to stick with R-squared or absolute residual optimization
+  #       2.) whichever I choose for #1, make sure it looks right in the output
+  #       3.) triple check that calculation of R-squared and optimization is being done correctly
+  #       4.) choose how to present effect of thermal stress (within existing figures, also maybe separate fine detail of it into fig. 4)
+  #       5.) as appropriate, embed R-squared values into figures
+  #       6.) work with Gaby to wrap up fig. 1
+  #       7.) work with Dan to finalize typesetting on figs. 2-3 (or 2-4)
+  #       8.) update manuscript accordingly to all above. ensure any necessary references to SIR methods are included
+  #       9.) better plot out and integrate thermal stress
+  #       10.) make top row of fig. 2 proportional
+  #                 - - "proportion of infected tissue SA out of total susceptible SA", with a free y-axis, is useful because it will essentially show what we are showing already in           the top row, but the y-axis will be more informative because it will provide a peek at the prevalence. And that's important since Nearshore not only had a lot more infected SA than the other sites, but also much higher prevalence
+- That goes back to one of the central messages of the paper, that coral density really matters. Nearshore may have blown up largely because of how tightly packed in its coral tissue SA was, relative to the surveyed reefs' size
+  #       11.) fig. 2 should have x-axes in both rows
+  #       12.) For eval, consider within- and across-group summation of RMSE
+  #       13.) Maybe Table (supp. ?) with parameter definitions, table with R2/RMSE, table with boundary conditions and optimized parameter (and R0!) results?
+  #       14.) update manuscript to reflect fig 1 changes to equations
+  #       15.) note in paper how multi-host convergence is not achieved ... more so a range of outputs that all tend to "look" around the same in the end. something to explore in my chapter 3
+  #        16.) note in paper the starting tissue value and its possible importance!
+  #        17.) try higher itermax with single-host model ... try and figure out if there is a better lambda for it and multi-host too. though I think iterations won't matter for single-host really at all. converges to a consistent solution near every time. and actually also I just figured out I'm pretty sure I manually found the exact right lambda ... wow (1.0). so, now it's a question of why the multi-host projection performs better than the single-host one I think. a really cool result there. but also, how good is the "curve" I'm using to set lambda (and in turn modify the transmission rate) in the first place?
+
