@@ -192,18 +192,12 @@
     }
     with(as.list(p),{
       
-      # # REDACTED / NOTE - decided not to incorporate coral cover directly in this model
-      # # Introduce a non-linear effect of cover on the transmission rate
-      # # transmission_modifier = (1 + l * sqrt(C)) #setting lambda to zero nullifies the effect of cover and reverts the model to a basic SIR
-      # # transmission_modifier = (l * sqrt(C))
-      # # transmission_modifier = (l * (1-exp(-130*(C)))) #20
-      # transmission_modifier = (1 / (1 + exp(-l * (C))) + offset)
+      #null conditions
+      transmission_modifier = 1
       
-      # #null conditions
-      # transmission_modifier = 1
-      
-      #with effect of coral cover
-      transmission_modifier = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C)) / (1 - exp(-k_val)))
+      # #with effect of coral cover
+      # # NOTE - previously I used a similar but more complicated equation with lambda - alpha could be renamed lambda here
+      # transmission_modifier = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C)) / (1 - exp(-k_val)))
       
       dS.dt = -b * S * I / N * transmission_modifier
       dI.dt = b * S * I / N * transmission_modifier - g * I
@@ -481,24 +475,15 @@
       current_SST = SST$SST[closest_index]
       current_DHW = DHW$DHW[closest_index]
       
-      # # REDACTED / NOTE - decided not to incorporate coral cover directly in this model
-      # # Introduce a non-linear effect of cover on the transmission rate [base transmission rate with cover factor]
-      # # transmission_modifier = (1 + l * sqrt(C)) #setting lambda to zero nullifies the effect of cover and reverts the model to a basic SIR
-      # # transmission_modifier = (l * sqrt(C))
-      # # transmission_modifier = (l * (1-exp(-130*(C)))) #20
-      # transmission_modifier = (1 / (1 + exp(-l * (C))) + offset)
-      # removal_rate = g
-      # transmission_rate = b * transmission_modifier
-      
-      # #null conditions
-      # transmission_modifier = 1
-      # removal_rate = g
-      # transmission_rate = b * transmission_modifier
-      
-      #with effect of coral cover
-      transmission_modifier = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C)) / (1 - exp(-k_val)))
+      #null conditions
+      transmission_modifier = 1
       removal_rate = g
       transmission_rate = b * transmission_modifier
+      
+      # #with effect of coral cover
+      # transmission_modifier = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C)) / (1 - exp(-k_val)))
+      # removal_rate = g
+      # transmission_rate = b * transmission_modifier
       
       # SST approach
       # Only apply SST and DHW effects in a way that can simulate a second wave
