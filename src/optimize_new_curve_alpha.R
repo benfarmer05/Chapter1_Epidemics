@@ -1,5 +1,7 @@
   
-  
+# NOTE - run this while working within plots_basic.R and/or plots_multi.R
+
+
 ################################## alpha / k parameter plotting sandbox ##################################
 
   # CC = seq(0.001,1,.001)
