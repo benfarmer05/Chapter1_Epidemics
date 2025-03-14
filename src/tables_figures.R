@@ -828,5 +828,5 @@
   
   ################################## Save output ##################################
 
-  # save.image(file = here("output", "tables_figures_workspace.RData"))
+  save.image(file = here("output", "tables_figures_workspace.RData"))
   

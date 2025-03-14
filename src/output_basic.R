@@ -360,7 +360,8 @@
       # NOTE - this is not sum of squares and should be clearly stated/defended in the manuscript if used
       sum_abs_diff_I = sum(sum(abs(diff.inf)))
       sum_abs_diff_R = sum(sum(abs(diff.rem)))
-      sum_diff.abs = sum_abs_diff_R
+      # sum_diff.abs = sum_abs_diff_R
+      sum_diff.abs = sum_abs_diff_I # NOTE - 13 march 2025 edit to test fitting to infection too, for better integration with thermal stress
       sum_abs_diff_I.total = sum(sum(abs(diff.inf.total)))
       sum_abs_diff_R.total = sum(sum(abs(diff.rem.total)))
       sum_diff.abs.total = sum_abs_diff_R.total
