@@ -16,7 +16,7 @@
   CC = seq(0.001,1,.001)
   a = seq(0,1,0.01) #alpha (weight of coral cover)
   # a = 0 #best_alpha
-  k = 100 #shape of curve?
+  k = 3 #shape of curve?
   
   plot(CC,CC*CC, type = 'n')
   for (i in 1:length(a)) {
