@@ -464,8 +464,8 @@
   
   fig2
   
-  # # Save the Quartz output directly as a PDF
-  # quartz.save(file = here("output", "fig2.pdf"), type = "pdf")
+  # Save the Quartz output directly as a PDF
+  quartz.save(file = here("output", "fig2.pdf"), type = "pdf")
   
   # Close the Quartz device
   dev.off()
@@ -820,7 +820,7 @@
   fig3
   
   # # Save the Quartz output directly as a PDF
-  # quartz.save(file = here("output", "fig1.pdf"), type = "pdf")
+  # quartz.save(file = here("output", "fig3.pdf"), type = "pdf")
   
   # # Close the Quartz device
   # dev.off()
