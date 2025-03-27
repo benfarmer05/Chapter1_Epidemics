@@ -795,279 +795,7 @@
          col = c("#E69F00", "#0072B2"), lwd = 2, pch = c(NA, 16), bty = "n")
   
   
-  # ################################## Extend Nearshore "observed" infections through 2020 ##################################
-  # 
-  # # Prepare the base data for synthetic extension
-  # infected_base_data <- obs.total.figures %>%
-  #   filter(Compartment == "Infected", Site == "Nearshore") %>%
-  #   mutate(date = as.Date(date))
-  # 
-  # infected_synthetic_data <- tibble(
-  #   Compartment = "Infected",
-  #   Site = "Nearshore",
-  #   date = as.Date(c(
-  #     "2019-12-06",
-  #     "2020-01-15", 
-  #     "2020-02-15", 
-  #     "2020-03-15", 
-  #     "2020-04-15", 
-  #     "2020-05-15", 
-  #     "2020-06-15", 
-  #     "2020-07-15", 
-  #     "2020-08-15", 
-  #     "2020-09-15", 
-  #     "2020-10-15", 
-  #     "2020-11-15", 
-  #     "2020-12-15"
-  #   )),
-  #   tissue = c(
-  #     # Start rising immediately from the 2019-11-12 trajectory
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 1.2,   # January - continuing rise
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 1.4,   # January - continuing rise
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 1.8,   # February - continued increase
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 1.3,   # March - further rise
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 1.1,   # April - continued growth
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 0.7,   # May - peak
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 0.03,   # June - slight decline
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 0.02,   # July - continued decline
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 0.01,   # August - further reduction
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 0,   # September - lower levels
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 0,   # October - stabilizing
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 0.2,   # November - slight decrease
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 0.6    # December - further reduction
-  #   )
-  #   #   tissue = c(
-  #   #     # Adjust these values to match the pattern of your 2018-2019 data
-  #   #     # These are example values - you'll want to fine-tune based on your actual data
-  #   #     infected_base_data$tissue[4] * 0.9,   # January (slightly lower than previous year)
-  #   #     infected_base_data$tissue[5] * 0.95,  # February
-  #   #     infected_base_data$tissue[6] * 1.0,   # March
-  #   #     infected_base_data$tissue[7] * 1.1,   # April
-  #   #     infected_base_data$tissue[8] * 1.2,   # May
-  #   #     infected_base_data$tissue[9] * 1.3,   # June
-  #   #     infected_base_data$tissue[10] * 1.4,  # July
-  #   #     infected_base_data$tissue[11] * 1.3,  # August
-  #   #     infected_base_data$tissue[12] * 1.2,  # September
-  #   #     infected_base_data$tissue[1] * 1.1,   # October
-  #   #     infected_base_data$tissue[2] * 1.0,   # November
-  #   #     infected_base_data$tissue[3] * 0.9    # December
-  #   #   )
-  # ) #%>%
-  #   # mutate(tissue_scaled = tissue * rescaler)
-  # 
-  # # Combine original and synthetic data
-  # infected_combined_data <- bind_rows(
-  #   mutate(infected_base_data, synthetic = FALSE),
-  #   mutate(infected_synthetic_data, synthetic = TRUE)
-  # )
-  # 
-  # # Remove rows where date is 2019-12-06 and days.survey is NA
-  # infected_combined_data <- infected_combined_data %>%
-  #   filter(!(date == as.Date("2019-12-06") & is.na(days.survey)))
-  # 
-  # # Identify the last real values from 2019-12-06
-  # last_known <- infected_combined_data %>%
-  #   filter(date == as.Date("2019-12-06")) %>%
-  #   select(days.survey, days.inf.site, tissue)
-  # 
-  # # Update the existing 2019-12-06 row instead of adding a duplicate
-  # infected_combined_data <- infected_combined_data %>%
-  #   mutate(
-  #     tissue = ifelse(date == as.Date("2019-12-06"), infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 1.2, tissue)
-  #   )
-  # 
-  # # Define synthetic rows and compute new days.survey and days.inf.site
-  # infected_combined_data <- infected_combined_data %>%
-  #   arrange(date) %>%
-  #   mutate(
-  #     days.survey = ifelse(synthetic, last_known$days.survey + as.numeric(date - as.Date("2019-12-06")), days.survey),
-  #     days.inf.site = ifelse(synthetic, last_known$days.inf.site + as.numeric(date - as.Date("2019-12-06")), days.inf.site)
-  #   )  
-  # 
-  # # Sample data preparation
-  # rescaler = 1.5
-  # compartment = "Infected"
-  # 
-  # # Filter and prepare the data
-  # SST_data <- DHW.CRW.full
-  # tissue_data <- infected_combined_data %>%
-  #   filter(Compartment == compartment, Site == "Nearshore") %>%
-  #   mutate(date = as.Date(date), tissue_scaled = tissue * rescaler)
-  # 
-  # # Plot the SST data
-  # plot(SST_data$date, SST_data$SST.90th_HS, type = "l", col = "#E69F00", 
-  #      xlim = c(as.Date("2018-01-01"), as.Date("2020-12-30")), 
-  #      ylim = c(23, 32), xlab = "Date", ylab = "SST (°C)", 
-  #      main = "SST and Infected Tissue Over Time", lwd = 2)
-  # 
-  # # Add vertical dashed lines
-  # abline(v = as.Date(c("2019-11-16", "2019-12-06")), col = "black", lty = 2)
-  # 
-  # # Add horizontal dashed line for SST threshold
-  # abline(h = SST_threshold, col = "red", lty = 2, lwd = 1)
-  # 
-  # # Overlay tissue data
-  # par(new = TRUE)
-  # 
-  # # Plot the tissue data with a secondary axis
-  # plot(tissue_data$date, tissue_data$tissue_scaled, type = "b", 
-  #      col = ifelse(tissue_data$synthetic, "red", "#0072B2"), 
-  #      xlim = c(as.Date("2018-01-01"), as.Date("2020-12-30")), 
-  #      ylim = c(0, max(tissue_data$tissue_scaled)), 
-  #      xlab = "", ylab = "", axes = FALSE)  # No y-axis, to avoid double labeling
-  # 
-  # # Add the secondary y-axis (right axis)
-  # axis(side = 4, at = pretty(tissue_data$tissue_scaled), 
-  #      labels = pretty(tissue_data$tissue_scaled) / rescaler)  # Adjust to match tissue scaling
-  # 
-  # # Add labels to the secondary axis
-  # mtext("Removed tissue (m2)", side = 4, line = 3)
-  # 
-  # # Add a legend
-  # legend("topright", legend = c("SST (°C)", "Infected tissue (m2)"), 
-  #        col = c("#E69F00", "#0072B2"), lwd = 2, pch = c(NA, 16), bty = "n")
-  # 
-  # ################################## Extend Offshore "observed" infections through 2020 ##################################
-  # 
-  # # Prepare the base data for synthetic extension
-  # infected_base_data <- obs.total.figures %>%
-  #   filter(Compartment == "Infected", Site == "Offshore") %>%
-  #   mutate(date = as.Date(date))
-  # 
-  # infected_synthetic_data <- tibble(
-  #   Compartment = "Infected",
-  #   Site = "Offshore",
-  #   date = as.Date(c(
-  #     "2019-12-06",
-  #     "2020-01-15", 
-  #     "2020-02-15", 
-  #     "2020-03-15", 
-  #     "2020-04-15", 
-  #     "2020-05-15", 
-  #     "2020-06-15", 
-  #     "2020-07-15", 
-  #     "2020-08-15", 
-  #     "2020-09-15", 
-  #     "2020-10-15", 
-  #     "2020-11-15", 
-  #     "2020-12-15"
-  #   )),
-  #   tissue = c(
-  #     # Start rising immediately from the 2019-11-12 trajectory
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 1.2,   # January - continuing rise
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 1.4,   # January - continuing rise
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 1.8,   # February - continued increase
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 1.3,   # March - further rise
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 1.1,   # April - continued growth
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 0.7,   # May - peak
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 0.03,   # June - slight decline
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 0.02,   # July - continued decline
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 0.01,   # August - further reduction
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 0,   # September - lower levels
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 0,   # October - stabilizing
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 0.2,   # November - slight decrease
-  #     infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 0.6    # December - further reduction
-  #   )
-  #   #   tissue = c(
-  #   #     # Adjust these values to match the pattern of your 2018-2019 data
-  #   #     # These are example values - you'll want to fine-tune based on your actual data
-  #   #     infected_base_data$tissue[4] * 0.9,   # January (slightly lower than previous year)
-  #   #     infected_base_data$tissue[5] * 0.95,  # February
-  #   #     infected_base_data$tissue[6] * 1.0,   # March
-  #   #     infected_base_data$tissue[7] * 1.1,   # April
-  #   #     infected_base_data$tissue[8] * 1.2,   # May
-  #   #     infected_base_data$tissue[9] * 1.3,   # June
-  #   #     infected_base_data$tissue[10] * 1.4,  # July
-  #   #     infected_base_data$tissue[11] * 1.3,  # August
-  #   #     infected_base_data$tissue[12] * 1.2,  # September
-  #   #     infected_base_data$tissue[1] * 1.1,   # October
-  #   #     infected_base_data$tissue[2] * 1.0,   # November
-  #   #     infected_base_data$tissue[3] * 0.9    # December
-  #   #   )
-  # ) #%>%
-  # # mutate(tissue_scaled = tissue * rescaler)
-  # 
-  # # Combine original and synthetic data
-  # infected_combined_data <- bind_rows(
-  #   mutate(infected_base_data, synthetic = FALSE),
-  #   mutate(infected_synthetic_data, synthetic = TRUE)
-  # )
-  # 
-  # # Remove rows where date is 2019-12-06 and days.survey is NA
-  # infected_combined_data <- infected_combined_data %>%
-  #   filter(!(date == as.Date("2019-12-06") & is.na(days.survey)))
-  # 
-  # # Identify the last real values from 2019-12-06
-  # last_known <- infected_combined_data %>%
-  #   filter(date == as.Date("2019-12-06")) %>%
-  #   select(days.survey, days.inf.site, tissue)
-  # 
-  # # Update the existing 2019-12-06 row instead of adding a duplicate
-  # infected_combined_data <- infected_combined_data %>%
-  #   mutate(
-  #     tissue = ifelse(date == as.Date("2019-12-06"), infected_base_data$tissue[which(infected_base_data$date == "2019-11-12")] * 1.2, tissue)
-  #   )
-  # 
-  # # Define synthetic rows and compute new days.survey and days.inf.site
-  # infected_combined_data <- infected_combined_data %>%
-  #   arrange(date) %>%
-  #   mutate(
-  #     days.survey = ifelse(synthetic, last_known$days.survey + as.numeric(date - as.Date("2019-12-06")), days.survey),
-  #     days.inf.site = ifelse(synthetic, last_known$days.inf.site + as.numeric(date - as.Date("2019-12-06")), days.inf.site)
-  #   )  
-  # 
-  # # Sample data preparation
-  # rescaler = 1.5
-  # compartment = "Infected"
-  # 
-  # # Filter and prepare the data
-  # SST_data <- DHW.CRW.full
-  # tissue_data <- infected_combined_data %>%
-  #   filter(Compartment == compartment, Site == "Offshore") %>%
-  #   mutate(date = as.Date(date), tissue_scaled = tissue * rescaler)
-  # 
-  # # Plot the SST data
-  # plot(SST_data$date, SST_data$SST.90th_HS, type = "l", col = "#E69F00", 
-  #      xlim = c(as.Date("2018-01-01"), as.Date("2020-12-30")), 
-  #      ylim = c(23, 32), xlab = "Date", ylab = "SST (°C)", 
-  #      main = "SST and Infected Tissue Over Time", lwd = 2)
-  # 
-  # # Add vertical dashed lines
-  # abline(v = as.Date(c("2019-11-16", "2019-12-06")), col = "black", lty = 2)
-  # 
-  # # Add horizontal dashed line for SST threshold
-  # abline(h = SST_threshold, col = "red", lty = 2, lwd = 1)
-  # 
-  # # Overlay tissue data
-  # par(new = TRUE)
-  # 
-  # # Plot the tissue data with a secondary axis
-  # plot(tissue_data$date, tissue_data$tissue_scaled, type = "b", 
-  #      col = ifelse(tissue_data$synthetic, "red", "#0072B2"), 
-  #      xlim = c(as.Date("2018-01-01"), as.Date("2020-12-30")), 
-  #      ylim = c(0, max(tissue_data$tissue_scaled)), 
-  #      xlab = "", ylab = "", axes = FALSE)  # No y-axis, to avoid double labeling
-  # 
-  # # Add the secondary y-axis (right axis)
-  # axis(side = 4, at = pretty(tissue_data$tissue_scaled), 
-  #      labels = pretty(tissue_data$tissue_scaled) / rescaler)  # Adjust to match tissue scaling
-  # 
-  # # Add labels to the secondary axis
-  # mtext("Removed tissue (m2)", side = 4, line = 3)
-  # 
-  # # Add a legend
-  # legend("topright", legend = c("SST (°C)", "Infected tissue (m2)"), 
-  #        col = c("#E69F00", "#0072B2"), lwd = 2, pch = c(NA, 16), bty = "n")
-  # 
-  # 
-  # 
-  # 
-  # 
-  # 
-  ################################## Extend Nearshore, Offshore, and Midchannel "observed" infections through 2020 ##################################
-  
-  # Create a new dataframe with all existing data
-  obs.total.figures_SST <- obs.total.figures
+  ################################## Infection extension 2020 ##################################
   
   # Prepare the base data for synthetic extension - Nearshore
   infected_base_data_nearshore <- obs.total.figures %>%
@@ -1295,7 +1023,7 @@
   
   # Create the new obs.total.figures_SST by removing existing site Infected data 
   # and adding the new combined data
-  obs.total.figures_SST <- obs.total.figures %>%
+  obs.total.figures_SST.infected <- obs.total.figures %>%
     filter(!(Compartment == "Infected" & Site %in% c("Nearshore", "Offshore", "Midchannel"))) %>%
     bind_rows(infected_combined_data_nearshore) %>%
     bind_rows(infected_combined_data_offshore) %>%
@@ -1323,7 +1051,7 @@
   # Loop through each site to create plots
   for (site in sites) {
     # Filter tissue data for the current site
-    tissue_data <- obs.total.figures_SST %>%
+    tissue_data <- obs.total.figures_SST.infected %>%
       filter(Compartment == compartment, Site == site) %>%
       mutate(date = as.Date(date), tissue_scaled = tissue * rescaler)
     
@@ -1361,6 +1089,273 @@
     legend("topright", legend = c("SST (°C)", "Infected tissue (m2)"), 
            col = c("#E69F00", "#0072B2"), lwd = 2, pch = c(NA, 16), bty = "n")
   }
+  
+  
+  ################################## Removal extension 2020 ##################################
+  
+  # Prepare the base data for synthetic extension - Nearshore
+  removed_base_data_nearshore <- obs.total.figures %>%
+    filter(Compartment == "Recovered", Site == "Nearshore") %>%
+    mutate(date = as.Date(date))
+  
+  # Prepare the base data for synthetic extension - Offshore
+  removed_base_data_offshore <- obs.total.figures %>%
+    filter(Compartment == "Recovered", Site == "Offshore") %>%
+    mutate(date = as.Date(date))
+  
+  # Prepare the base data for synthetic extension - Midchannel
+  removed_base_data_midchannel <- obs.total.figures %>%
+    filter(Compartment == "Recovered", Site == "Midchannel") %>%
+    mutate(date = as.Date(date))
+  
+  #scalars for simulating removed tissue in 2020
+  increase_factors_nearshore <- c(
+    1.04,   # January 2020
+    1.10,  # February 2020
+    1.13,   # March 2020
+    1.14,  # April 2020
+    1.15,   # May 2020 (plateau starts)
+    1.15,   # June 2020 (plateau)
+    1.15,   # July 2020 (plateau)
+    1.15,   # August 2020 (plateau)
+    1.155,  # September 2020 (resumes rising)
+    1.16,   # October 2020
+    1.17,  # November 2020
+    1.20    # December 2020
+  )
+  increase_factors_offshore <- c(
+    1.2,   # January 2020
+    1.3,  # February 2020
+    1.35,   # March 2020
+    1.375,  # April 2020
+    1.40,   # May 2020 (plateau starts)
+    1.40,   # June 2020 (plateau)
+    1.40,   # July 2020 (plateau)
+    1.40,   # August 2020 (plateau)
+    1.41,  # September 2020 (resumes rising)
+    1.415,   # October 2020
+    1.45,  # November 2020
+    1.5    # December 2020
+  )
+  increase_factors_midchannel <- c(
+    1.3,   # January 2020
+    1.4,  # February 2020
+    1.45,   # March 2020
+    1.475,  # April 2020
+    1.50,   # May 2020 (plateau starts)
+    1.50,   # June 2020 (plateau)
+    1.50,   # July 2020 (plateau)
+    1.50,   # August 2020 (plateau)
+    1.51,  # September 2020 (resumes rising)
+    1.515,   # October 2020
+    1.55,  # November 2020
+    1.6    # December 2020
+  )
+  
+  # Synthetic data for Nearshore
+  removed_synthetic_data_nearshore <- tibble(
+    Compartment = "Recovered",
+    Site = "Nearshore",
+    date = as.Date(c(
+      "2020-01-15", 
+      "2020-02-15", 
+      "2020-03-15", 
+      "2020-04-15", 
+      "2020-05-15", 
+      "2020-06-15", 
+      "2020-07-15", 
+      "2020-08-15", 
+      "2020-09-15", 
+      "2020-10-15", 
+      "2020-11-15", 
+      "2020-12-15"
+    )),
+    tissue = removed_base_data_nearshore$tissue[which(removed_base_data_nearshore$date == "2019-12-06")] * increase_factors_nearshore
+  )
+  
+  # Synthetic data for Offshore
+  removed_synthetic_data_offshore <- tibble(
+    Compartment = "Recovered",
+    Site = "Offshore",
+    date = as.Date(c(
+      "2020-01-15", 
+      "2020-02-15", 
+      "2020-03-15", 
+      "2020-04-15", 
+      "2020-05-15", 
+      "2020-06-15", 
+      "2020-07-15", 
+      "2020-08-15", 
+      "2020-09-15", 
+      "2020-10-15", 
+      "2020-11-15", 
+      "2020-12-15"
+    )),
+    tissue = removed_base_data_offshore$tissue[which(removed_base_data_offshore$date == "2019-12-06")] * increase_factors_offshore
+  )  
+  
+  # Synthetic data for Midchannel
+  removed_synthetic_data_midchannel <- tibble(
+    Compartment = "Recovered",
+    Site = "Midchannel",
+    date = as.Date(c(
+      "2020-01-15", 
+      "2020-02-15", 
+      "2020-03-15", 
+      "2020-04-15", 
+      "2020-05-15", 
+      "2020-06-15", 
+      "2020-07-15", 
+      "2020-08-15", 
+      "2020-09-15", 
+      "2020-10-15", 
+      "2020-11-15", 
+      "2020-12-15"
+    )),
+    tissue = removed_base_data_midchannel$tissue[which(removed_base_data_midchannel$date == "2019-12-06")] * increase_factors_midchannel
+  )  
+  
+  # Combine original and synthetic data for Nearshore, Offshore, and Midchannel
+  removed_combined_data_nearshore <- bind_rows(
+    mutate(removed_base_data_nearshore, synthetic = FALSE),
+    mutate(removed_synthetic_data_nearshore, synthetic = TRUE)
+  )
+  
+  removed_combined_data_offshore <- bind_rows(
+    mutate(removed_base_data_offshore, synthetic = FALSE),
+    mutate(removed_synthetic_data_offshore, synthetic = TRUE)
+  )
+  
+  removed_combined_data_midchannel <- bind_rows(
+    mutate(removed_base_data_midchannel, synthetic = FALSE),
+    mutate(removed_synthetic_data_midchannel, synthetic = TRUE)
+  )
+  
+  # Identify the last known values from 2019-12-06 for each site
+  last_known_nearshore <- removed_combined_data_nearshore %>%
+    filter(date == as.Date("2019-12-06")) %>%
+    select(days.survey, days.inf.site, tissue)
+  
+  last_known_offshore <- removed_combined_data_offshore %>%
+    filter(date == as.Date("2019-12-06")) %>%
+    select(days.survey, days.inf.site, tissue)
+  
+  last_known_midchannel <- removed_combined_data_midchannel %>%
+    filter(date == as.Date("2019-12-06")) %>%
+    select(days.survey, days.inf.site, tissue)
+  
+  # Define synthetic rows and compute new days.survey and days.inf.site for each site
+  removed_combined_data_nearshore <- removed_combined_data_nearshore %>%
+    arrange(date) %>%
+    mutate(
+      days.survey = ifelse(synthetic, 
+                           last_known_nearshore$days.survey + as.numeric(date - as.Date("2019-12-06")), 
+                           days.survey),
+      days.inf.site = ifelse(synthetic, 
+                             last_known_nearshore$days.inf.site + as.numeric(date - as.Date("2019-12-06")), 
+                             days.inf.site)
+    )
+  
+  removed_combined_data_offshore <- removed_combined_data_offshore %>%
+    arrange(date) %>%
+    mutate(
+      days.survey = ifelse(synthetic, 
+                           last_known_offshore$days.survey + as.numeric(date - as.Date("2019-12-06")), 
+                           days.survey),
+      days.inf.site = ifelse(synthetic, 
+                             last_known_offshore$days.inf.site + as.numeric(date - as.Date("2019-12-06")), 
+                             days.inf.site)
+    )
+  
+  removed_combined_data_midchannel <- removed_combined_data_midchannel %>%
+    arrange(date) %>%
+    mutate(
+      days.survey = ifelse(synthetic, 
+                           last_known_midchannel$days.survey + as.numeric(date - as.Date("2019-12-06")), 
+                           days.survey),
+      days.inf.site = ifelse(synthetic, 
+                             last_known_midchannel$days.inf.site + as.numeric(date - as.Date("2019-12-06")), 
+                             days.inf.site)
+    )
+  
+  # Create the new obs.total.figures_SST by removing existing site Recovered data 
+  # and adding the new combined data
+  obs.total.figures_SST.removal <- obs.total.figures %>%
+    filter(!(Compartment == "Recovered" & Site %in% c("Nearshore", "Offshore", "Midchannel"))) %>%
+    bind_rows(removed_combined_data_nearshore) %>%
+    bind_rows(removed_combined_data_offshore) %>%
+    bind_rows(removed_combined_data_midchannel)
+  
+  obs.total.figures_SST <- obs.total.figures %>%
+    filter(!(Compartment == "Recovered" | Compartment == "Infected" & Site %in% c("Nearshore", "Offshore", "Midchannel"))) %>%
+    bind_rows(removed_combined_data_nearshore) %>%
+    bind_rows(removed_combined_data_offshore) %>%
+    bind_rows(removed_combined_data_midchannel) %>%
+    bind_rows(infected_combined_data_nearshore) %>%
+    bind_rows(infected_combined_data_offshore) %>%
+    bind_rows(infected_combined_data_midchannel) 
+  
+  # Plotting section
+  # Sample data preparation
+  rescaler = 1.5
+  compartment = "Recovered"
+  
+  #create moving average of SST data to smooth it and reduce wiggliness of the data
+  # Simple moving average smoothing
+  DHW.CRW.full <- DHW.CRW.full %>%
+    mutate(SST_90th_HS_smoothed = smooth(SST.90th_HS, kind = "3R"))
+  
+  # Prepare SST data
+  SST_data <- DHW.CRW.full
+  
+  # Set up a 3x1 plot layout
+  par(mfrow=c(3,1), mar=c(4, 4, 2, 4))
+  
+  # List of sites to plot
+  sites <- c("Nearshore", "Offshore", "Midchannel")
+  
+  # Loop through each site to create plots
+  for (site in sites) {
+    # Filter tissue data for the current site
+    tissue_data <- obs.total.figures_SST.removal %>%
+      filter(Compartment == compartment, Site == site) %>%
+      mutate(date = as.Date(date), tissue_scaled = tissue * rescaler)
+    
+    # Plot the SST data
+    # plot(SST_data$date, SST_data$SST.90th_HS, type = "l", col = "#E69F00", 
+    plot(SST_data$date, SST_data$SST_90th_HS_smoothed, type = "l", col = "#E69F00",
+         xlim = c(as.Date("2018-01-01"), as.Date("2020-12-30")), 
+         ylim = c(23, 32), xlab = "Date", ylab = "SST (°C)", 
+         main = paste("SST and Recovered Tissue Over Time (", site, ")", sep = ""), lwd = 2)
+    
+    # Add vertical dashed lines
+    abline(v = as.Date(c("2019-11-16", "2019-12-06")), col = "black", lty = 2)
+    
+    # Add horizontal dashed line for SST threshold
+    abline(h = SST_threshold, col = "red", lty = 2, lwd = 1)
+    
+    # Overlay tissue data
+    par(new = TRUE)
+    
+    # Plot the tissue data with a secondary axis
+    plot(tissue_data$date, tissue_data$tissue_scaled, type = "b", 
+         col = ifelse(tissue_data$synthetic, "red", "#0072B2"), 
+         xlim = c(as.Date("2018-01-01"), as.Date("2020-12-30")), 
+         ylim = c(0, max(tissue_data$tissue_scaled)), 
+         xlab = "", ylab = "", axes = FALSE)
+    
+    # Add the secondary y-axis (right axis)
+    axis(side = 4, at = pretty(tissue_data$tissue_scaled), 
+         labels = pretty(tissue_data$tissue_scaled) / rescaler)
+    
+    # Add labels to the secondary axis
+    mtext("Recovered tissue (m2)", side = 4, line = 3)
+    
+    # Add a legend
+    legend("topright", legend = c("SST (°C)", "Recovered tissue (m2)"), 
+           col = c("#E69F00", "#0072B2"), lwd = 2, pch = c(NA, 16), bty = "n")
+  }
+  
   ################################## More mature sigmoid & logistic behaviors of temperature ##################################
   
   # Load necessary libraries

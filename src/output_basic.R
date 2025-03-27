@@ -207,11 +207,11 @@
     })
   }
   
+  ################################## Optimize single-host model ##################################
   my.SIRS.basic = vector('list', length(sites))
   params.basic = vector('list', length(sites))
   curr.type = 'Fitted' #the below is for a basic fitting model for single-host transmission (no DHW or projection)
   
-  ################################## Optimize single-host model ##################################
   for(i in 1:length(sites)){
     
     site.loop = sites[i]
@@ -277,8 +277,8 @@
     objective_function = function(params, data, time, initial_state){
       
       # #testing
-      # betas = 0.76
-      # gammas = 0.56
+      # betas = 3.05 #0.76
+      # gammas = 3.01 #0.56
       # lambdas = 1.0
       # initial_state = initial_state.tiss
       # time = days.model
@@ -360,8 +360,8 @@
       # NOTE - this is not sum of squares and should be clearly stated/defended in the manuscript if used
       sum_abs_diff_I = sum(sum(abs(diff.inf)))
       sum_abs_diff_R = sum(sum(abs(diff.rem)))
-      # sum_diff.abs = sum_abs_diff_R
-      sum_diff.abs = sum_abs_diff_I # NOTE - 13 march 2025 edit to test fitting to infection too, for better integration with thermal stress
+      sum_diff.abs = sum_abs_diff_R
+      # sum_diff.abs = sum_abs_diff_I # NOTE - 13 march 2025 edit to test fitting to infection too, for better integration with thermal stress
       sum_abs_diff_I.total = sum(sum(abs(diff.inf.total)))
       sum_abs_diff_R.total = sum(sum(abs(diff.rem.total)))
       sum_diff.abs.total = sum_abs_diff_R.total
@@ -401,7 +401,7 @@
       #                       if_else(wave == 'Pre-heat', list(obs.rem), if_else(wave == 'Both', list(obs.rem.total), obs_rem)), obs_rem)
       #   )
       
-      return(sum_diff.abs) #return only the residual metric for the epidemic wave being fit to
+      return(sum_diff.abs.total) #return only the residual metric for the epidemic wave being fit to
     }
     
     # uniform

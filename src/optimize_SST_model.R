@@ -11,6 +11,8 @@
   library(dplyr)
   library(DEoptim)
   
+  ################################## Set-up ##################################
+  
   #import workspace from upstream script
   # load(here("output/plots_basic_workspace.RData"))
   load(here("output/SST_effect_workspace.RData"))
@@ -60,7 +62,7 @@
   #   zeta_effective <- 1 * zeta_bounded/(1-1*zeta_bounded)
   # 
   #   # Calculate midpoint of temperature range for centering the sigmoid
-  #   T_mid <- (T_min + T_max) / 2
+  #   T_mid <- 30.5  # (T_min + T_max) / 2
   # 
   #   # Decreasing sigmoid that starts near 1 (at low temps) and approaches 0 as temp increases
   #   # Note the positive sign before zeta_effective which makes the function decrease with temperature
@@ -283,17 +285,19 @@
   # SST_sites_extended <- SST_sites_extended %>%
   #   arrange(site, date)
   
-  # NOTE - 25 mar 2025
-  #   - this below needs to be done for every site, not just midchannel
   # Find the last date in the original SST_sites
   last_date_in_SST_sites <- max(SST_sites$date)
   
   # Filter DHW.CRW.full for dates from the last date in SST_sites to the end of 2020
   SST_DHW_extended <- DHW.CRW.full %>%
     filter(date > last_date_in_SST_sites & date <= as.Date("2020-12-31")) %>%
-    mutate(site = "mid",
+    # mutate(site = "mid",
+    #        days.inf.site = NA,
+    #        time = NA)  # Assuming the same site as in original data
+    slice(rep(1:n(), each = 3)) %>%
+    mutate(site = rep(c("mid", "off", "near"), times = n()/3),
            days.inf.site = NA,
-           time = NA)  # Assuming the same site as in original data
+           time = NA)  
   
   # Combine the original SST_sites with the extended data
   SST_sites_extended <- bind_rows(SST_sites, 
@@ -303,6 +307,13 @@
                                          days.inf.site, 
                                          SST = SST.90th_HS))
   
+  DHW_sites_extended <- bind_rows(DHW_sites, 
+                                  select(SST_DHW_extended, 
+                                         site, 
+                                         date, 
+                                         days.inf.site, 
+                                         DHW = DHW_from_90th_HS.1))
+  
   # Reset time sequence for each site
   SST_sites_extended <- SST_sites_extended %>%
     group_by(site) %>%
@@ -311,13 +322,19 @@
     ungroup() %>%
     arrange(site, date)
   
+  DHW_sites_extended <- DHW_sites_extended %>%
+    group_by(site) %>%
+    arrange(date) %>%
+    mutate(time = row_number() - 1) %>%  # Start at 0
+    ungroup() %>%
+    arrange(site, date)
+  
   #create moving average of SST data to smooth it and reduce wiggliness of the data
+  #  note - this is not needed for DHW since it represents accumulation of stress, rather than real-time
   SST_sites_extended <- SST_sites_extended %>%
     group_by(site) %>%
     mutate(SST_smoothed = smooth(SST, kind = "3R")) %>%
     ungroup()  
-  
-  ################################## SST optimization ##################################
   
   #making choice to pull boundaries of SST from entire dataset (1985 - 2024). could constrain
   T_min = DHW.CRW.full %>%
@@ -329,6 +346,34 @@
     pull(SST_90th_HS_smoothed) %>%
     max
   
+  susceptible_ref_SST = susceptible_ref %>%
+    mutate(Site = case_when(
+      Site == "Offshore" ~ "off",
+      Site == 'Midchannel' ~ 'mid',
+      Site == 'Nearshore' ~ 'near'
+    ))
+  
+  obs.total.figures_SST = obs.total.figures_SST %>%
+    mutate(Site = case_when(
+      Site == "Offshore" ~ "off",
+      Site == 'Midchannel' ~ 'mid',
+      Site == 'Nearshore' ~ 'near'
+    ))
+  
+  sites_SST = c('off', 'mid', 'near')
+  
+  #update days_sites to include 2020 (manually added "observations")
+  days_sites_SST <- days_sites %>%
+    mutate(
+      days = map2(site, days, function(site_name, existing_days) {
+        new_days <- obs.total.figures_SST %>%
+          filter(Site == site_name, Compartment == 'Infected') %>%
+          pull(days.inf.site)
+        c(existing_days, new_days[!new_days %in% existing_days])
+      })
+    )
+  
+  ################################## Model: single-host with SST ##################################
   SIR_project = function(t,y,p,SST,DHW){ # 'p' is parameters or params
     {
       S = y[1]
@@ -346,11 +391,17 @@
       # current_DHW = DHW$DHW[closest_index]
       
       #host density-null conditions
-      transmission_modifier = 1
+      # transmission_modifier = 1
+      # removal_rate = g
+      # transmission_rate = b * transmission_modifier
       removal_rate = g
-      transmission_rate = b * transmission_modifier
+      transmission_rate = b
+      
+      #STOPPING POINT - 27 MAR 2025
+      #  - I think a real issue here is that my equation behaviors are pretty weird
       
       # # APPROACH 4: no threshold
+      # # NOTE - issue is that low temperatures actually have the decreasing effect here. high ones should instead
       # # Convert bounded zeta to effective zeta (scales function behavior from 0 to 1)
       # zeta_effective = z / (1 - z) # zeta_effective <- 5 * zeta_bounded/(1-0.8*zeta_bounded)
       # eta_effective = e / (1 - e)
@@ -367,12 +418,19 @@
       # removal_rate <- removal_rate * gamma_scaling_factor
       
       #APPROACH 3: threshold
+      # NOTE - issue here is that there is no meaningful inflection point - maybe?
+      #         - or something else like boundary conditions
       zeta_effective <- z / (1 - z)
       eta_effective <- e / (1 - e)
-      beta_scaling_factor <- 1 / (1 + exp(zeta_effective * (current_SST - 31))) #30.5
-      gamma_scaling_factor <- 1 / (1 + exp(eta_effective * (current_SST - 31))) #30.5
+      beta_scaling_factor <- 1 / (1 + exp(zeta_effective * (current_SST - 30.5)))
+      gamma_scaling_factor <- 1 / (1 + exp(eta_effective * (current_SST - 30.5)))
       transmission_rate <- transmission_rate * beta_scaling_factor
       removal_rate <- removal_rate * gamma_scaling_factor
+      
+      # #APPROACH 0: halting transmission/removal
+      # if(current_SST > 30.5){
+      #   removal_rate = 0.01
+      # }
       
       dS.dt = -transmission_rate * S * I / N
       dI.dt = transmission_rate * S * I / N - removal_rate * I
@@ -382,36 +440,14 @@
     })
   }
   
-  my.SIRS.SST = vector('list', length(sites))
-  params.SST = vector('list', length(sites))
+  ################################## SST optimization ##################################
+  my.SIRS.SST = vector('list', length(sites_SST))
+  params.SST = vector('list', length(sites_SST))
   curr.type = 'Fitted' #the below is for a fitting model for multi-host transmission (no DHW or projection)
-  susceptible_ref_SST = susceptible_ref %>%
-    mutate(Site = case_when(
-      Site == "Offshore" ~ "off",
-      Site == 'Midchannel' ~ 'mid',
-      Site == 'Nearshore' ~ 'near'
-    ))
-  obs.total.figures_SST = obs.total.figures_SST %>%
-    mutate(Site = case_when(
-      Site == "Offshore" ~ "off",
-      Site == 'Midchannel' ~ 'mid',
-      Site == 'Nearshore' ~ 'near'
-    ))
   
-  #update days_sites to include 2020 (manually added "observations")
-  days_sites_SST <- days_sites %>%
-    mutate(
-      days = map2(site, days, function(site_name, existing_days) {
-        new_days <- obs.total.figures_SST %>%
-          filter(Site == site_name, Compartment == 'Infected') %>%
-          pull(days.inf.site)
-        c(existing_days, new_days[!new_days %in% existing_days])
-      })
-    )
-  
-  for(i in 1:length(sites)){
+  for(i in 1:length(sites_SST)){
     
-    site.loop = sites[i]
+    site.loop = sites_SST[i]
     
     # site.loop = "mid" #for testing purposes
     # i = 1
@@ -419,21 +455,6 @@
     # i = 2
     # site.loop = "off" #for testing purposes
     # i = 3
-    
-    # days <- days_sites %>% # NOTE - make sure this is working right with backtracked patient zero corals
-    #   filter(site == site.loop) %>%
-    #   pull(days) %>%
-    #   unlist()
-    # 
-    # days.obs <- days_sites %>%
-    #   filter(site == site.loop) %>%
-    #   pull(days.obs) %>%
-    #   unlist()
-    # 
-    # days.model <- days_sites %>%
-    #   filter(site == site.loop) %>%
-    #   pull(days.model) %>%
-    #   unlist()
     
     days <- days_sites_SST %>% # NOTE - make sure this is working right with backtracked patient zero corals
       filter(site == site.loop) %>%
@@ -443,11 +464,9 @@
     days.obs = na.omit(days) %>%
       as.numeric()
     
-    # NOTE - 25 mar 2025
-    #   - this below needs to be setting the sequence to the END of 2025, not the last made-up observation
-    #       point (which might be e.g. mid-December). use the max day value (by site) of SST_sites_extended
-    #       to set this sequence instead.
-    days.model <- days.obs %>%
+    days.model = SST_sites_extended %>%
+      filter(site == site.loop) %>%
+      pull(time) %>%
       max() %>%
       seq(from = 0, to = .)
     
@@ -455,7 +474,7 @@
       filter(site == site.loop) %>%
       select(date, time, SST_smoothed)
     
-    DHW_df <- DHW_sites %>%
+    DHW_df <- DHW_sites_extended %>%
       filter(site == site.loop) %>%
       select(date, time, DHW)
     
@@ -506,9 +525,9 @@
     S.tiss = N.site - I.tiss
     R.tiss = 0
     
-    ################################## Optimize single-host SST model ##################################
     # Set up the data and initial conditions
     coraldata.tiss = list(inftiss, remtiss)
+    # coraldata.tiss = list(inftiss) # NOTE - attempting to fit using just infections
     initial_state.tiss = c(S.tiss, I.tiss, R.tiss, N.site, cover.site)
     
     # Define the objective function for optimization
@@ -518,8 +537,8 @@
       # cat("Testing params:", params, "\n")
       
       # #testing
-      # betas = 0.76
-      # gammas = 0.56
+      # betas = 3.05 #for midchannel
+      # gammas = 3.01 #for midchannel
       # lambdas = 1.0
       # zetas = 0.89
       # etas = 0.70
@@ -533,8 +552,14 @@
       zetas = params[4]
       etas = params[5]
       
+      # # sanity check
+      # print(paste("SST_df time range:", min(SST_df$time), "to", max(SST_df$time)))
+      # print(paste("days.model range:", min(days.model), "to", max(days.model)))
+      # print(paste("Initial state:", initial_state.tiss))
+      # print(paste("Parameters:", params[1], params[2], params[3], params[4], params[5]))
+      
       # Check if SST_df and DHW_df are valid
-      if(any(is.na(SST_df$time)) || any(is.na(SST_df$SST)) || 
+      if(any(is.na(SST_df$time)) || any(is.na(SST_df$SST_smoothed)) || 
          any(is.na(DHW_df$time)) || any(is.na(DHW_df$DHW))) {
         cat("Warning: NAs in SST or DHW data\n")
       }
@@ -581,10 +606,16 @@
       # sim.inf.total <- sim.inf.total %>% head(-1)
       # obs.inf.total <- obs.inf.total %>% head(-1)
       
-      #NOTE - this is only needed if you ARE manually adding in data for 2020, since only infection
-      #          was added in, not removal
-      sim.rem.total <- sim.rem.total %>%
-        head(length(obs.rem.total))
+      # #NOTE - this is only needed if you ARE manually adding in data for 2020, since only infection
+      # #          was added in, not removal
+      # sim.rem.total <- sim.rem.total %>%
+      #   head(length(obs.rem.total))
+      
+      # #NOTE - test to try and get the optimizer working
+      # sim.inf.total <- sim.inf.total %>%
+      #   head(12)
+      # obs.inf.total = obs.inf.total %>%
+      #   head(12)
       
       # Calculate residuals
       diff.inf.total = (sim.inf.total - obs.inf.total)
@@ -594,22 +625,22 @@
       # NOTE - this is not sum of squares and should be clearly stated/defended in the manuscript if used
       sum_abs_diff_I.total = sum(sum(abs(diff.inf.total)))
       sum_abs_diff_R.total = sum(sum(abs(diff.rem.total)))
-      # sum_diff.abs.total = sum_abs_diff_R.total #version where only removal is fitted to
-      sum_diff.abs.total = sum_abs_diff_I.total #version where only infections are fitted to
+      sum_diff.abs.total = sum_abs_diff_R.total #version where only removal is fitted to
+      # sum_diff.abs.total = sum_abs_diff_I.total #version where only infections are fitted to
       
-      #minimize using sum of squared residuals
-      sum_diff.total = sum(diff.rem.total^2)
+      # #minimize using sum of squared residuals
+      # sum_diff.total = sum(diff.rem.total^2)
       
     return(sum_diff.abs.total) #return only the residual metric for the epidemic wave being fit to
     }
     
-    ############################## OPTIMIZE PARAMETERS ############################################################
-    
     #boundary conditions
+    # lower_bounds.tiss = c(0.5, 0.4, lambda.modifier, 1, 1)  # Lower bounds for betas, gammas, lambdas, zetas, etas
+    # upper_bounds.tiss = c(1.5, 2, lambda.modifier, 1, 1)  # Upper bounds for betas, gammas, lambdas, zetas, etas
     lower_bounds.tiss = c(0, 0, lambda.modifier, 0, 0)  # Lower bounds for betas, gammas, lambdas, zetas, etas
-    upper_bounds.tiss = c(4, 4, lambda.modifier, 1, 1)  # Upper bounds for betas, gammas, lambdas, zetas, etas
+    upper_bounds.tiss = c(1, 1, lambda.modifier, 0.1, 0.1)  # Upper bounds for betas, gammas, lambdas, zetas, etas
     
-    control = list(itermax = 20)  # number of optimizer iterations. 200 is default
+    control = list(itermax = 200)  # number of optimizer iterations. 200 is default
     
     # Run the optimization
     result.tiss = DEoptim(fn = objective_function, lower = lower_bounds.tiss, upper = upper_bounds.tiss,
@@ -641,57 +672,77 @@
     my.SIRS.SST[[i]] = SIR.out.tiss
   }
   
-  ################################## optimized plots ##################################
+  ################################## Plots of epidemics w/ SST ##################################
+  
+  obs.total.figures.old = obs.total.figures %>%
+    mutate(Site = case_when(
+      Site == "Offshore" ~ "off",
+      Site == 'Midchannel' ~ 'mid',
+      Site == 'Nearshore' ~ 'near'
+    )) %>%
+    mutate(Compartment = case_when(
+      Compartment == "Recovered" ~ "Dead",
+      TRUE ~ Compartment #keep all other strings unchanged
+    ))
+  
+  obs.total.figures_SST = obs.total.figures_SST %>%
+    mutate(Compartment = case_when(
+      Compartment == "Recovered" ~ "Dead",
+      TRUE ~ Compartment #keep all other strings unchanged
+    ))
   
   #Nearshore
   site.loop = 'Nearshore'
   curr.site = 'near'
-  days.obs <- days_sites %>%
+  days.obs <- days_sites_SST %>% # NOTE - make sure this is working right with backtracked patient zero corals
     filter(site == curr.site) %>%
-    pull(days.obs) %>%
-    unlist() 
+    pull(days) %>%
+    unlist()
+  days.obs = na.omit(days.obs) %>%
+    as.numeric()
   
-  order = 2
+  order = 3
   
   output.basic.nearshore.SST = my.SIRS.SST[[order]]
   params.basic.nearshore.SST = params.SST[[order]] #beta, cover-adjusted beta, gamma, lambda, R0, cover
-  zeta.nearshore = params.basic.nearshore.SST[1]
-  eta.nearshore = params.basic.nearshore.SST[2]
+  beta.nearshore.SST = params.basic.nearshore.SST[1]
+  gamma.nearshore.SST = params.basic.nearshore.SST[2]
+  zeta.nearshore.SST = params.basic.nearshore.SST[3]
+  eta.nearshore.SST = params.basic.nearshore.SST[4]
   
-  tab.nearshore = tibble(round(beta.nearshore, 2), round(beta.nearshore.adj, 2), round(gamma.nearshore, 2),
-                         round(R0.nearshore, 2), round(cover.nearshore*100, 2))
-  names(tab.nearshore) = c('beta', 'Adj. beta', 'gamma', 'R0', 'Cover (%)')
-  
+  tab.nearshore = tibble(round(beta.nearshore.SST, 2), round(gamma.nearshore.SST, 2),
+                         round(zeta.nearshore.SST, 2), round(eta.nearshore.SST, 2))
+  names(tab.nearshore) = c('beta', 'gamma', 'zeta', 'eta')
   
   #calculate R-squared and update error table
   # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
   curr.type = 'DHW'
   curr.wave = 'Full'
   
-  sim.rem.total = output.basic.nearshore.SST[which(output.basic.nearshore.SST$time %in% days.obs), which(colnames(output.basic.nearshore.SST) %in% 'R')]
-  obs.rem.total = obs.model %>%
-    filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
-    slice(head(row_number(), n()-DHW.modifier)) %>%
-    pull(tissue)
+  # sim.rem.total = output.basic.nearshore.SST[which(output.basic.nearshore.SST$time %in% days.obs), which(colnames(output.basic.nearshore.SST) %in% 'R')]
+  # obs.rem.total = obs.model %>%
+  #   filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
+  #   slice(head(row_number(), n()-DHW.modifier)) %>%
+  #   pull(tissue)
+  # 
+  # # Trim obs.rem.total from the beginning to match the length of sim.rem.total. this chops off zero's
+  # if (length(obs.rem.total) > length(sim.rem.total)) {
+  #   obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
+  # }
   
-  # Trim obs.rem.total from the beginning to match the length of sim.rem.total. this chops off zero's
-  if (length(obs.rem.total) > length(sim.rem.total)) {
-    obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
-  }
+  # diff.rem.total = (sim.rem.total - obs.rem.total)
+  # sum_diff.total = sum(diff.rem.total^2)
+  # mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
+  # tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+  # r_squared.basic.nearshore.SST = 1 - (sum_diff.total / tss_rem.total)
   
-  diff.rem.total = (sim.rem.total - obs.rem.total)
-  sum_diff.total = sum(diff.rem.total^2)
-  mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
-  tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
-  r_squared.basic.nearshore.SST = 1 - (sum_diff.total / tss_rem.total)
-  
-  error_eval <- error_eval %>%
-    mutate(R_squared = ifelse(site == curr.site & 
-                                host == curr.host & 
-                                type == curr.type & 
-                                wave == curr.wave,
-                              r_squared.basic.nearshore.SST,
-                              R_squared))
+  # error_eval <- error_eval %>%
+  #   mutate(R_squared = ifelse(site == curr.site & 
+  #                               host == curr.host & 
+  #                               type == curr.type & 
+  #                               wave == curr.wave,
+  #                             r_squared.basic.nearshore.SST,
+  #                             R_squared))
   
   output.basic.nearshore.SST = pivot_longer(output.basic.nearshore.SST, cols = -1, names_to = c("Compartment")) %>%
     mutate(Compartment = ifelse(Compartment == "", "value", Compartment)) %>%
@@ -707,7 +758,8 @@
     ylab("Surface area of tissue (m2)") +
     ggtitle(paste(c("", site.loop, ' - Fitted'), collapse="")) +
     geom_line() +
-    geom_point(data = obs.total %>% filter(Site == site.loop), aes(days.inf.site, tissue, colour = Compartment)) +
+    geom_point(data = obs.total.figures.old %>% filter(Site == curr.site), aes(days.inf.site, tissue, colour = Compartment)) +
+    geom_point(data = obs.total.figures_SST %>% filter(Site == curr.site & Compartment == 'Dead'), aes(days.inf.site, tissue, colour = Compartment)) +
     scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
     annotate(geom = "table", x = min(output.basic.nearshore.SST$days.model), y = min(output.basic.nearshore.SST$tissue)*0.7, label = list(tab.nearshore),
              vjust = val.vjust, hjust = val.hjust, family = 'Georgia') +
@@ -717,75 +769,79 @@
   p.S.fit.nearshore.basic.SST = ggplot(data = output.basic.nearshore.SST %>% filter(Compartment == "Susceptible"), aes(days.model, tissue)) +
     xlab("Day of observation period") +
     ylab("Surface area of susceptible tissue") +
-    ggtitle(paste(c("", site.loop), collapse="")) +
+    ggtitle(paste(c("", curr.site), collapse="")) +
     geom_line() +
-    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Susceptible"), aes(days.inf.site, tissue)) +
+    geom_point(data = obs.total.figures_SST %>% filter(Site == curr.site, Compartment == "Susceptible"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
   
   p.I.fit.nearshore.basic.SST = ggplot(data = output.basic.nearshore.SST %>% filter(Compartment == "Infected"), aes(days.model, tissue)) +
     xlab("Day of observation period") +
     ylab("Surface area of infected tissue") +
-    ggtitle(paste(c("", site.loop), collapse="")) +
+    ggtitle(paste(c("", curr.site), collapse="")) +
     geom_line() +
-    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Infected"), aes(days.inf.site, tissue)) +
+    geom_point(data = obs.total.figures_SST %>% filter(Site == curr.site, Compartment == "Infected"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
   
   p.D.fit.nearshore.basic.SST = ggplot(data = output.basic.nearshore.SST %>% filter(Compartment == "Dead"), aes(days.model, tissue)) +
     xlab("Day of observation period") +
     ylab("Surface area of dead tissue") +
-    ggtitle(paste(c("", site.loop), collapse="")) +
+    ggtitle(paste(c("", curr.site), collapse="")) +
     geom_line() +
-    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Dead"), aes(days.inf.site, tissue)) +
+    geom_point(data = obs.total.figures_SST %>% filter(Site == curr.site, Compartment == "Dead"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
   
   #Midchannel
   site.loop = 'Midchannel'
   curr.site = 'mid'
-  days.obs <- days_sites %>%
+  days.obs <- days_sites_SST %>% # NOTE - make sure this is working right with backtracked patient zero corals
     filter(site == curr.site) %>%
-    pull(days.obs) %>%
-    unlist() 
+    pull(days) %>%
+    unlist()
+  days.obs = na.omit(days.obs) %>%
+    as.numeric()
   
-  order = 1
+  order = 2
   
   output.basic.midchannel.SST = my.SIRS.SST[[order]]
   params.basic.midchannel.SST = params.SST[[order]] #beta, cover-adjusted beta, gamma, lambda, R0, cover
-  zeta.midchannel = params.basic.midchannel.SST[1]
-  eta.midchannel = params.basic.midchannel.SST[2]
+  beta.midchannel.SST = params.basic.midchannel.SST[1]
+  gamma.midchannel.SST = params.basic.midchannel.SST[2]
+  zeta.midchannel.SST = params.basic.midchannel.SST[3]
+  eta.midchannel.SST = params.basic.midchannel.SST[4]
   
-  tab.midchannel = tibble(round(beta.midchannel, 2), round(beta.midchannel.adj, 2), round(gamma.midchannel, 2),
-                          round(R0.midchannel, 2), round(cover.midchannel*100, 2))
-  names(tab.midchannel) = c('beta', 'Adj. beta', 'gamma', 'R0', 'Cover (%)')
+  tab.midchannel = tibble(round(beta.midchannel.SST, 2), round(gamma.midchannel.SST, 2),
+                         round(zeta.midchannel.SST, 2), round(eta.midchannel.SST, 2))
+  names(tab.midchannel) = c('beta', 'gamma', 'zeta', 'eta')
   
   #calculate R-squared and update error table
   # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
   curr.type = 'DHW'
   curr.wave = 'Full'
   
-  sim.rem.total = output.basic.midchannel.SST[which(output.basic.midchannel.SST$time %in% days.obs), which(colnames(output.basic.midchannel.SST) %in% 'R')]
-  obs.rem.total = obs.model %>%
-    filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
-    slice(head(row_number(), n()-DHW.modifier)) %>%
-    pull(tissue)
+  # sim.rem.total = output.basic.midchannel.SST[which(output.basic.midchannel.SST$time %in% days.obs), which(colnames(output.basic.midchannel.SST) %in% 'R')]
+  # obs.rem.total = obs.model %>%
+  #   filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
+  #   slice(head(row_number(), n()-DHW.modifier)) %>%
+  #   pull(tissue)
+  # 
+  # # Trim obs.rem.total from the beginning to match the length of sim.rem.total. this chops off zero's
+  # if (length(obs.rem.total) > length(sim.rem.total)) {
+  #   obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
+  # }
   
-  # Trim obs.rem.total from the beginning to match the length of sim.rem.total. this chops off zero's
-  if (length(obs.rem.total) > length(sim.rem.total)) {
-    obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
-  }
+  # diff.rem.total = (sim.rem.total - obs.rem.total)
+  # sum_diff.total = sum(diff.rem.total^2)
+  # mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
+  # tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+  # r_squared.basic.midchannel.SST = 1 - (sum_diff.total / tss_rem.total)
   
-  diff.rem.total = (sim.rem.total - obs.rem.total)
-  sum_diff.total = sum(diff.rem.total^2)
-  mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
-  tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
-  r_squared.basic.midchannel.SST = 1 - (sum_diff.total / tss_rem.total)
-  
-  error_eval <- error_eval %>%
-    mutate(R_squared = ifelse(site == curr.site & 
-                                host == curr.host & 
-                                type == curr.type & 
-                                wave == curr.wave,
-                              r_squared.basic.midchannel.SST,
-                              R_squared))
+  # error_eval <- error_eval %>%
+  #   mutate(R_squared = ifelse(site == curr.site & 
+  #                               host == curr.host & 
+  #                               type == curr.type & 
+  #                               wave == curr.wave,
+  #                             r_squared.basic.midchannel.SST,
+  #                             R_squared))
   
   output.basic.midchannel.SST = pivot_longer(output.basic.midchannel.SST, cols = -1, names_to = c("Compartment")) %>%
     mutate(Compartment = ifelse(Compartment == "", "value", Compartment)) %>%
@@ -801,7 +857,7 @@
     ylab("Surface area of tissue (m2)") +
     ggtitle(paste(c("", site.loop, ' - Fitted'), collapse="")) +
     geom_line() +
-    geom_point(data = obs.total %>% filter(Site == site.loop), aes(days.inf.site, tissue, colour = Compartment)) +
+    geom_point(data = obs.total.figures_SST %>% filter(Site == curr.site), aes(days.inf.site, tissue, colour = Compartment)) +
     scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
     annotate(geom = "table", x = min(output.basic.midchannel.SST$days.model), y = min(output.basic.midchannel.SST$tissue)*0.7, label = list(tab.midchannel),
              vjust = val.vjust, hjust = val.hjust, family = 'Georgia') +
@@ -811,75 +867,79 @@
   p.S.fit.midchannel.basic.SST = ggplot(data = output.basic.midchannel.SST %>% filter(Compartment == "Susceptible"), aes(days.model, tissue)) +
     xlab("Day of observation period") +
     ylab("Surface area of susceptible tissue") +
-    ggtitle(paste(c("", site.loop), collapse="")) +
+    ggtitle(paste(c("", curr.site), collapse="")) +
     geom_line() +
-    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Susceptible"), aes(days.inf.site, tissue)) +
+    geom_point(data = obs.total.figures_SST %>% filter(Site == curr.site, Compartment == "Susceptible"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
   
   p.I.fit.midchannel.basic.SST = ggplot(data = output.basic.midchannel.SST %>% filter(Compartment == "Infected"), aes(days.model, tissue)) +
     xlab("Day of observation period") +
     ylab("Surface area of infected tissue") +
-    ggtitle(paste(c("", site.loop), collapse="")) +
+    ggtitle(paste(c("", curr.site), collapse="")) +
     geom_line() +
-    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Infected"), aes(days.inf.site, tissue)) +
+    geom_point(data = obs.total.figures_SST %>% filter(Site == curr.site, Compartment == "Infected"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
   
   p.D.fit.midchannel.basic.SST = ggplot(data = output.basic.midchannel.SST %>% filter(Compartment == "Dead"), aes(days.model, tissue)) +
     xlab("Day of observation period") +
     ylab("Surface area of dead tissue") +
-    ggtitle(paste(c("", site.loop), collapse="")) +
+    ggtitle(paste(c("", curr.site), collapse="")) +
     geom_line() +
-    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Dead"), aes(days.inf.site, tissue)) +
+    geom_point(data = obs.total.figures_SST %>% filter(Site == curr.site, Compartment == "Dead"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
   
   #Offshore
   site.loop = 'Offshore'
   curr.site = 'off'
-  days.obs <- days_sites %>%
+  days.obs <- days_sites_SST %>% # NOTE - make sure this is working right with backtracked patient zero corals
     filter(site == curr.site) %>%
-    pull(days.obs) %>%
-    unlist() 
+    pull(days) %>%
+    unlist()
+  days.obs = na.omit(days.obs) %>%
+    as.numeric()
   
-  order = 3
+  order = 1
   
   output.basic.offshore.SST = my.SIRS.SST[[order]]
   params.basic.offshore.SST = params.SST[[order]] #beta, cover-adjusted beta, gamma, lambda, R0, cover
-  zeta.offshore = params.basic.offshore.SST[1]
-  eta.offshore = params.basic.offshore.SST[2]
+  beta.offshore.SST = params.basic.offshore.SST[1]
+  gamma.offshore.SST = params.basic.offshore.SST[2]
+  zeta.offshore.SST = params.basic.offshore.SST[3]
+  eta.offshore.SST = params.basic.offshore.SST[4]
   
-  tab.offshore = tibble(round(beta.offshore, 2), round(beta.offshore.adj, 2), round(gamma.offshore, 2),
-                        round(R0.offshore, 2), round(cover.offshore*100, 2))
-  names(tab.offshore) = c('beta', 'Adj. beta', 'gamma', 'R0', 'Cover (%)')
+  tab.offshore = tibble(round(beta.offshore.SST, 2), round(gamma.offshore.SST, 2),
+                          round(zeta.offshore.SST, 2), round(eta.offshore.SST, 2))
+  names(tab.offshore) = c('beta', 'gamma', 'zeta', 'eta')
   
   #calculate R-squared and update error table
   # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
   curr.type = 'DHW'
   curr.wave = 'Full'
   
-  sim.rem.total = output.basic.offshore.SST[which(output.basic.offshore.SST$time %in% days.obs), which(colnames(output.basic.offshore.SST) %in% 'R')]
-  obs.rem.total = obs.model %>%
-    filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
-    slice(head(row_number(), n()-DHW.modifier)) %>%
-    pull(tissue)
+  # sim.rem.total = output.basic.offshore.SST[which(output.basic.offshore.SST$time %in% days.obs), which(colnames(output.basic.offshore.SST) %in% 'R')]
+  # obs.rem.total = obs.model %>%
+  #   filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
+  #   slice(head(row_number(), n()-DHW.modifier)) %>%
+  #   pull(tissue)
+  # 
+  # # Trim obs.rem.total from the beginning to match the length of sim.rem.total. this chops off zero's
+  # if (length(obs.rem.total) > length(sim.rem.total)) {
+  #   obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
+  # }
   
-  # Trim obs.rem.total from the beginning to match the length of sim.rem.total. this chops off zero's
-  if (length(obs.rem.total) > length(sim.rem.total)) {
-    obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
-  }
+  # diff.rem.total = (sim.rem.total - obs.rem.total)
+  # sum_diff.total = sum(diff.rem.total^2)
+  # mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
+  # tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+  # r_squared.basic.offshore.SST = 1 - (sum_diff.total / tss_rem.total)
   
-  diff.rem.total = (sim.rem.total - obs.rem.total)
-  sum_diff.total = sum(diff.rem.total^2)
-  mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
-  tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
-  r_squared.basic.offshore.SST = 1 - (sum_diff.total / tss_rem.total)
-  
-  error_eval <- error_eval %>%
-    mutate(R_squared = ifelse(site == curr.site & 
-                                host == curr.host & 
-                                type == curr.type & 
-                                wave == curr.wave,
-                              r_squared.basic.offshore.SST,
-                              R_squared))
+  # error_eval <- error_eval %>%
+  #   mutate(R_squared = ifelse(site == curr.site & 
+  #                               host == curr.host & 
+  #                               type == curr.type & 
+  #                               wave == curr.wave,
+  #                             r_squared.basic.offshore.SST,
+  #                             R_squared))
   
   output.basic.offshore.SST = pivot_longer(output.basic.offshore.SST, cols = -1, names_to = c("Compartment")) %>%
     mutate(Compartment = ifelse(Compartment == "", "value", Compartment)) %>%
@@ -895,7 +955,7 @@
     ylab("Surface area of tissue (m2)") +
     ggtitle(paste(c("", site.loop, ' - Fitted'), collapse="")) +
     geom_line() +
-    geom_point(data = obs.total %>% filter(Site == site.loop), aes(days.inf.site, tissue, colour = Compartment)) +
+    geom_point(data = obs.total.figures_SST %>% filter(Site == curr.site), aes(days.inf.site, tissue, colour = Compartment)) +
     scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
     annotate(geom = "table", x = min(output.basic.offshore.SST$days.model), y = min(output.basic.offshore.SST$tissue)*0.7, label = list(tab.offshore),
              vjust = val.vjust, hjust = val.hjust, family = 'Georgia') +
@@ -905,25 +965,25 @@
   p.S.fit.offshore.basic.SST = ggplot(data = output.basic.offshore.SST %>% filter(Compartment == "Susceptible"), aes(days.model, tissue)) +
     xlab("Day of observation period") +
     ylab("Surface area of susceptible tissue") +
-    ggtitle(paste(c("", site.loop), collapse="")) +
+    ggtitle(paste(c("", curr.site), collapse="")) +
     geom_line() +
-    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Susceptible"), aes(days.inf.site, tissue)) +
+    geom_point(data = obs.total.figures_SST %>% filter(Site == curr.site, Compartment == "Susceptible"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
   
   p.I.fit.offshore.basic.SST = ggplot(data = output.basic.offshore.SST %>% filter(Compartment == "Infected"), aes(days.model, tissue)) +
     xlab("Day of observation period") +
     ylab("Surface area of infected tissue") +
-    ggtitle(paste(c("", site.loop), collapse="")) +
+    ggtitle(paste(c("", curr.site), collapse="")) +
     geom_line() +
-    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Infected"), aes(days.inf.site, tissue)) +
+    geom_point(data = obs.total.figures_SST %>% filter(Site == curr.site, Compartment == "Infected"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
   
   p.D.fit.offshore.basic.SST = ggplot(data = output.basic.offshore.SST %>% filter(Compartment == "Dead"), aes(days.model, tissue)) +
     xlab("Day of observation period") +
     ylab("Surface area of dead tissue") +
-    ggtitle(paste(c("", site.loop), collapse="")) +
+    ggtitle(paste(c("", curr.site), collapse="")) +
     geom_line() +
-    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Dead"), aes(days.inf.site, tissue)) +
+    geom_point(data = obs.total.figures_SST %>% filter(Site == curr.site, Compartment == "Dead"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
   
   p.I.fit.nearshore.basic.SST
