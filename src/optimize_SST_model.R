@@ -17,251 +17,263 @@
   # load(here("output/plots_basic_workspace.RData"))
   load(here("output/SST_effect_workspace.RData"))
   
-  # ################################## More mature sigmoid & logistic behaviors of temperature ##################################
-  # # AKA - zeta / eta parameter plotting sandbox
-  # 
-  # # Define temperature range from 23 to 33
-  # T <- seq(23, 33, length.out = 100)
-  # 
-  # #APPROACH 1: Inflection point at 30.5C (original)
-  # temp_effect_inflection <- function(temp, T_inflection = 30.5, zeta_bounded = 0.5) {
-  # 
-  #   # Convert bounded zeta to effective zeta
-  #   # zeta_effective <- 1 * zeta_bounded/(1-1*zeta_bounded)
-  #   zeta_effective <- 5 * zeta_bounded/(1-0.8*zeta_bounded)
-  # 
-  #   # Logistic function with inflection point at T_inflection
-  #   modifier <- 1 / (1 + exp(-zeta_effective * (temp - T_inflection)))
-  # 
-  #   return(modifier)
-  # }
-  # 
-  # #APPROACH 2: Original model clarified
-  # temp_effect_original <- function(temp, T_min = 23, zeta_bounded = 0.5) {
-  # 
-  #   # Convert bounded zeta to effective zeta
-  # 
-  #   # zeta_effective <- 5 * zeta_bounded/(1-0.7*zeta_bounded)
-  #   zeta_effective <- 1 * zeta_bounded/(1 - 1*zeta_bounded)
-  # 
-  #   # Original formula clarified
-  #   # This is a non-centered sigmoid that:
-  #   # - Starts near 0 at T_min
-  #   # - Increases asymptotically toward 1 as temp increases
-  #   # - Has no inflection point assumption
-  #   modifier <- (1 - exp(-zeta_effective * (temp - T_min))) / (1 + exp(-zeta_effective * (temp - T_min)))
-  # 
-  #   return(modifier)
-  # }
-  # 
-  # #APPROACH 3: Decreasing function with temperature
-  # temp_effect_decreasing <- function(temp, T_max = 33, T_min = 23, zeta_bounded = 0.5) {
-  # 
-  #   # Convert bounded zeta to effective zeta
-  #   # zeta_effective <- 5 * zeta_bounded/(1-0.8*zeta_bounded)
-  #   zeta_effective <- 1 * zeta_bounded/(1-1*zeta_bounded)
-  # 
-  #   # Calculate midpoint of temperature range for centering the sigmoid
-  #   T_mid <- 30.5  # (T_min + T_max) / 2
-  # 
-  #   # Decreasing sigmoid that starts near 1 (at low temps) and approaches 0 as temp increases
-  #   # Note the positive sign before zeta_effective which makes the function decrease with temperature
-  #   modifier <- 1 / (1 + exp(zeta_effective * (temp - T_mid)))
-  # 
-  #   return(modifier)
-  # }
-  # 
-  # # APPROACH 4: Non-centered sigmoid decreasing with temperature (FIXED)
+  ################################## More mature sigmoid & logistic behaviors of temperature ##################################
+  # AKA - zeta / eta parameter plotting sandbox
+
+  #making choice to pull boundaries of SST from entire dataset (1985 - 2024). could constrain
+  T_min = DHW.CRW.full %>%
+    # pull(SST.90th_HS) %>%
+    pull(SST_90th_HS_smoothed) %>%
+    min
+  T_max = DHW.CRW.full %>%
+    # pull(SST.90th_HS) %>%
+    pull(SST_90th_HS_smoothed) %>%
+    max
+  
+  # Define temperature range from 23 to 33
+  T <- seq(T_min, T_max, length.out = 100)
+  
+  
+  #APPROACH 1: Inflection point at 30.5C (original)
+  temp_effect_inflection <- function(temp, T_inflection, zeta_bounded) {
+
+    # Convert bounded zeta to effective zeta
+    # zeta_effective <- 1 * zeta_bounded/(1-1*zeta_bounded)
+    zeta_effective <- 5 * zeta_bounded/(1-0.8*zeta_bounded)
+
+    # Logistic function with inflection point at T_inflection
+    modifier <- 1 / (1 + exp(-zeta_effective * (temp - T_inflection)))
+
+    return(modifier)
+  }
+
+  #APPROACH 2: Original model clarified
+  temp_effect_original <- function(temp, tmin, zeta_bounded) {
+
+    # Convert bounded zeta to effective zeta
+
+    # zeta_effective <- 5 * zeta_bounded/(1-0.7*zeta_bounded)
+    zeta_effective <- 1 * zeta_bounded/(1 - 1*zeta_bounded)
+
+    # Original formula clarified
+    # This is a non-centered sigmoid that:
+    # - Starts near 0 at tmin
+    # - Increases asymptotically toward 1 as temp increases
+    # - Has no inflection point assumption
+    modifier <- (1 - exp(-zeta_effective * (temp - tmin))) / (1 + exp(-zeta_effective * (temp - tmin)))
+
+    return(modifier)
+  }
+
+  #APPROACH 3: Decreasing function with temperature
+  temp_effect_decreasing <- function(temp, tmax, tmin, zeta_bounded) {
+
+    # Convert bounded zeta to effective zeta
+    # zeta_effective <- 5 * zeta_bounded/(1-0.8*zeta_bounded)
+    # zeta_effective <- 1 * zeta_bounded/(1-1*zeta_bounded)
+    zeta_effective <- zeta_bounded / (1 - zeta_bounded)
+    
+    # Calculate midpoint of temperature range for centering the sigmoid
+    T_mid <- 30.5  # (tmin + tmax) / 2
+
+    # Decreasing sigmoid that starts near 1 (at low temps) and approaches 0 as temp increases
+    # Note the positive sign before zeta_effective which makes the function decrease with temperature
+    modifier <- 1 / (1 + exp(zeta_effective * (temp - T_mid)))
+
+    return(modifier)
+  }
+
+  # APPROACH 4: Non-centered sigmoid decreasing with temperature (FIXED)
+  temp_effect_noncentered_decreasing <- function(temp, tmin, tmax, zeta_bounded) {
+
+    # Convert bounded zeta to effective zeta
+    zeta_effective <- 5 * zeta_bounded/(1-0.8*zeta_bounded) # apply more tuning to behavior
+    # zeta_effective <- zeta_bounded/(1-zeta_bounded)
+
+    # Modified non-centered sigmoid that:
+    # - Equals 1 at tmin (23°C)
+    # - Decreases toward 0 as temperature increases
+    # - Maintains the non-centered sigmoid shape but inverted
+
+    # Calculate the relative position in the temperature range
+    rel_temp <- (temp - tmin) / (tmax - tmin)
+
+    # Apply the decreasing non-centered sigmoid
+    modifier <- 1 - ((1 - exp(-zeta_effective * rel_temp)) / (1 + exp(-zeta_effective * rel_temp)))
+    # modifier <- 1 - ((1 - exp(-zeta_bounded * rel_temp)) / (1 + exp(-zeta_bounded * rel_temp)))
+
+    return(modifier)
+  }
+
   # temp_effect_noncentered_decreasing <- function(temp, T_min = 23, T_max = 33, zeta_bounded = 0.5) {
-  # 
   #   # Convert bounded zeta to effective zeta
-  #   zeta_effective <- 5 * zeta_bounded/(1-0.8*zeta_bounded) # apply more tuning to behavior
-  #   # zeta_effective <- zeta_bounded/(1-zeta_bounded)
-  # 
-  #   # Modified non-centered sigmoid that:
-  #   # - Equals 1 at T_min (23°C)
-  #   # - Decreases toward 0 as temperature increases
-  #   # - Maintains the non-centered sigmoid shape but inverted
-  # 
+  #   zeta_effective <- zeta_bounded/(1-zeta_bounded)
+  #
   #   # Calculate the relative position in the temperature range
   #   rel_temp <- (temp - T_min) / (T_max - T_min)
-  # 
-  #   # Apply the decreasing non-centered sigmoid
-  #   modifier <- 1 - ((1 - exp(-zeta_effective * rel_temp)) / (1 + exp(-zeta_effective * rel_temp)))
-  #   # modifier <- 1 - ((1 - exp(-zeta_bounded * rel_temp)) / (1 + exp(-zeta_bounded * rel_temp)))
-  # 
+  #
+  #   # Most simplified form - standard logistic function
+  #   modifier <- 1 / (1 + exp(zeta_effective * rel_temp))
+  #
   #   return(modifier)
   # }
-  # 
-  # # temp_effect_noncentered_decreasing <- function(temp, T_min = 23, T_max = 33, zeta_bounded = 0.5) {
-  # #   # Convert bounded zeta to effective zeta
-  # #   zeta_effective <- zeta_bounded/(1-zeta_bounded)
-  # #
-  # #   # Calculate the relative position in the temperature range
-  # #   rel_temp <- (temp - T_min) / (T_max - T_min)
-  # #
-  # #   # Most simplified form - standard logistic function
-  # #   modifier <- 1 / (1 + exp(zeta_effective * rel_temp))
-  # #
-  # #   return(modifier)
-  # # }
-  # 
-  # # Define bounded zeta values from 0 to 1 (avoiding 1 which would create infinity)
-  # zeta_values <- c(0, 0.01, 0.05, 0.1, 0.3, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99)
-  # 
-  # # Create data for all approaches
-  # plot_data_inflection <- data.frame()
-  # plot_data_original <- data.frame()
-  # plot_data_decreasing <- data.frame()
-  # plot_data_noncentered_decreasing <- data.frame()
-  # 
-  # for (zeta in zeta_values) {
-  #   # Data for approach 1
-  #   modifiers_inflection <- sapply(T, function(t) temp_effect_inflection(t, zeta_bounded = zeta))
-  #   temp_data_inflection <- data.frame(
-  #     Temperature = T,
-  #     Modifier = modifiers_inflection,
-  #     Zeta = as.factor(zeta)
-  #   )
-  #   plot_data_inflection <- rbind(plot_data_inflection, temp_data_inflection)
-  # 
-  #   # Data for approach 2
-  #   modifiers_original <- sapply(T, function(t) temp_effect_original(t, zeta_bounded = zeta))
-  #   temp_data_original <- data.frame(
-  #     Temperature = T,
-  #     Modifier = modifiers_original,
-  #     Zeta = as.factor(zeta)
-  #   )
-  #   plot_data_original <- rbind(plot_data_original, temp_data_original)
-  # 
-  #   # Data for approach 3
-  #   modifiers_decreasing <- sapply(T, function(t) temp_effect_decreasing(t, zeta_bounded = zeta))
-  #   temp_data_decreasing <- data.frame(
-  #     Temperature = T,
-  #     Modifier = modifiers_decreasing,
-  #     Zeta = as.factor(zeta)
-  #   )
-  #   plot_data_decreasing <- rbind(plot_data_decreasing, temp_data_decreasing)
-  # 
-  #   # Data for approach a4
-  #   modifiers_noncentered_decreasing <- sapply(T, function(t) temp_effect_noncentered_decreasing(t, zeta_bounded = zeta))
-  #   temp_data_noncentered_decreasing <- data.frame(
-  #     Temperature = T,
-  #     Modifier = modifiers_noncentered_decreasing,
-  #     Zeta = as.factor(zeta)
-  #   )
-  #   plot_data_noncentered_decreasing <- rbind(plot_data_noncentered_decreasing, temp_data_noncentered_decreasing)
-  # }
-  # 
-  # # Plot 1: Original inflection point model
-  # p1 <- ggplot(plot_data_inflection, aes(x = Temperature, y = Modifier, color = Zeta, group = Zeta)) +
-  #   geom_line(size = 1) +
-  #   labs(
-  #     title = "Temperature Threshold with Classic Logistic Function",
-  #     x = "Temperature (°C)",
-  #     y = "Transmission Modifier"
-  #   ) +
-  #   theme_minimal(base_size = 12) +
-  #   theme(
-  #     legend.position = "right",
-  #     panel.grid.minor = element_blank(),
-  #     plot.title = element_text(face = "bold")
-  #   ) +
-  #   scale_color_viridis_d(option = "inferno") +
-  #   scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.2)) +
-  #   scale_x_continuous(breaks = seq(23, 33, 2)) +
-  #   geom_vline(xintercept = 30.5, linetype = "dashed", alpha = 0.5)
-  # 
-  # # Plot 2: Original increasing model
-  # p2 <- ggplot(plot_data_original, aes(x = Temperature, y = Modifier, color = Zeta, group = Zeta)) +
-  #   geom_line(size = 1) +
-  #   labs(
-  #     title = "Temperature Effect with non-centered Sigmoid Function",
-  #     x = "Temperature (°C)",
-  #     y = "Transmission Modifier"
-  #   ) +
-  #   theme_minimal(base_size = 12) +
-  #   theme(
-  #     legend.position = "right",
-  #     panel.grid.minor = element_blank(),
-  #     plot.title = element_text(face = "bold")
-  #   ) +
-  #   scale_color_viridis_d(option = "inferno") +
-  #   scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.2)) +
-  #   scale_x_continuous(breaks = seq(23, 33, 2)) +
-  #   geom_vline(xintercept = 23, linetype = "dashed", alpha = 0.5)
-  # 
-  # # Plot 3: Classic sigmoid decreasing model
-  # p3 <- ggplot(plot_data_decreasing, aes(x = Temperature, y = Modifier, color = Zeta, group = Zeta)) +
-  #   geom_line(size = 1) +
-  #   labs(
-  #     title = "Temperature Effect with Decreasing Sigmoid Function",
-  #     x = "Temperature (°C)",
-  #     y = "Transmission Modifier"
-  #   ) +
-  #   theme_minimal(base_size = 12) +
-  #   theme(
-  #     legend.position = "right",
-  #     panel.grid.minor = element_blank(),
-  #     plot.title = element_text(face = "bold")
-  #   ) +
-  #   scale_color_viridis_d(option = "inferno") +
-  #   scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.2)) +
-  #   scale_x_continuous(breaks = seq(23, 33, 2)) +
-  #   geom_vline(xintercept = 28, linetype = "dashed", alpha = 0.5)
-  # 
-  # # Plot 4: Fixed non-centered sigmoid decreasing model
-  # p4 <- ggplot(plot_data_noncentered_decreasing, aes(x = Temperature, y = Modifier, color = Zeta, group = Zeta)) +
-  #   geom_line(size = 1) +
-  #   labs(
-  #     title = "Temperature Effect with Inverted Non-centered Sigmoid",
-  #     x = "Temperature (°C)",
-  #     y = "Transmission Modifier"
-  #   ) +
-  #   theme_minimal(base_size = 12) +
-  #   theme(
-  #     legend.position = "right",
-  #     panel.grid.minor = element_blank(),
-  #     plot.title = element_text(face = "bold")
-  #   ) +
-  #   scale_color_viridis_d(option = "inferno") +
-  #   scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.2)) +
-  #   scale_x_continuous(breaks = seq(23, 33, 2)) +
-  #   geom_vline(xintercept = 23, linetype = "dashed", alpha = 0.5)
-  # 
-  # # Combine plots - using a 2x2 grid for better viewing
-  # (p1 + p2) / (p3 + p4)
-  # 
-  # # # Let's focus only on the fourth plot
-  # # p4
-  # 
-  # # Function explanations for mathematical clarity
-  # cat("Approach 1: Inflection Point at 30.5°C\n")
-  # cat("Formula: modifier = 1 / (1 + exp(-zeta_effective * (temp - T_inflection)))\n")
-  # cat("- Classic logistic function centered at T_inflection\n")
-  # cat("- At T_inflection (30.5°C), modifier = 0.5\n")
-  # cat("- Assumes symmetric behavior around inflection point\n\n")
-  # 
-  # cat("Approach 2: Original Model Clarified\n")
-  # cat("Formula: modifier = (1 - exp(-zeta_effective * (temp - T_min))) / (1 + exp(-zeta_effective * (temp - T_min)))\n")
-  # cat("- At T_min (23°C), modifier ≈ 0\n")
-  # cat("- No assumption of inflection point\n")
-  # cat("- Asymmetric behavior that rises more steeply at first\n\n")
-  # 
-  # cat("Approach 3: Decreasing Function with Temperature\n")
-  # cat("Formula: modifier = 1 / (1 + exp(zeta_effective * (temp - T_mid)))\n")
-  # cat("- At low temperatures (23°C), modifier ≈ 1\n")
-  # cat("- At high temperatures (33°C), modifier approaches 0\n")
-  # cat("- Higher zeta values create steeper drop in transmission\n")
-  # cat("- Centered at T_mid (28°C) where modifier = 0.5\n\n")
-  # 
-  # cat("Approach 4: Inverted Non-centered Sigmoid with Temperature\n")
-  # cat("Formula: modifier = 1 - ((1 - exp(-zeta_effective * rel_temp)) / (1 + exp(-zeta_effective * rel_temp)))\n")
-  # cat("- At T_min (23°C), modifier = 1 exactly for all zeta values\n")
-  # cat("- Decreases toward 0 as temperature increases\n")
-  # cat("- Higher zeta values create steeper drop in transmission\n")
-  # cat("- Preserves the asymmetric shape but inverted from approach 2\n")
-  # 
+
+  # Define bounded zeta values from 0 to 1 (avoiding 1 which would create infinity)
+  zeta_values <- c(0, 0.01, 0.05, 0.1, 0.3, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99)
+
+  # Create data for all approaches
+  plot_data_inflection <- data.frame()
+  plot_data_original <- data.frame()
+  plot_data_decreasing <- data.frame()
+  plot_data_noncentered_decreasing <- data.frame()
+
+  for (zeta in zeta_values) {
+    # Data for approach 1
+    modifiers_inflection <- sapply(T, function(t) temp_effect_inflection(t, T_inflection = 30.5, zeta_bounded = zeta))
+    temp_data_inflection <- data.frame(
+      Temperature = T,
+      Modifier = modifiers_inflection,
+      Zeta = as.factor(zeta)
+    )
+    plot_data_inflection <- rbind(plot_data_inflection, temp_data_inflection)
+
+    # Data for approach 2
+    modifiers_original <- sapply(T, function(t) temp_effect_original(t, tmin = T_min, zeta_bounded = zeta))
+    temp_data_original <- data.frame(
+      Temperature = T,
+      Modifier = modifiers_original,
+      Zeta = as.factor(zeta)
+    )
+    plot_data_original <- rbind(plot_data_original, temp_data_original)
+
+    # Data for approach 3
+    modifiers_decreasing <- sapply(T, function(t) temp_effect_decreasing(t, tmin = T_min, tmax = T_max, zeta_bounded = zeta))
+    temp_data_decreasing <- data.frame(
+      Temperature = T,
+      Modifier = modifiers_decreasing,
+      Zeta = as.factor(zeta)
+    )
+    plot_data_decreasing <- rbind(plot_data_decreasing, temp_data_decreasing)
+
+    # Data for approach a4
+    modifiers_noncentered_decreasing <- sapply(T, function(t) temp_effect_noncentered_decreasing(t, tmin = T_min, tmax = T_max, zeta_bounded = zeta))
+    temp_data_noncentered_decreasing <- data.frame(
+      Temperature = T,
+      Modifier = modifiers_noncentered_decreasing,
+      Zeta = as.factor(zeta)
+    )
+    plot_data_noncentered_decreasing <- rbind(plot_data_noncentered_decreasing, temp_data_noncentered_decreasing)
+  }
+
+  # Plot 1: Original inflection point model
+  p1 <- ggplot(plot_data_inflection, aes(x = Temperature, y = Modifier, color = Zeta, group = Zeta)) +
+    geom_line(size = 1) +
+    labs(
+      title = "Temperature Threshold with Classic Logistic Function",
+      x = "Temperature (°C)",
+      y = "Transmission Modifier"
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      legend.position = "right",
+      panel.grid.minor = element_blank(),
+      plot.title = element_text(face = "bold")
+    ) +
+    scale_color_viridis_d(option = "inferno") +
+    scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.2)) +
+    scale_x_continuous(breaks = seq(T_min, T_max, 2)) +
+    geom_vline(xintercept = 30.5, linetype = "dashed", alpha = 0.5)
+
+  # Plot 2: Original increasing model
+  p2 <- ggplot(plot_data_original, aes(x = Temperature, y = Modifier, color = Zeta, group = Zeta)) +
+    geom_line(size = 1) +
+    labs(
+      title = "Temperature Effect with non-centered Sigmoid Function",
+      x = "Temperature (°C)",
+      y = "Transmission Modifier"
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      legend.position = "right",
+      panel.grid.minor = element_blank(),
+      plot.title = element_text(face = "bold")
+    ) +
+    scale_color_viridis_d(option = "inferno") +
+    scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.2)) +
+    scale_x_continuous(breaks = seq(T_min, T_max, 2)) +
+    geom_vline(xintercept = 23, linetype = "dashed", alpha = 0.5)
+
+  # Plot 3: Classic sigmoid decreasing model
+  p3 <- ggplot(plot_data_decreasing, aes(x = Temperature, y = Modifier, color = Zeta, group = Zeta)) +
+    geom_line(size = 1) +
+    labs(
+      title = "Temperature Effect with Decreasing Sigmoid Function",
+      x = "Temperature (°C)",
+      y = "Transmission Modifier"
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      legend.position = "right",
+      panel.grid.minor = element_blank(),
+      plot.title = element_text(face = "bold")
+    ) +
+    scale_color_viridis_d(option = "inferno") +
+    scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.2)) +
+    scale_x_continuous(breaks = seq(T_min, T_max, 2)) +
+    geom_vline(xintercept = 28, linetype = "dashed", alpha = 0.5)
+
+  # Plot 4: Fixed non-centered sigmoid decreasing model
+  p4 <- ggplot(plot_data_noncentered_decreasing, aes(x = Temperature, y = Modifier, color = Zeta, group = Zeta)) +
+    geom_line(size = 1) +
+    labs(
+      title = "Temperature Effect with Inverted Non-centered Sigmoid",
+      x = "Temperature (°C)",
+      y = "Transmission Modifier"
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      legend.position = "right",
+      panel.grid.minor = element_blank(),
+      plot.title = element_text(face = "bold")
+    ) +
+    scale_color_viridis_d(option = "inferno") +
+    scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.2)) +
+    scale_x_continuous(breaks = seq(T_min, T_max, 2)) +
+    geom_vline(xintercept = 23, linetype = "dashed", alpha = 0.5)
+
+  # Combine plots - using a 2x2 grid for better viewing
+  (p1 + p2) / (p3 + p4)
+
+  # # Let's focus only on the fourth plot
+  # p4
+
+  # Function explanations for mathematical clarity
+  cat("Approach 1: Inflection Point at 30.5°C\n")
+  cat("Formula: modifier = 1 / (1 + exp(-zeta_effective * (temp - T_inflection)))\n")
+  cat("- Classic logistic function centered at T_inflection\n")
+  cat("- At T_inflection (30.5°C), modifier = 0.5\n")
+  cat("- Assumes symmetric behavior around inflection point\n\n")
+
+  cat("Approach 2: Original Model Clarified\n")
+  cat("Formula: modifier = (1 - exp(-zeta_effective * (temp - T_min))) / (1 + exp(-zeta_effective * (temp - T_min)))\n")
+  cat("- At T_min (23°C), modifier ≈ 0\n")
+  cat("- No assumption of inflection point\n")
+  cat("- Asymmetric behavior that rises more steeply at first\n\n")
+
+  cat("Approach 3: Decreasing Function with Temperature\n")
+  cat("Formula: modifier = 1 / (1 + exp(zeta_effective * (temp - T_mid)))\n")
+  cat("- At low temperatures (23°C), modifier ≈ 1\n")
+  cat("- At high temperatures (33°C), modifier approaches 0\n")
+  cat("- Higher zeta values create steeper drop in transmission\n")
+  cat("- Centered at T_mid (28°C) where modifier = 0.5\n\n")
+
+  cat("Approach 4: Inverted Non-centered Sigmoid with Temperature\n")
+  cat("Formula: modifier = 1 - ((1 - exp(-zeta_effective * rel_temp)) / (1 + exp(-zeta_effective * rel_temp)))\n")
+  cat("- At T_min (23°C), modifier = 1 exactly for all zeta values\n")
+  cat("- Decreases toward 0 as temperature increases\n")
+  cat("- Higher zeta values create steeper drop in transmission\n")
+  cat("- Preserves the asymmetric shape but inverted from approach 2\n")
+
   ################################## SST set-up ##################################
 
   # # Filter DHW.CRW.full for dates from the last date in SST_sites to the end of 2020
@@ -638,7 +650,7 @@
     # lower_bounds.tiss = c(0.5, 0.4, lambda.modifier, 1, 1)  # Lower bounds for betas, gammas, lambdas, zetas, etas
     # upper_bounds.tiss = c(1.5, 2, lambda.modifier, 1, 1)  # Upper bounds for betas, gammas, lambdas, zetas, etas
     lower_bounds.tiss = c(0, 0, lambda.modifier, 0, 0)  # Lower bounds for betas, gammas, lambdas, zetas, etas
-    upper_bounds.tiss = c(1, 1, lambda.modifier, 0.1, 0.1)  # Upper bounds for betas, gammas, lambdas, zetas, etas
+    upper_bounds.tiss = c(2, 2, lambda.modifier, 0.2, 0.2)  # Upper bounds for betas, gammas, lambdas, zetas, etas
     
     control = list(itermax = 200)  # number of optimizer iterations. 200 is default
     
@@ -700,59 +712,59 @@
     unlist()
   days.obs = na.omit(days.obs) %>%
     as.numeric()
-  
+
   order = 3
-  
+
   output.basic.nearshore.SST = my.SIRS.SST[[order]]
   params.basic.nearshore.SST = params.SST[[order]] #beta, cover-adjusted beta, gamma, lambda, R0, cover
   beta.nearshore.SST = params.basic.nearshore.SST[1]
   gamma.nearshore.SST = params.basic.nearshore.SST[2]
   zeta.nearshore.SST = params.basic.nearshore.SST[3]
   eta.nearshore.SST = params.basic.nearshore.SST[4]
-  
+
   tab.nearshore = tibble(round(beta.nearshore.SST, 2), round(gamma.nearshore.SST, 2),
                          round(zeta.nearshore.SST, 2), round(eta.nearshore.SST, 2))
   names(tab.nearshore) = c('beta', 'gamma', 'zeta', 'eta')
-  
+
   #calculate R-squared and update error table
   # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
   curr.type = 'DHW'
   curr.wave = 'Full'
-  
+
   # sim.rem.total = output.basic.nearshore.SST[which(output.basic.nearshore.SST$time %in% days.obs), which(colnames(output.basic.nearshore.SST) %in% 'R')]
   # obs.rem.total = obs.model %>%
   #   filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
   #   slice(head(row_number(), n()-DHW.modifier)) %>%
   #   pull(tissue)
-  # 
+  #
   # # Trim obs.rem.total from the beginning to match the length of sim.rem.total. this chops off zero's
   # if (length(obs.rem.total) > length(sim.rem.total)) {
   #   obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
   # }
-  
+
   # diff.rem.total = (sim.rem.total - obs.rem.total)
   # sum_diff.total = sum(diff.rem.total^2)
   # mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
   # tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
   # r_squared.basic.nearshore.SST = 1 - (sum_diff.total / tss_rem.total)
-  
+
   # error_eval <- error_eval %>%
-  #   mutate(R_squared = ifelse(site == curr.site & 
-  #                               host == curr.host & 
-  #                               type == curr.type & 
+  #   mutate(R_squared = ifelse(site == curr.site &
+  #                               host == curr.host &
+  #                               type == curr.type &
   #                               wave == curr.wave,
   #                             r_squared.basic.nearshore.SST,
   #                             R_squared))
-  
+
   output.basic.nearshore.SST = pivot_longer(output.basic.nearshore.SST, cols = -1, names_to = c("Compartment")) %>%
     mutate(Compartment = ifelse(Compartment == "", "value", Compartment)) %>%
     mutate(Compartment = ifelse(Compartment == 'S', 'Susceptible',
                                 ifelse(Compartment == 'I', 'Infected',
                                        ifelse(Compartment == 'R', 'Dead', Compartment))))
-  
+
   colnames(output.basic.nearshore.SST)[1] = 'days.model'
   colnames(output.basic.nearshore.SST)[3] = 'tissue'
-  
+
   p.fit.nearshore.basic.SST = ggplot(data = output.basic.nearshore.SST, aes(days.model, tissue, colour = Compartment)) +
     xlab("Day of observation period") +
     ylab("Surface area of tissue (m2)") +
@@ -765,7 +777,7 @@
              vjust = val.vjust, hjust = val.hjust, family = 'Georgia') +
     theme_classic(base_family = 'Georgia') +
     theme(panel.background = element_rect(fill = "gray90"))
-  
+
   p.S.fit.nearshore.basic.SST = ggplot(data = output.basic.nearshore.SST %>% filter(Compartment == "Susceptible"), aes(days.model, tissue)) +
     xlab("Day of observation period") +
     ylab("Surface area of susceptible tissue") +
@@ -773,7 +785,7 @@
     geom_line() +
     geom_point(data = obs.total.figures_SST %>% filter(Site == curr.site, Compartment == "Susceptible"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
-  
+
   p.I.fit.nearshore.basic.SST = ggplot(data = output.basic.nearshore.SST %>% filter(Compartment == "Infected"), aes(days.model, tissue)) +
     xlab("Day of observation period") +
     ylab("Surface area of infected tissue") +
@@ -781,7 +793,7 @@
     geom_line() +
     geom_point(data = obs.total.figures_SST %>% filter(Site == curr.site, Compartment == "Infected"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
-  
+
   p.D.fit.nearshore.basic.SST = ggplot(data = output.basic.nearshore.SST %>% filter(Compartment == "Dead"), aes(days.model, tissue)) +
     xlab("Day of observation period") +
     ylab("Surface area of dead tissue") +
@@ -789,7 +801,7 @@
     geom_line() +
     geom_point(data = obs.total.figures_SST %>% filter(Site == curr.site, Compartment == "Dead"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
-  
+
   #Midchannel
   site.loop = 'Midchannel'
   curr.site = 'mid'
@@ -801,6 +813,7 @@
     as.numeric()
   
   order = 2
+  # order = 1
   
   output.basic.midchannel.SST = my.SIRS.SST[[order]]
   params.basic.midchannel.SST = params.SST[[order]] #beta, cover-adjusted beta, gamma, lambda, R0, cover
@@ -897,59 +910,59 @@
     unlist()
   days.obs = na.omit(days.obs) %>%
     as.numeric()
-  
+
   order = 1
-  
+
   output.basic.offshore.SST = my.SIRS.SST[[order]]
   params.basic.offshore.SST = params.SST[[order]] #beta, cover-adjusted beta, gamma, lambda, R0, cover
   beta.offshore.SST = params.basic.offshore.SST[1]
   gamma.offshore.SST = params.basic.offshore.SST[2]
   zeta.offshore.SST = params.basic.offshore.SST[3]
   eta.offshore.SST = params.basic.offshore.SST[4]
-  
+
   tab.offshore = tibble(round(beta.offshore.SST, 2), round(gamma.offshore.SST, 2),
                           round(zeta.offshore.SST, 2), round(eta.offshore.SST, 2))
   names(tab.offshore) = c('beta', 'gamma', 'zeta', 'eta')
-  
+
   #calculate R-squared and update error table
   # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
   curr.type = 'DHW'
   curr.wave = 'Full'
-  
+
   # sim.rem.total = output.basic.offshore.SST[which(output.basic.offshore.SST$time %in% days.obs), which(colnames(output.basic.offshore.SST) %in% 'R')]
   # obs.rem.total = obs.model %>%
   #   filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
   #   slice(head(row_number(), n()-DHW.modifier)) %>%
   #   pull(tissue)
-  # 
+  #
   # # Trim obs.rem.total from the beginning to match the length of sim.rem.total. this chops off zero's
   # if (length(obs.rem.total) > length(sim.rem.total)) {
   #   obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
   # }
-  
+
   # diff.rem.total = (sim.rem.total - obs.rem.total)
   # sum_diff.total = sum(diff.rem.total^2)
   # mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
   # tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
   # r_squared.basic.offshore.SST = 1 - (sum_diff.total / tss_rem.total)
-  
+
   # error_eval <- error_eval %>%
-  #   mutate(R_squared = ifelse(site == curr.site & 
-  #                               host == curr.host & 
-  #                               type == curr.type & 
+  #   mutate(R_squared = ifelse(site == curr.site &
+  #                               host == curr.host &
+  #                               type == curr.type &
   #                               wave == curr.wave,
   #                             r_squared.basic.offshore.SST,
   #                             R_squared))
-  
+
   output.basic.offshore.SST = pivot_longer(output.basic.offshore.SST, cols = -1, names_to = c("Compartment")) %>%
     mutate(Compartment = ifelse(Compartment == "", "value", Compartment)) %>%
     mutate(Compartment = ifelse(Compartment == 'S', 'Susceptible',
                                 ifelse(Compartment == 'I', 'Infected',
                                        ifelse(Compartment == 'R', 'Dead', Compartment))))
-  
+
   colnames(output.basic.offshore.SST)[1] = 'days.model'
   colnames(output.basic.offshore.SST)[3] = 'tissue'
-  
+
   p.fit.offshore.basic.SST = ggplot(data = output.basic.offshore.SST, aes(days.model, tissue, colour = Compartment)) +
     xlab("Day of observation period") +
     ylab("Surface area of tissue (m2)") +
@@ -961,7 +974,7 @@
              vjust = val.vjust, hjust = val.hjust, family = 'Georgia') +
     theme_classic(base_family = 'Georgia') +
     theme(panel.background = element_rect(fill = "gray90"))
-  
+
   p.S.fit.offshore.basic.SST = ggplot(data = output.basic.offshore.SST %>% filter(Compartment == "Susceptible"), aes(days.model, tissue)) +
     xlab("Day of observation period") +
     ylab("Surface area of susceptible tissue") +
@@ -969,7 +982,7 @@
     geom_line() +
     geom_point(data = obs.total.figures_SST %>% filter(Site == curr.site, Compartment == "Susceptible"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
-  
+
   p.I.fit.offshore.basic.SST = ggplot(data = output.basic.offshore.SST %>% filter(Compartment == "Infected"), aes(days.model, tissue)) +
     xlab("Day of observation period") +
     ylab("Surface area of infected tissue") +
@@ -977,7 +990,7 @@
     geom_line() +
     geom_point(data = obs.total.figures_SST %>% filter(Site == curr.site, Compartment == "Infected"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
-  
+
   p.D.fit.offshore.basic.SST = ggplot(data = output.basic.offshore.SST %>% filter(Compartment == "Dead"), aes(days.model, tissue)) +
     xlab("Day of observation period") +
     ylab("Surface area of dead tissue") +
@@ -985,35 +998,71 @@
     geom_line() +
     geom_point(data = obs.total.figures_SST %>% filter(Site == curr.site, Compartment == "Dead"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
-  
+
   p.I.fit.nearshore.basic.SST
   p.D.fit.nearshore.basic.SST
-  
+
   p.I.fit.midchannel.basic.SST
   p.D.fit.midchannel.basic.SST
-  
+
   p.I.fit.offshore.basic.SST
   p.D.fit.offshore.basic.SST
-  
+
   p.fit.nearshore.basic.SST
   p.fit.midchannel.basic.SST
   p.fit.offshore.basic.SST
-  
-  
-  
-  
-  
-  
+
   ############################## sandbox for manually tweaking zeta/eta ##################################
-
+  
+  # 27 march 2025
+  #   - these inputs were interesting for Midchannel (approach 3), with 0 to 1 b/g and 0 to 0.1 z/e bounds:
+  #   - > tab.midchannel
+  # # A tibble: 1 × 4
+  # beta gamma  zeta   eta
+  # <dbl> <dbl> <dbl> <dbl>
+  #   1  0.99  0.99   0.1  0.08
+  
+  # try just playing around with these values ... but also could I just try fitting a straight up scalar for z/e ?? how would that incorporate temperature? maybe try literally rescaling temperature b/t 23 and 33 to 0 to 1 and fit that ?
+  
+  
+  params.SST[[1]] #off
+  params.SST[[2]] #mid
+  params.SST[[3]] #near
+  
+  
   #sandbox conditions
-  beta.nearshore.sand.SST = 0.65137 # 0.76 #0.64
-  gamma.nearshore.sand.SST = 0.5622153 # 0.56
-  zeta_val = 0.5 #0.07107107 # 0.03 # 0.07107107 # 0
-  eta_val = 0.7 #3
-  lambda_val = 1.0
-  offset_val = 1 - 1 / (1 + exp(-lambda * 1.0))
-
+  # mid
+  # beta.sand.SST.midchannel = 0.647 #these work well for midchannel
+  # gamma.sand.SST.midchannel = 0.686
+  # zeta.sand.SST.midchannel = 0.077
+  # eta.sand.SST.midchannel = 0.00383
+  # beta.sand.SST.midchannel = 0.99 #these work well for midchannel
+  # gamma.sand.SST.midchannel = 0.99
+  # zeta.sand.SST.midchannel = 0.1
+  # eta.sand.SST.midchannel = 0.08
+  beta.sand.SST.midchannel = 0.98629746 #these work well for midchannel. VERY sensitive to rounding
+  gamma.sand.SST.midchannel = 0.98478648
+  zeta.sand.SST.midchannel = 0.06909903
+  eta.sand.SST.midchannel = 0.04377232
+  # off
+  # beta.sand.SST.offshore = 0.647 #these do not translate well from midchannel
+  # gamma.sand.SST.offshore = 0.686
+  # zeta.sand.SST.offshore = 0.077
+  # eta.sand.SST.offshore = 0.00383
+  beta.sand.SST.offshore = 1.6767164 #these work well for offshore. sensitive to rounding
+  gamma.sand.SST.offshore = 1.5338912
+  zeta.sand.SST.offshore = 0.1312599
+  eta.sand.SST.offshore = 0.1614401
+  # near
+  # beta.sand.SST.nearshore = 0.647 #these do not translate well from midchannel
+  # gamma.sand.SST.nearshore = 0.686
+  # zeta.sand.SST.nearshore = 0.077
+  # eta.sand.SST.nearshore = 0.00383
+  beta.sand.SST.nearshore = 1.1704596 #these are good for nearshore - sort of. not really waves. sensitive to rounding
+  gamma.sand.SST.nearshore = 0.9287771
+  zeta.sand.SST.nearshore = 0.1232244
+  eta.sand.SST.nearshore = 0.1933079
+  
   SIR.sand.no_cover.SST = function(t,y,p,SST,DHW){ # 'p' is parameters or params
     {
       S = y[1]
@@ -1021,121 +1070,465 @@
       R = y[3]
     }
     with(as.list(p),{
-
+      
       # Find the closest index for t in the SST data and fetch the associated SST and DHW
       closest_index <- which.min(abs(SST$time - t))
       if (closest_index < 1 || closest_index > nrow(SST)) {
         stop("Closest index is out of bounds for SST.")
       }
-      current_SST = SST$SST[closest_index]
-      current_DHW = DHW$DHW[closest_index]
-
+      current_SST = SST$SST_smoothed[closest_index]
+      # current_DHW = DHW$DHW[closest_index]
+      
       #host density-null conditions
-      transmission_modifier = 1
+      # transmission_modifier = 1
+      # removal_rate = g
+      # transmission_rate = b * transmission_modifier
       removal_rate = g
-      transmission_rate = b * transmission_modifier
-
-      # Convert bounded zeta to effective zeta (scales function behavior from 0 to 1)
-      zeta_effective = zeta_val / (1 - zeta_val) # zeta_effective <- 5 * zeta_bounded/(1-0.8*zeta_bounded)
-      eta_effective = eta_val / (1 - eta_val)
-
-      # Calculate the relative position in the temperature range (sets domain window of function to realistic temperatures)
-      rel_temp <- (current_SST - T_min) / (T_max - T_min)
-
-
-      # transmission_modifier = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C)) / (1 - exp(-k_val)))
-      beta_scaling_factor = 1 - ((1 - exp(-zeta_effective * rel_temp)) / (1 + exp(-zeta_effective * rel_temp)))
-      gamma_scaling_factor = 1 - ((1 - exp(-eta_effective * rel_temp)) / (1 + exp(-eta_effective * rel_temp)))
+      transmission_rate = b
+      
+      #STOPPING POINT - 27 MAR 2025
+      #  - I think a real issue here is that my equation behaviors are pretty weird
+      
+      # # APPROACH 4: no threshold
+      # # NOTE - issue is that low temperatures actually have the decreasing effect here. high ones should instead
+      # # Convert bounded zeta to effective zeta (scales function behavior from 0 to 1)
+      # zeta_effective = z / (1 - z) # zeta_effective <- 5 * zeta_bounded/(1-0.8*zeta_bounded)
+      # eta_effective = e / (1 - e)
+      # 
+      # # Calculate the relative position in the temperature range (sets domain window of function to realistic temperatures)
+      # rel_temp <- (current_SST - T_min) / (T_max - T_min)
+      # 
+      # #modify epidemic rates by sea surface temperature
+      # beta_scaling_factor = 1 - ((1 - exp(-zeta_effective * rel_temp)) / (1 + exp(-zeta_effective * rel_temp)))
+      # gamma_scaling_factor = 1 - ((1 - exp(-eta_effective * rel_temp)) / (1 + exp(-eta_effective * rel_temp)))
+      # # beta_scaling_factor = 1
+      # # gamma_scaling_factor = 1
+      # transmission_rate <- transmission_rate * beta_scaling_factor
+      # removal_rate <- removal_rate * gamma_scaling_factor
+      
+      #APPROACH 3: threshold
+      # NOTE - issue here is that there is no meaningful inflection point - maybe?
+      #         - or something else like boundary conditions
+      zeta_effective <- z / (1 - z)
+      eta_effective <- e / (1 - e)
+      beta_scaling_factor <- 1 / (1 + exp(zeta_effective * (current_SST - 30.5)))
+      gamma_scaling_factor <- 1 / (1 + exp(eta_effective * (current_SST - 30.5)))
       transmission_rate <- transmission_rate * beta_scaling_factor
       removal_rate <- removal_rate * gamma_scaling_factor
-
-
+      
+      # #APPROACH 0: halting transmission/removal
+      # if(current_SST > 30.5){
+      #   removal_rate = 0.01
+      # }
+      
       dS.dt = -transmission_rate * S * I / N
       dI.dt = transmission_rate * S * I / N - removal_rate * I
       dR.dt = removal_rate * I
-
+      
       return(list(c(dS.dt, dI.dt, dR.dt)))
     })
   }
-
-  #run nearshore model
-  curr.site = 'near'
-  days.obs <- days_sites %>%
-    filter(site == curr.site) %>%
-    pull(days.obs) %>%
+  
+  #midchannel
+  site.loop = 'mid'
+  days.sand.SST.midchannel <- days_sites_SST %>% # NOTE - make sure this is working right with backtracked patient zero corals
+    filter(site == site.loop) %>%
+    pull(days) %>%
     unlist()
-
-  output.basic.nearshore.sand.SST = data.frame(ode(c(S = S.nearshore, I = I.nearshore, R = R.nearshore),
-                                               days.model.nearshore, SIR.sand.no_cover.SST, c(b = beta.nearshore.sand.SST, g = gamma.nearshore.sand.SST,
-                                                                                          N = N.nearshore,
-                                                                                          z = zeta_val,
-                                                                                          e = eta_val,
-                                                                                          l = lambda.nearshore,
-                                                                                          C = cover.nearshore),
-                                               SST = SST_df,
-                                               DHW = DHW_df))
-
-  sim.rem.total = output.basic.nearshore.sand.SST[which(output.basic.nearshore.sand.SST$time %in% days.obs), which(colnames(output.basic.nearshore.sand.SST) %in% 'R')]
-  obs.rem.total = obs.model %>%
-    filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
+  
+  days.obs.sand.SST.midchannel = na.omit(days.sand.SST.midchannel) %>%
+    as.numeric()
+  
+  days.model.sand.SST.midchannel = SST_sites_extended %>%
+    filter(site == site.loop) %>%
+    pull(time) %>%
+    max() %>%
+    seq(from = 0, to = .)
+  
+  SST_df.sand.SST.midchannel = SST_sites_extended %>%
+    filter(site == site.loop) %>%
+    select(date, time, SST_smoothed)
+  
+  DHW_df.sand.SST.midchannel <- DHW_sites_extended %>%
+    filter(site == site.loop) %>%
+    select(date, time, DHW)
+  
+  SST_values.sand.SST.midchannel = SST_df.sand.SST.midchannel %>%
+    pull(SST_smoothed)
+  
+  DHW_values.sand.SST.midchannel = DHW_df.sand.SST.midchannel %>%
+    pull(DHW)
+  
+  N.sand.SST.midchannel = susceptible_ref_SST %>%
+    filter(Site == site.loop) %>%
+    slice(1) %>% #all values for N.site are the same between categories, so slice first row
+    pull(N.site)
+  
+  cover.sand.SST.midchannel = susceptible_ref_SST %>%
+    filter(Site == site.loop) %>%
+    slice(1) %>% #same as above
+    pull(cover.site)
+  
+  #sequence of infected & removed SA's for each SusCat within site. remove timepoints before the first infection (zero omit)
+  inftiss.sand.SST.midchannel = obs.total.figures_SST %>%
+    filter(Site == site.loop, Compartment == "Infected") %>%
+    slice(head(row_number(), n()-DHW.modifier)) %>%
+    pull(tissue)    
+  
+  remtiss.sand.SST.midchannel = obs.total.figures_SST %>%
+    filter(Site == site.loop, Compartment == "Recovered") %>%
     slice(head(row_number(), n()-DHW.modifier)) %>%
     pull(tissue)
-  if (length(obs.rem.total) > length(sim.rem.total)) {
-    obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
-  }
+  
+  # Trim 'inftiss' and 'remtiss' using the same indices as 'days'
+  first_valid_idx <- which(!is.na(days.sand.SST.midchannel))[1] #find the first non-NA index
+  inftiss.sand.SST.midchannel <- inftiss.sand.SST.midchannel[first_valid_idx:length(inftiss.sand.SST.midchannel)]
+  remtiss.sand.SST.midchannel <- remtiss.sand.SST.midchannel[first_valid_idx:length(remtiss.sand.SST.midchannel)]
+  
+  #initial conditions
+  I.tiss = inftiss.sand.SST.midchannel[1] #first non-NA & non-zero infection entry
+  # I.tiss = 1e-4 #m2 - equivalent to 100 mm2, which is a rough approximation of a fully infected medium-sized coral polyp
+  S.tiss = N.sand.SST.midchannel - I.tiss
+  R.tiss = 0
+  cover.sand.SST.midchannel = susceptible_ref_SST %>%
+    filter(Site == site.loop) %>%
+    slice(1) %>% #same as above
+    pull(cover.site)
+  
+  initial_state.tiss.sand.SST.midchannel = c(S.tiss, I.tiss, R.tiss, N.sand.SST.midchannel, cover.sand.SST.midchannel)
+  
+  #run midchannel model
+  SIR.out.tiss.sand.SST.midchannel = data.frame(ode(c(S = initial_state.tiss.sand.SST.midchannel[1], I = initial_state.tiss.sand.SST.midchannel[2], R = initial_state.tiss.sand.SST.midchannel[3]),
+                                days.model.sand.SST.midchannel, SIR_project, c(b = beta.sand.SST.midchannel, g = gamma.sand.SST.midchannel,
+                                                           N = initial_state.tiss.sand.SST.midchannel[4],
+                                                           z = zeta.sand.SST.midchannel,
+                                                           e = eta.sand.SST.midchannel,
+                                                           l = lambdas,
+                                                           C = initial_state.tiss.sand.SST.midchannel[5]),
+                                SST = SST_df.sand.SST.midchannel,
+                                DHW = DHW_df.sand.SST.midchannel))
 
-  diff.rem.total = (sim.rem.total - obs.rem.total)
-  sum_diff.total = sum(diff.rem.total^2)
-  mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
-  tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
-  r_squared.basic.nearshore.sand.no_cover.SST = 1 - (sum_diff.total / tss_rem.total)
-
-
-
-  output.basic.nearshore.sand.SST = pivot_longer(output.basic.nearshore.sand.SST, cols = -1, names_to = c("Compartment")) %>%
+  output.basic.sand.SST.midchannel = SIR.out.tiss.sand.SST.midchannel
+  
+  output.basic.sand.SST.midchannel = pivot_longer(output.basic.sand.SST.midchannel, cols = -1, names_to = c("Compartment")) %>%
     mutate(Compartment = ifelse(Compartment == "", "value", Compartment)) %>%
     mutate(Compartment = ifelse(Compartment == 'S', 'Susceptible',
                                 ifelse(Compartment == 'I', 'Infected',
                                        ifelse(Compartment == 'R', 'Dead', Compartment))))
-
-  colnames(output.basic.nearshore.sand.SST)[1] = 'days.model'
-  colnames(output.basic.nearshore.sand.SST)[3] = 'tissue'
-
-  p.fit.nearshore.basic.DHW.sand.SST = ggplot(data = output.basic.nearshore.sand.SST, aes(days.model, tissue, colour = Compartment)) +
+  
+  colnames(output.basic.sand.SST.midchannel)[1] = 'days.model'
+  colnames(output.basic.sand.SST.midchannel)[3] = 'tissue'
+  
+  tab.sand.SST.midchannel = tibble(round(beta.sand.SST.midchannel, 2), round(gamma.sand.SST.midchannel, 2),
+                          round(zeta.sand.SST.midchannel, 2), round(eta.sand.SST.midchannel, 2))
+  names(tab.sand.SST.midchannel) = c('beta', 'gamma', 'zeta', 'eta')
+  
+  p.fit.sand.SST.midchannel = ggplot(data = output.basic.sand.SST.midchannel, aes(days.model, tissue, colour = Compartment)) +
     xlab("Day of observation period") +
     ylab("Surface area of tissue (m2)") +
     ggtitle(paste(c("", site.loop, ' - Fitted'), collapse="")) +
     geom_line() +
-    geom_point(data = obs.total %>% filter(Site == site.loop), aes(days.inf.site, tissue, colour = Compartment)) +
+    geom_point(data = obs.total.figures_SST %>% filter(Site == site.loop), aes(days.inf.site, tissue, colour = Compartment)) +
     scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
-    annotate(geom = "table", x = min(output.basic.nearshore.sand.SST$days.model), y = min(output.basic.nearshore.sand.SST$tissue)*0.7, label = list(tab.nearshore),
+    annotate(geom = "table", x = min(output.basic.sand.SST.midchannel$days.model), y = min(output.basic.sand.SST.midchannel$tissue)*0.7, label = list(tab.sand.SST.midchannel),
              vjust = val.vjust, hjust = val.hjust, family = 'Georgia') +
     theme_classic(base_family = 'Georgia') +
     theme(panel.background = element_rect(fill = "gray90"))
-
-  p.S.fit.nearshore.basic.DHW.sand.SST = ggplot(data = output.basic.nearshore.sand.SST %>% filter(Compartment == "Susceptible"), aes(days.model, tissue)) +
+  
+  p.S.fit.sand.SST.midchannel = ggplot(data = output.basic.sand.SST.midchannel %>% filter(Compartment == "Susceptible"), aes(days.model, tissue)) +
     xlab("Day of observation period") +
     ylab("Surface area of susceptible tissue") +
     ggtitle(paste(c("", site.loop), collapse="")) +
     geom_line() +
     geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Susceptible"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
-
-  p.I.fit.nearshore.basic.DHW.sand.SST = ggplot(data = output.basic.nearshore.sand.SST %>% filter(Compartment == "Infected"), aes(days.model, tissue)) +
+  
+  p.I.fit.sand.SST.midchannel = ggplot(data = output.basic.sand.SST.midchannel %>% filter(Compartment == "Infected"), aes(days.model, tissue)) +
     xlab("Day of observation period") +
     ylab("Surface area of infected tissue") +
     ggtitle(paste(c("", site.loop), collapse="")) +
     geom_line() +
     geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Infected"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
-
-  p.D.fit.nearshore.basic.DHW.sand.SST = ggplot(data = output.basic.nearshore.sand.SST %>% filter(Compartment == "Dead"), aes(days.model, tissue)) +
+  
+  p.D.fit.sand.SST.midchannel = ggplot(data = output.basic.sand.SST.midchannel %>% filter(Compartment == "Dead"), aes(days.model, tissue)) +
     xlab("Day of observation period") +
     ylab("Surface area of dead tissue") +
     ggtitle(paste(c("", site.loop), collapse="")) +
     geom_line() +
     geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Dead"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
+  
+  #offshore
+  site.loop = 'off'
+  days.sand.SST.offshore <- days_sites_SST %>% # NOTE - make sure this is working right with backtracked patient zero corals
+    filter(site == site.loop) %>%
+    pull(days) %>%
+    unlist()
+  
+  days.obs.sand.SST.offshore = na.omit(days.sand.SST.offshore) %>%
+    as.numeric()
+  
+  days.model.sand.SST.offshore = SST_sites_extended %>%
+    filter(site == site.loop) %>%
+    pull(time) %>%
+    max() %>%
+    seq(from = 0, to = .)
+  
+  SST_df.sand.SST.offshore = SST_sites_extended %>%
+    filter(site == site.loop) %>%
+    select(date, time, SST_smoothed)
+  
+  DHW_df.sand.SST.offshore <- DHW_sites_extended %>%
+    filter(site == site.loop) %>%
+    select(date, time, DHW)
+  
+  SST_values.sand.SST.offshore = SST_df.sand.SST.offshore %>%
+    pull(SST_smoothed)
+  
+  DHW_values.sand.SST.offshore = DHW_df.sand.SST.offshore %>%
+    pull(DHW)
+  
+  N.sand.SST.offshore = susceptible_ref_SST %>%
+    filter(Site == site.loop) %>%
+    slice(1) %>% #all values for N.site are the same between categories, so slice first row
+    pull(N.site)
+  
+  cover.sand.SST.offshore = susceptible_ref_SST %>%
+    filter(Site == site.loop) %>%
+    slice(1) %>% #same as above
+    pull(cover.site)
+  
+  #sequence of infected & removed SA's for each SusCat within site. remove timepoints before the first infection (zero omit)
+  inftiss.sand.SST.offshore = obs.total.figures_SST %>%
+    filter(Site == site.loop, Compartment == "Infected") %>%
+    slice(head(row_number(), n()-DHW.modifier)) %>%
+    pull(tissue)    
+  
+  remtiss.sand.SST.offshore = obs.total.figures_SST %>%
+    filter(Site == site.loop, Compartment == "Recovered") %>%
+    slice(head(row_number(), n()-DHW.modifier)) %>%
+    pull(tissue)
+  
+  # Trim 'inftiss' and 'remtiss' using the same indices as 'days'
+  first_valid_idx <- which(!is.na(days.sand.SST.offshore))[1] #find the first non-NA index
+  inftiss.sand.SST.offshore <- inftiss.sand.SST.offshore[first_valid_idx:length(inftiss.sand.SST.offshore)]
+  remtiss.sand.SST.offshore <- remtiss.sand.SST.offshore[first_valid_idx:length(remtiss.sand.SST.offshore)]
+  
+  #initial conditions
+  I.tiss = inftiss.sand.SST.offshore[1] #first non-NA & non-zero infection entry
+  # I.tiss = 1e-4 #m2 - equivalent to 100 mm2, which is a rough approximation of a fully infected medium-sized coral polyp
+  S.tiss = N.sand.SST.offshore - I.tiss
+  R.tiss = 0
+  cover.sand.SST.offshore = susceptible_ref_SST %>%
+    filter(Site == site.loop) %>%
+    slice(1) %>% #same as above
+    pull(cover.site)
+  
+  initial_state.tiss.sand.SST.offshore = c(S.tiss, I.tiss, R.tiss, N.sand.SST.offshore, cover.sand.SST.offshore)
+  
+  #run offshore model
+  SIR.out.tiss.sand.SST.offshore = data.frame(ode(c(S = initial_state.tiss.sand.SST.offshore[1], I = initial_state.tiss.sand.SST.offshore[2], R = initial_state.tiss.sand.SST.offshore[3]),
+                                                  days.model.sand.SST.offshore, SIR_project, c(b = beta.sand.SST.offshore, g = gamma.sand.SST.offshore,
+                                                                                               N = initial_state.tiss.sand.SST.offshore[4],
+                                                                                               z = zeta.sand.SST.offshore,
+                                                                                               e = eta.sand.SST.offshore,
+                                                                                               l = lambdas,
+                                                                                               C = initial_state.tiss.sand.SST.offshore[5]),
+                                                  SST = SST_df.sand.SST.offshore,
+                                                  DHW = DHW_df.sand.SST.offshore))
+  
+  output.basic.sand.SST.offshore = SIR.out.tiss.sand.SST.offshore
+  
+  output.basic.sand.SST.offshore = pivot_longer(output.basic.sand.SST.offshore, cols = -1, names_to = c("Compartment")) %>%
+    mutate(Compartment = ifelse(Compartment == "", "value", Compartment)) %>%
+    mutate(Compartment = ifelse(Compartment == 'S', 'Susceptible',
+                                ifelse(Compartment == 'I', 'Infected',
+                                       ifelse(Compartment == 'R', 'Dead', Compartment))))
+  
+  colnames(output.basic.sand.SST.offshore)[1] = 'days.model'
+  colnames(output.basic.sand.SST.offshore)[3] = 'tissue'
+  
+  tab.sand.SST.offshore = tibble(round(beta.sand.SST.offshore, 2), round(gamma.sand.SST.offshore, 2),
+                                 round(zeta.sand.SST.offshore, 2), round(eta.sand.SST.offshore, 2))
+  names(tab.sand.SST.offshore) = c('beta', 'gamma', 'zeta', 'eta')
+  
+  p.fit.sand.SST.offshore = ggplot(data = output.basic.sand.SST.offshore, aes(days.model, tissue, colour = Compartment)) +
+    xlab("Day of observation period") +
+    ylab("Surface area of tissue (m2)") +
+    ggtitle(paste(c("", site.loop, ' - Fitted'), collapse="")) +
+    geom_line() +
+    geom_point(data = obs.total.figures_SST %>% filter(Site == site.loop), aes(days.inf.site, tissue, colour = Compartment)) +
+    scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
+    annotate(geom = "table", x = min(output.basic.sand.SST.offshore$days.model), y = min(output.basic.sand.SST.offshore$tissue)*0.7, label = list(tab.sand.SST.offshore),
+             vjust = val.vjust, hjust = val.hjust, family = 'Georgia') +
+    theme_classic(base_family = 'Georgia') +
+    theme(panel.background = element_rect(fill = "gray90"))
+  
+  p.S.fit.sand.SST.offshore = ggplot(data = output.basic.sand.SST.offshore %>% filter(Compartment == "Susceptible"), aes(days.model, tissue)) +
+    xlab("Day of observation period") +
+    ylab("Surface area of susceptible tissue") +
+    ggtitle(paste(c("", site.loop), collapse="")) +
+    geom_line() +
+    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Susceptible"), aes(days.inf.site, tissue)) +
+    theme_classic(base_family = 'Georgia')
+  
+  p.I.fit.sand.SST.offshore = ggplot(data = output.basic.sand.SST.offshore %>% filter(Compartment == "Infected"), aes(days.model, tissue)) +
+    xlab("Day of observation period") +
+    ylab("Surface area of infected tissue") +
+    ggtitle(paste(c("", site.loop), collapse="")) +
+    geom_line() +
+    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Infected"), aes(days.inf.site, tissue)) +
+    theme_classic(base_family = 'Georgia')
+  
+  p.D.fit.sand.SST.offshore = ggplot(data = output.basic.sand.SST.offshore %>% filter(Compartment == "Dead"), aes(days.model, tissue)) +
+    xlab("Day of observation period") +
+    ylab("Surface area of dead tissue") +
+    ggtitle(paste(c("", site.loop), collapse="")) +
+    geom_line() +
+    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Dead"), aes(days.inf.site, tissue)) +
+    theme_classic(base_family = 'Georgia')
+  
+  # Nearshore code follows the same pattern
+  site.loop = 'near'
+  days.sand.SST.nearshore <- days_sites_SST %>% # NOTE - make sure this is working right with backtracked patient zero corals
+    filter(site == site.loop) %>%
+    pull(days) %>%
+    unlist()
+  
+  days.obs.sand.SST.nearshore = na.omit(days.sand.SST.nearshore) %>%
+    as.numeric()
+  
+  days.model.sand.SST.nearshore = SST_sites_extended %>%
+    filter(site == site.loop) %>%
+    pull(time) %>%
+    max() %>%
+    seq(from = 0, to = .)
+  
+  SST_df.sand.SST.nearshore = SST_sites_extended %>%
+    filter(site == site.loop) %>%
+    select(date, time, SST_smoothed)
+  
+  DHW_df.sand.SST.nearshore <- DHW_sites_extended %>%
+    filter(site == site.loop) %>%
+    select(date, time, DHW)
+  
+  SST_values.sand.SST.nearshore = SST_df.sand.SST.nearshore %>%
+    pull(SST_smoothed)
+  
+  DHW_values.sand.SST.nearshore = DHW_df.sand.SST.nearshore %>%
+    pull(DHW)
+  
+  N.sand.SST.nearshore = susceptible_ref_SST %>%
+    filter(Site == site.loop) %>%
+    slice(1) %>% #all values for N.site are the same between categories, so slice first row
+    pull(N.site)
+  
+  cover.sand.SST.nearshore = susceptible_ref_SST %>%
+    filter(Site == site.loop) %>%
+    slice(1) %>% #same as above
+    pull(cover.site)
+  
+  #sequence of infected & removed SA's for each SusCat within site. remove timepoints before the first infection (zero omit)
+  inftiss.sand.SST.nearshore = obs.total.figures_SST %>%
+    filter(Site == site.loop, Compartment == "Infected") %>%
+    slice(head(row_number(), n()-DHW.modifier)) %>%
+    pull(tissue)    
+  
+  remtiss.sand.SST.nearshore = obs.total.figures_SST %>%
+    filter(Site == site.loop, Compartment == "Recovered") %>%
+    slice(head(row_number(), n()-DHW.modifier)) %>%
+    pull(tissue)
+  
+  # Trim 'inftiss' and 'remtiss' using the same indices as 'days'
+  first_valid_idx <- which(!is.na(days.sand.SST.nearshore))[1] #find the first non-NA index
+  inftiss.sand.SST.nearshore <- inftiss.sand.SST.nearshore[first_valid_idx:length(inftiss.sand.SST.nearshore)]
+  remtiss.sand.SST.nearshore <- remtiss.sand.SST.nearshore[first_valid_idx:length(remtiss.sand.SST.nearshore)]
+  
+  #initial conditions
+  I.tiss = inftiss.sand.SST.nearshore[1] #first non-NA & non-zero infection entry
+  # I.tiss = 1e-4 #m2 - equivalent to 100 mm2, which is a rough approximation of a fully infected medium-sized coral polyp
+  S.tiss = N.sand.SST.nearshore - I.tiss
+  R.tiss = 0
+  cover.sand.SST.nearshore = susceptible_ref_SST %>%
+    filter(Site == site.loop) %>%
+    slice(1) %>% #same as above
+    pull(cover.site)
+  
+  initial_state.tiss.sand.SST.nearshore = c(S.tiss, I.tiss, R.tiss, N.sand.SST.nearshore, cover.sand.SST.nearshore)
+  
+  #run nearshore model
+  SIR.out.tiss.sand.SST.nearshore = data.frame(ode(c(S = initial_state.tiss.sand.SST.nearshore[1], I = initial_state.tiss.sand.SST.nearshore[2], R = initial_state.tiss.sand.SST.nearshore[3]),
+                                                   days.model.sand.SST.nearshore, SIR_project, c(b = beta.sand.SST.nearshore, g = gamma.sand.SST.nearshore,
+                                                                                                 N = initial_state.tiss.sand.SST.nearshore[4],
+                                                                                                 z = zeta.sand.SST.nearshore,
+                                                                                                 e = eta.sand.SST.nearshore,
+                                                                                                 l = lambdas,
+                                                                                                 C = initial_state.tiss.sand.SST.nearshore[5]),
+                                                   SST = SST_df.sand.SST.nearshore,
+                                                   DHW = DHW_df.sand.SST.nearshore))
+  
+  output.basic.sand.SST.nearshore = SIR.out.tiss.sand.SST.nearshore
+  
+  output.basic.sand.SST.nearshore = pivot_longer(output.basic.sand.SST.nearshore, cols = -1, names_to = c("Compartment")) %>%
+    mutate(Compartment = ifelse(Compartment == "", "value", Compartment)) %>%
+    mutate(Compartment = ifelse(Compartment == 'S', 'Susceptible',
+                                ifelse(Compartment == 'I', 'Infected',
+                                       ifelse(Compartment == 'R', 'Dead', Compartment))))
+  
+  colnames(output.basic.sand.SST.nearshore)[1] = 'days.model'
+  colnames(output.basic.sand.SST.nearshore)[3] = 'tissue'
+  
+  tab.sand.SST.nearshore = tibble(round(beta.sand.SST.nearshore, 2), round(gamma.sand.SST.nearshore, 2),
+                                  round(zeta.sand.SST.nearshore, 2), round(eta.sand.SST.nearshore, 2))
+  names(tab.sand.SST.nearshore) = c('beta', 'gamma', 'zeta', 'eta')
+  
+  p.fit.sand.SST.nearshore = ggplot(data = output.basic.sand.SST.nearshore, aes(days.model, tissue, colour = Compartment)) +
+    xlab("Day of observation period") +
+    ylab("Surface area of tissue (m2)") +
+    ggtitle(paste(c("", site.loop, ' - Fitted'), collapse="")) +
+    geom_line() +
+    geom_point(data = obs.total.figures_SST %>% filter(Site == site.loop), aes(days.inf.site, tissue, colour = Compartment)) +
+    scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
+    annotate(geom = "table", x = min(output.basic.sand.SST.nearshore$days.model), y = min(output.basic.sand.SST.nearshore$tissue)*0.7, label = list(tab.sand.SST.nearshore),
+             vjust = val.vjust, hjust = val.hjust, family = 'Georgia') +
+    theme_classic(base_family = 'Georgia') +
+    theme(panel.background = element_rect(fill = "gray90"))
+  
+  p.S.fit.sand.SST.nearshore = ggplot(data = output.basic.sand.SST.nearshore %>% filter(Compartment == "Susceptible"), aes(days.model, tissue)) +
+    xlab("Day of observation period") +
+    ylab("Surface area of susceptible tissue") +
+    ggtitle(paste(c("", site.loop), collapse="")) +
+    geom_line() +
+    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Susceptible"), aes(days.inf.site, tissue)) +
+    theme_classic(base_family = 'Georgia')
+  
+  p.I.fit.sand.SST.nearshore = ggplot(data = output.basic.sand.SST.nearshore %>% filter(Compartment == "Infected"), aes(days.model, tissue)) +
+    xlab("Day of observation period") +
+    ylab("Surface area of infected tissue") +
+    ggtitle(paste(c("", site.loop), collapse="")) +
+    geom_line() +
+    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Infected"), aes(days.inf.site, tissue)) +
+    theme_classic(base_family = 'Georgia')
+  
+  p.D.fit.sand.SST.nearshore = ggplot(data = output.basic.sand.SST.nearshore %>% filter(Compartment == "Dead"), aes(days.model, tissue)) +
+    xlab("Day of observation period") +
+    ylab("Surface area of dead tissue") +
+    ggtitle(paste(c("", site.loop), collapse="")) +
+    geom_line() +
+    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Dead"), aes(days.inf.site, tissue)) +
+    theme_classic(base_family = 'Georgia')
+  
+  ############################## Plots of sandbox ##################################
+  
+  p.fit.sand.SST.midchannel
+  p.I.fit.sand.SST.midchannel
+  
+  p.fit.sand.SST.offshore
+  p.I.fit.sand.SST.offshore
 
-  p.fit.nearshore.basic.DHW.sand.SST
-  p.I.fit.nearshore.basic.DHW.sand.SST
+  p.fit.sand.SST.nearshore
+  p.I.fit.sand.SST.nearshore
+  
+  
+    
