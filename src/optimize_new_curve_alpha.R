@@ -1,6 +1,13 @@
   
-# NOTE - run this while working within plots_basic.R and/or plots_multi.R
 
+# .rs.restartR(clean = TRUE)
+rm(list=ls())
+
+library(ggplot2)
+library(here)
+
+# NOTE - run this while working within plots_basic.R and/or plots_multi.R if doing more than just the
+#         plotting sandbox section
 
 ################################## alpha / k parameter plotting sandbox ##################################
 
@@ -18,11 +25,82 @@
   # a = 0 #best_alpha
   k = 3 #shape of curve?
   
-  plot(CC,CC*CC, type = 'n')
+  # plot(CC,CC*CC, type = 'n')
+  # for (i in 1:length(a)) {
+  #   mods.1 <- (1-a[i]) + a[i]*((1-exp(-k*CC))/(1-exp(-k)))
+  #   col_choice <- ifelse(a[i] == 0.13, 'blue', 'red')  # Highlight α = 0.13 in blue
+  #   lwd_choice <- ifelse(a[i] == 0.13, 2, 1)  # Make α = 0.13 thicker
+  #   lines(CC, mods.1, type = 'l', col = col_choice, lwd = lwd_choice)
+  #   # lines(CC, mods.1, type = 'l', col = 'red', lwd = 1)
+  # }
+  
+  # plot(CC,CC*CC, type = 'n')
+  # for (i in 1:length(a)) {
+  #   mods.1 <- (1 - a[i]) + a[i] * ((1 - exp(-k * CC)) / (1 - exp(-k)))
+  #   col_choice <- ifelse(a[i] == 0.13, 'blue', 'red')  # Highlight α = 0.13 in blue
+  #   lwd_choice <- ifelse(a[i] == 0.13, 2, 1)  # Make α = 0.13 thicker
+  #   lines(CC, mods.1, type = 'l', col = col_choice, lwd = lwd_choice)
+  #   
+  #   # Add stars at CC = 0.247 and CC = 0.0215
+  #   if (0.247 %in% CC) {
+  #     points(0.247, (1 - a[i]) + a[i] * ((1 - exp(-k * 0.247)) / (1 - exp(-k))), 
+  #            pch = 8, col = col_choice, cex = 1.2)
+  #   }
+  #   if (0.0215 %in% CC) {
+  #     points(0.0215, (1 - a[i]) + a[i] * ((1 - exp(-k * 0.0215)) / (1 - exp(-k))), 
+  #            pch = 8, col = col_choice, cex = 1.2)
+  #   }
+  # }
+  
+  # Set font to Georgia
+  par(family = "Georgia")  
+  
+  plot(CC, CC * CC, type = 'n', 
+       xlab = "Coral Cover (CC)", 
+       ylab = "Transmission Modifier")#, 
+       # main = "Effect of Coral Cover on Transmission Modifier")
+  
   for (i in 1:length(a)) {
-    mods.1 <- (1-a[i]) + a[i]*((1-exp(-k*CC))/(1-exp(-k)))
-    lines(CC, mods.1, type = 'l', col = 'red', lwd = 1)
+    
+    # #test
+    # alp = 0.13
+    # beta = 0.6
+    # cov1 = 0.247 #nearshore
+    # cov2 = 0.0215 #offshore
+    # mods1 <- (1 - alp) + alp * ((1 - exp(-3 * cov1)) / (1 - exp(-3)))
+    # mods2 <- (1 - alp) + alp * ((1 - exp(-3 * cov2)) / (1 - exp(-3)))
+    # beta1.adj = beta*mods1
+    # beta2.adj = beta*mods2
+    # (1 - beta1.adj / beta) * 100
+    # (1 - beta2.adj / beta) * 100
+    
+    mods.1 <- (1 - a[i]) + a[i] * ((1 - exp(-3 * CC)) / (1 - exp(-3)))
+    
+    col_choice <- ifelse(a[i] == 0.13, 'blue', adjustcolor('red', alpha.f = 0.5))  
+    lwd_choice <- ifelse(a[i] == 0.13, 2, 0.5)  # Thicker for α = 0.13
+    
+    lines(CC, mods.1, col = col_choice, lwd = lwd_choice)
+    
+    # Add site-specific stars only for α = 0.13
+    if (a[i] == 0.13) {
+      points(0.247, (1 - a[i]) + a[i] * ((1 - exp(-3 * 0.247)) / (1 - exp(-3))), 
+             pch = 8, col = "orange", cex = 1.5, lwd = 2)  # Nearshore (orange)
+      
+      points(0.0215, (1 - a[i]) + a[i] * ((1 - exp(-3 * 0.0215)) / (1 - exp(-3))), 
+             pch = 8, col = "magenta", cex = 1.5, lwd = 2)  # Offshore (magenta)
+    }
   }
+  
+  # Add legend slightly lower than the top right
+  legend("topright", 
+         legend = c(expression(alpha == 0.13), "25% cover", "2% cover"), 
+         col = c("blue", "orange", "magenta"), 
+         pch = c(NA, 8, 8), 
+         lwd = c(2, NA, NA), 
+         bty = "n",
+         # y.intersp = 1.5,   # Increase spacing between legend items
+         inset = c(0, 0.1)) # Move the legend slightly downward
+  
   
   # CC = seq(0.001,1,.001)
   # a = seq(0,1,0.1)
@@ -33,8 +111,13 @@
   #   mods.2 <- (1-a[i])*CC + a[i]*((1-exp(-k*CC))/(1-exp(-k)))
   #   lines(CC, mods.2, type = 'l', col = 'red', lwd = 1)
   # }
-
   
+  # #for Benthics
+  # quartz(h = 4, w = 4)
+  # fig3_col1
+  
+  #ggplot-export to image
+  ggsave(filename = here("output", "alpha.png"), device = "png", width = 4, height = 4, dpi = 1200)
   
   ################################## single-host projection optimization ##################################
   library(dplyr)

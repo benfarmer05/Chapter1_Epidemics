@@ -1308,14 +1308,21 @@
   # Prepare SST data
   SST_data <- DHW.CRW.full
   
-  # Set up a 3x1 plot layout
-  par(mfrow=c(3,1), mar=c(4, 4, 2, 4))
+  # # Set up a 3x1 plot layout
+  # par(mfrow=c(3,1), mar=c(4, 4, 2, 4))
+  # Set up a 1x1 plot layout
+  par(mfrow=c(1,1), mar=c(4, 4, 2, 4))
   
   # List of sites to plot
   sites <- c("Nearshore", "Offshore", "Midchannel")
   
   # Loop through each site to create plots
   for (site in sites) {
+    
+    #test
+    site = 'Midchannel'
+    #test
+    
     # Filter tissue data for the current site
     tissue_data <- obs.total.figures_SST.removal %>%
       filter(Compartment == compartment, Site == site) %>%
@@ -1329,7 +1336,7 @@
          main = paste("SST and Recovered Tissue Over Time (", site, ")", sep = ""), lwd = 2)
     
     # Add vertical dashed lines
-    abline(v = as.Date(c("2019-11-16", "2019-12-06")), col = "black", lty = 2)
+    abline(v = as.Date(c("2019-12-06")), col = "black", lty = 2)
     
     # Add horizontal dashed line for SST threshold
     abline(h = SST_threshold, col = "red", lty = 2, lwd = 1)
@@ -1352,7 +1359,7 @@
     mtext("Recovered tissue (m2)", side = 4, line = 3)
     
     # Add a legend
-    legend("topright", legend = c("SST (°C)", "Recovered tissue (m2)"), 
+    legend("bottomright", legend = c("SST (°C)", "Recovered tissue (m2)"), 
            col = c("#E69F00", "#0072B2"), lwd = 2, pch = c(NA, 16), bty = "n")
   }
   

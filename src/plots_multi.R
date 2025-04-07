@@ -581,13 +581,15 @@
   # offset.HS = 0
   
   #simulation using initial state variables from naive site and parameters from fitted site
-  output.near.to.off.multi = data.frame(ode(c(S.LS = S.LS.offshore, I.LS = I.LS.offshore, R.LS = R.LS.offshore,
-                                                S.MS = S.MS.offshore, I.MS = I.MS.offshore, R.MS = R.MS.offshore,
-                                                S.HS = S.HS.offshore, I.HS = I.HS.offshore, R.HS = R.HS.offshore),
-                                              days.model.offshore, SIR.multi, c(b.LS = beta.nearshore.LS, g.LS = gamma.nearshore.LS,
+  output.near.to.off.multi = data.frame(ode(c(S.LS = S.LS.offshore*2, I.LS = I.LS.offshore*2, R.LS = R.LS.offshore*2,
+                                                S.MS = S.MS.offshore*2, I.MS = I.MS.offshore*2, R.MS = R.MS.offshore*2,
+                                                S.HS = S.HS.offshore*2, I.HS = I.HS.offshore*2, R.HS = R.HS.offshore*2),
+                                            tibble(days = days.model.offshore) %>%
+                                              bind_rows(tibble(days = (max(days.model.offshore) + 1):(max(days.model.offshore) + 120))) %>%
+                                              pull(days), SIR.multi, c(b.LS = beta.nearshore.LS, g.LS = gamma.nearshore.LS,
                                                            b.MS = beta.nearshore.MS, g.MS = gamma.nearshore.MS,
                                                            b.HS = beta.nearshore.HS, g.HS = gamma.nearshore.HS,
-                                                           N.LS = N.LS.offshore, N.MS = N.MS.offshore, N.HS = N.HS.offshore,
+                                                           N.LS = N.LS.offshore*2, N.MS = N.MS.offshore*2, N.HS = N.HS.offshore*2,
                                                            C = cover.offshore,
                                                            C.LS = cover.offshore.LS, C.MS = cover.offshore.MS, C.HS = cover.offshore.HS,
                                                            l = lambda)))
@@ -722,7 +724,9 @@
                                               # S.HS = S.HS.midchannel, I.HS = I.HS.midchannel, R.HS = R.HS.midchannel,
                                               # P = P.midchannel),
                                               S.HS = S.HS.midchannel, I.HS = I.HS.midchannel, R.HS = R.HS.midchannel),
-                                            days.model.midchannel, SIR.multi, c(b.LS = beta.nearshore.LS, g.LS = gamma.nearshore.LS,
+                                            tibble(days = days.model.midchannel) %>%
+                                              bind_rows(tibble(days = (max(days.model.midchannel) + 1):(max(days.model.midchannel) + 120))) %>%
+                                              pull(days), SIR.multi, c(b.LS = beta.nearshore.LS, g.LS = gamma.nearshore.LS,
                                                                               b.MS = beta.nearshore.MS, g.MS = gamma.nearshore.MS,
                                                                               b.HS = beta.nearshore.HS, g.HS = gamma.nearshore.HS,
                                                                               N.LS = N.LS.midchannel, N.MS = N.MS.midchannel, N.HS = N.HS.midchannel,
@@ -1096,10 +1100,11 @@
   
   #susceptible compartment
   (p.S.fit.offshore.multi | p.S.fit.midchannel.multi | p.S.fit.nearshore.multi) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+  (p.S.fit.near.to.off.multi | p.S.fit.off.to.near.multi | p.S.fit.near.to.mid.multi)
   
   #infected compartment
   (p.I.fit.offshore.multi | p.I.fit.midchannel.multi | p.I.fit.nearshore.multi) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
-  (p.I.fit.near.to.off.multi | p.I.fit.off.to.near.multi)
+  (p.I.fit.near.to.off.multi | p.I.fit.off.to.near.multi | p.I.fit.near.to.mid.multi)
   
   #dead compartment
   (p.D.fit.offshore.multi | p.D.fit.midchannel.multi | p.D.fit.nearshore.multi) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
@@ -1108,7 +1113,4 @@
   ################################## Save workspace  ##################################
   
   # #pass workspace to downstream script
-  # # save.image(file = here("output", "plots_multi_workspace_betterproj.RData"))
   # save.image(file = here("output", "plots_multi_workspace.RData"))
-  # # save.image(file = here("output", "plots_multi_workspace_lower_start.RData"))
-  

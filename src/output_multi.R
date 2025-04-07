@@ -22,7 +22,6 @@
       Site == 'Nearshore' ~ 'near'
     ))
   
-  
   # # NOTE - 19 Feb 2025 - something I was testing to change the starting values of infected tissue
   # # Find the smallest nonzero tissue value across all categories within each Site
   # obs.model_updated <- obs.model %>%
@@ -162,50 +161,60 @@
     with(as.list(p),{
         P = (I.LS + I.MS + I.HS)
 
-      # #null conditions
-      # transmission_modifier.LS = 1
-      # transmission_modifier.MS = 1
-      # transmission_modifier.HS = 1
+      #null conditions
+      transmission_modifier.LS = 1
+      transmission_modifier.MS = 1
+      transmission_modifier.HS = 1
       
-      #with effect of coral cover
-      transmission_modifier.LS = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C.LS)) / (1 - exp(-k_val)))
-      transmission_modifier.MS = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C.MS)) / (1 - exp(-k_val)))
-      transmission_modifier.HS = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C.HS)) / (1 - exp(-k_val)))
+      # #with effect of coral cover
+      # transmission_modifier.LS = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C.LS)) / (1 - exp(-k_val)))
+      # transmission_modifier.MS = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C.MS)) / (1 - exp(-k_val)))
+      # transmission_modifier.HS = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C.HS)) / (1 - exp(-k_val)))
       
+      #hybrid of frequency and density-dependent
       dS.LS.dt = -b.LS*S.LS*(P) / N.LS * transmission_modifier.LS
       dI.LS.dt = b.LS*S.LS*(P) / N.LS * transmission_modifier.LS - g.LS*I.LS
       dR.LS.dt = g.LS*I.LS
-  
+
       dS.MS.dt = -b.MS*S.MS*(P) / N.MS * transmission_modifier.MS
       dI.MS.dt = b.MS*S.MS*(P) / N.MS * transmission_modifier.MS - g.MS*I.MS
       dR.MS.dt = g.MS*I.MS
-  
+
       dS.HS.dt = -b.HS*S.HS*(P) / N.HS * transmission_modifier.HS
       dI.HS.dt = b.HS*S.HS*(P) / N.HS * transmission_modifier.HS - g.HS*I.HS
       dR.HS.dt = g.HS*I.HS
       
-      # if (any((S.LS + I.LS + R.LS > N.LS) | 
-      #         (S.MS + I.MS + R.MS > N.MS) | 
-      #         (S.HS + I.HS + R.HS > N.HS))) {
-      #   warning("Sum of S, I, and R exceeds N for at least one group during fitting process.")
-      # }
+      # #more frequency-dependent
+      # dS.LS.dt = -b.LS*S.LS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.LS
+      # dI.LS.dt = b.LS*S.LS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.LS - g.LS*I.LS
+      # dR.LS.dt = g.LS*I.LS
+      # 
+      # dS.MS.dt = -b.MS*S.MS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.MS
+      # dI.MS.dt = b.MS*S.MS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.MS - g.MS*I.MS
+      # dR.MS.dt = g.MS*I.MS
+      # 
+      # dS.HS.dt = -b.HS*S.HS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.HS
+      # dI.HS.dt = b.HS*S.HS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.HS - g.HS*I.HS
+      # dR.HS.dt = g.HS*I.HS
       
-      # # Update dP using the sum of infected individuals
-      # # NOTE - make sure this is "right" - because why exactly does 'P' get updated by 'dP.dt' when that isn't the case for other compartments?
-      # #         - and is dP.dt correct or is it time-lagging Pt ?
-      # dP.dt = (I.LS + I.MS + I.HS)  - P
-  
-      # NOTE - is it a problem that I.MS and I.LS are immediately "allowed" to start getting disease after initiation?
-      #         like, is the fitting forcing them to have weird rates so that, even though they have a non-zero amount on
-      #         day 2 in the model by mathematical necessity, they don't look like a big outbreak? maybe just note limitation
-      #         of the model is that it can't account for nuance like that (in discussion)
- 
+      # #more density-dependent
+      # dS.LS.dt = -b.LS*S.LS*(P) * transmission_modifier.LS
+      # dI.LS.dt = b.LS*S.LS*(P) * transmission_modifier.LS - g.LS*I.LS
+      # dR.LS.dt = g.LS*I.LS
+      # 
+      # dS.MS.dt = -b.MS*S.MS*(P) * transmission_modifier.MS
+      # dI.MS.dt = b.MS*S.MS*(P) * transmission_modifier.MS - g.MS*I.MS
+      # dR.MS.dt = g.MS*I.MS
+      # 
+      # dS.HS.dt = -b.HS*S.HS*(P) * transmission_modifier.HS
+      # dI.HS.dt = b.HS*S.HS*(P) * transmission_modifier.HS - g.HS*I.HS
+      # dR.HS.dt = g.HS*I.HS
+      
       return(list(c(dS.LS.dt, dI.LS.dt, dR.LS.dt, dS.MS.dt, dI.MS.dt, dR.MS.dt, dS.HS.dt, dI.HS.dt, dR.HS.dt), P = P))
-      # return(list(c(dS.LS.dt, dI.LS.dt, dR.LS.dt, dS.MS.dt, dI.MS.dt, dR.MS.dt, dS.HS.dt, dI.HS.dt, dR.HS.dt, dP.dt), P = P))
-      # return(list(c(dS.LS.dt, dI.LS.dt, dR.LS.dt, dS.MS.dt, dI.MS.dt, dR.MS.dt, dS.HS.dt, dI.HS.dt, dR.HS.dt)))
     })
   }
   
+  ################################## Optimize multi-host model ##################################
   my.SIRS.multi = vector('list', length(sites))
   params.multi = vector('list', length(sites))
   curr.type = 'Fitted' #the below is for a fitting model for multi-host transmission (no DHW or projection)
@@ -492,6 +501,8 @@
       # # sum_squared_diff = sum_squared_diff_I + sum_squared_diff_R
       
       # Calculate residuals
+      diff.inf = sim.inf - obs.inf
+      diff.inf.total = sim.inf.total - obs.inf.total
       diff.rem = sim.rem - obs.rem
       diff.rem.total = sim.rem.total - obs.rem.total
       
@@ -502,8 +513,10 @@
       # sum_absolute_diff_R.abs = sum(abs(diff_rem))
       # # sum_diff.abs = sum_absolute_diff_I + sum_absolute_diff_R
       # sum_diff.abs = sum_absolute_diff_R.abs
+      sum_absolute_diff_I.abs.total = sum(abs(diff.inf.total))
       sum_absolute_diff_R.abs.total = sum(abs(diff.rem.total))
-      sum_diff.abs.total = sum_absolute_diff_R.abs.total
+      # sum_diff.abs.total = sum_absolute_diff_R.abs.total
+      sum_diff.abs.total = sum_absolute_diff_I.abs.total + sum_absolute_diff_R.abs.total #test to better constrain fit for nearshore
       
       # #Version where I was including the infected compartment in the fit, and also summing squares within groups before global sum. return to this if any issues
       # #minimize using sum of squared residuals
@@ -712,5 +725,3 @@
   
   # #pass workspace to downstream script
   # save.image(file = here("output", "multi_SIR_workspace.RData"))
-  # # save.image(file = here("output", "multi_SIR_workspace_lower_start.RData"))
-  

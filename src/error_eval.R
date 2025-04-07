@@ -6,12 +6,10 @@
   library(dplyr)
   library(purrr)
   
-  ################################## Set-up ##################################
-  
   #import workspace from upstream script
   load(here("output/plots_multi_workspace.RData"))
-  # load(here("output/plots_multi_workspace_lower_start.RData"))
-  # load(here("output/plots_multi_workspace_betterproj.RData"))
+
+  ################################## Set-up ##################################
   
   # Function to calculate R-squared, RMSE, NRMSE, and sMAPE
   calculate_metrics <- function(output, obs_data, site, host, type, wave) {
@@ -69,19 +67,19 @@
     # Nearshore models
     list(output = output.basic.nearshore, site = "near", host = "Single", type = "DHW", wave = "Pre-heat"),
     list(output = output.basic.nearshore.full, site = "near", host = "Single", type = "Fitted", wave = "Full"),
-    list(output = output.basic.nearshore.DHW, site = "near", host = "Single", type = "DHW", wave = "Full"),
+    # list(output = output.basic.nearshore.DHW, site = "near", host = "Single", type = "DHW", wave = "Full"),
     list(output = output.nearshore, site = "near", host = "Multi", type = "Fitted", wave = "Full"),
     
     # Midchannel models
     list(output = output.basic.midchannel, site = "mid", host = "Single", type = "DHW", wave = "Pre-heat"),
     list(output = output.basic.midchannel.full, site = "mid", host = "Single", type = "Fitted", wave = "Full"),
-    list(output = output.basic.midchannel.DHW, site = "mid", host = "Single", type = "DHW", wave = "Full"),
+    # list(output = output.basic.midchannel.DHW, site = "mid", host = "Single", type = "DHW", wave = "Full"),
     list(output = output.midchannel, site = "mid", host = "Multi", type = "Fitted", wave = "Full"),
     
     # Offshore models
     list(output = output.basic.offshore, site = "off", host = "Single", type = "DHW", wave = "Pre-heat"),
     list(output = output.basic.offshore.full, site = "off", host = "Single", type = "Fitted", wave = "Full"),
-    list(output = output.basic.offshore.DHW, site = "off", host = "Single", type = "DHW", wave = "Full"),
+    # list(output = output.basic.offshore.DHW, site = "off", host = "Single", type = "DHW", wave = "Full"),
     list(output = output.offshore, site = "off", host = "Multi", type = "Fitted", wave = "Full"),
     
     #Projected models
@@ -114,6 +112,5 @@
   
   ################################## Save output ##################################
   
+  # #pass workspace to downstream script
   # save.image(file = here("output", "error_eval_workspace.RData"))
-  # save.image(file = here("output", "error_eval_workspace_lower_start.RData"))
-  

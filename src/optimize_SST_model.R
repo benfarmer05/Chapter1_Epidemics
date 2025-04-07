@@ -10,6 +10,7 @@
   library(deSolve)
   library(dplyr)
   library(DEoptim)
+  library(ggnewscale)
   
   ################################## Set-up ##################################
   
@@ -202,26 +203,87 @@
     scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.2)) +
     scale_x_continuous(breaks = seq(T_min, T_max, 2)) +
     geom_vline(xintercept = 23, linetype = "dashed", alpha = 0.5)
-
+  
   # Plot 3: Classic sigmoid decreasing model
   p3 <- ggplot(plot_data_decreasing, aes(x = Temperature, y = Modifier, color = Zeta, group = Zeta)) +
-    geom_line(size = 1) +
+    geom_line(size = 1, show.legend = FALSE) +
     labs(
-      title = "Temperature Effect with Decreasing Sigmoid Function",
       x = "Temperature (°C)",
-      y = "Transmission Modifier"
+      y = "beta modifier"
     ) +
-    theme_minimal(base_size = 12) +
+    theme_classic(base_family = 'Georgia') +
     theme(
       legend.position = "right",
+      # legend.position = "inside",
+      # legend.position.inside = c(0, 0),
       panel.grid.minor = element_blank(),
       plot.title = element_text(face = "bold")
     ) +
     scale_color_viridis_d(option = "inferno") +
     scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.2)) +
     scale_x_continuous(breaks = seq(T_min, T_max, 2)) +
-    geom_vline(xintercept = 28, linetype = "dashed", alpha = 0.5)
-
+    geom_vline(xintercept = 30.5, color = 'grey40', linetype = 'dashed', size = 1)
+    
+  # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
+  quartz(h = 3, w = 3)
+  
+  p3
+  
+  #ggplot-export to image
+  ggsave(filename = here("output", "p3.jpg"), device = "jpg", width = 3, height = 3, dpi = 1200)
+  
+  
+  zeta_values_overlay <- c(0.069, 0.044)
+  
+  # Generate new data for the overlay curves, adding a column "Curve"
+  new_data_overlay <- data.frame()
+  for (zeta in zeta_values_overlay) {
+    modifiers_overlay <- sapply(T, function(t) temp_effect_decreasing(t, tmin = T_min, tmax = T_max, zeta_bounded = zeta))
+    # Label 0.069 as "zeta" (red) and 0.044 as "eta" (blue)
+    curve_label <- ifelse(zeta == 0.069, "zeta", "eta")
+    temp_data_overlay <- data.frame(
+      Temperature = T,
+      Modifier = modifiers_overlay,
+      Zeta = as.factor(zeta),
+      Curve = curve_label
+    )
+    new_data_overlay <- rbind(new_data_overlay, temp_data_overlay)
+  }
+  
+  # Start a new color scale so that overlay lines can have a different mapping
+  zeta_eta_fig <- p3 + new_scale_color()
+  
+  # Overlay the new curves with custom colors and a legend
+  zeta_eta_fig <- zeta_eta_fig +
+    geom_line(
+      data = new_data_overlay,
+      aes(x = Temperature, y = Modifier, group = Curve, color = Curve),
+      size = 1 #1.5
+    ) +
+    scale_color_manual(
+      values = c("zeta" = "red", "eta" = "blue"),
+      name = "",
+      labels = c("zeta (0.069)", "eta (0.044)")
+    )
+  
+  zeta_eta_fig = zeta_eta_fig + theme(
+    # legend.position = "inside", legend.position.inside =  c(0.92, .85)
+    legend.position = "bottom",
+    legend.margin = margin(-10, 0, , 0),  # Moves the legend closer to the plot
+    plot.margin = margin(10, 10, 10, 10)  # Adjusts overall plot margins
+  )
+  
+  # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
+  # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
+  # quartz(h = 5, w = 3.35)
+  # quartz(h = 6, w = 7.087)
+  quartz(h = 3, w = 3)
+  
+  zeta_eta_fig
+  
+  #ggplot-export to image
+  ggsave(filename = here("output", "zeta_eta.jpg"), device = "jpg", width = 3, height = 3, dpi = 1200)
+  
   # Plot 4: Fixed non-centered sigmoid decreasing model
   p4 <- ggplot(plot_data_noncentered_decreasing, aes(x = Temperature, y = Modifier, color = Zeta, group = Zeta)) +
     geom_line(size = 1) +
@@ -1025,9 +1087,9 @@
   # try just playing around with these values ... but also could I just try fitting a straight up scalar for z/e ?? how would that incorporate temperature? maybe try literally rescaling temperature b/t 23 and 33 to 0 to 1 and fit that ?
   
   
-  params.SST[[1]] #off
-  params.SST[[2]] #mid
-  params.SST[[3]] #near
+  # params.SST[[1]] #off
+  # params.SST[[2]] #mid
+  # params.SST[[3]] #near
   
   
   #sandbox conditions
@@ -1228,7 +1290,7 @@
     ylab("Surface area of tissue (m2)") +
     ggtitle(paste(c("", site.loop, ' - Fitted'), collapse="")) +
     geom_line() +
-    geom_point(data = obs.total.figures_SST %>% filter(Site == site.loop), aes(days.inf.site, tissue, colour = Compartment)) +
+    # geom_point(data = obs.total.figures_SST %>% filter(Site == site.loop), aes(days.inf.site, tissue, colour = Compartment)) +
     scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
     annotate(geom = "table", x = min(output.basic.sand.SST.midchannel$days.model), y = min(output.basic.sand.SST.midchannel$tissue)*0.7, label = list(tab.sand.SST.midchannel),
              vjust = val.vjust, hjust = val.hjust, family = 'Georgia') +
@@ -1248,7 +1310,7 @@
     ylab("Surface area of infected tissue") +
     ggtitle(paste(c("", site.loop), collapse="")) +
     geom_line() +
-    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Infected"), aes(days.inf.site, tissue)) +
+    # geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Infected"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
   
   p.D.fit.sand.SST.midchannel = ggplot(data = output.basic.sand.SST.midchannel %>% filter(Compartment == "Dead"), aes(days.model, tissue)) +
@@ -1256,9 +1318,9 @@
     ylab("Surface area of dead tissue") +
     ggtitle(paste(c("", site.loop), collapse="")) +
     geom_line() +
-    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Dead"), aes(days.inf.site, tissue)) +
+    # geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Dead"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
-  
+
   #offshore
   site.loop = 'off'
   days.sand.SST.offshore <- days_sites_SST %>% # NOTE - make sure this is working right with backtracked patient zero corals
@@ -1358,7 +1420,7 @@
     ylab("Surface area of tissue (m2)") +
     ggtitle(paste(c("", site.loop, ' - Fitted'), collapse="")) +
     geom_line() +
-    geom_point(data = obs.total.figures_SST %>% filter(Site == site.loop), aes(days.inf.site, tissue, colour = Compartment)) +
+    # geom_point(data = obs.total.figures_SST %>% filter(Site == site.loop), aes(days.inf.site, tissue, colour = Compartment)) +
     scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
     annotate(geom = "table", x = min(output.basic.sand.SST.offshore$days.model), y = min(output.basic.sand.SST.offshore$tissue)*0.7, label = list(tab.sand.SST.offshore),
              vjust = val.vjust, hjust = val.hjust, family = 'Georgia') +
@@ -1378,7 +1440,7 @@
     ylab("Surface area of infected tissue") +
     ggtitle(paste(c("", site.loop), collapse="")) +
     geom_line() +
-    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Infected"), aes(days.inf.site, tissue)) +
+    # geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Infected"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
   
   p.D.fit.sand.SST.offshore = ggplot(data = output.basic.sand.SST.offshore %>% filter(Compartment == "Dead"), aes(days.model, tissue)) +
@@ -1386,7 +1448,7 @@
     ylab("Surface area of dead tissue") +
     ggtitle(paste(c("", site.loop), collapse="")) +
     geom_line() +
-    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Dead"), aes(days.inf.site, tissue)) +
+    # geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Dead"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
   
   # Nearshore code follows the same pattern
@@ -1488,7 +1550,7 @@
     ylab("Surface area of tissue (m2)") +
     ggtitle(paste(c("", site.loop, ' - Fitted'), collapse="")) +
     geom_line() +
-    geom_point(data = obs.total.figures_SST %>% filter(Site == site.loop), aes(days.inf.site, tissue, colour = Compartment)) +
+    # geom_point(data = obs.total.figures_SST %>% filter(Site == site.loop), aes(days.inf.site, tissue, colour = Compartment)) +
     scale_color_brewer(name = 'Disease compartment', palette = 'Set2') +
     annotate(geom = "table", x = min(output.basic.sand.SST.nearshore$days.model), y = min(output.basic.sand.SST.nearshore$tissue)*0.7, label = list(tab.sand.SST.nearshore),
              vjust = val.vjust, hjust = val.hjust, family = 'Georgia') +
@@ -1508,7 +1570,7 @@
     ylab("Surface area of infected tissue") +
     ggtitle(paste(c("", site.loop), collapse="")) +
     geom_line() +
-    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Infected"), aes(days.inf.site, tissue)) +
+    # geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Infected"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
   
   p.D.fit.sand.SST.nearshore = ggplot(data = output.basic.sand.SST.nearshore %>% filter(Compartment == "Dead"), aes(days.model, tissue)) +
@@ -1516,19 +1578,129 @@
     ylab("Surface area of dead tissue") +
     ggtitle(paste(c("", site.loop), collapse="")) +
     geom_line() +
-    geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Dead"), aes(days.inf.site, tissue)) +
+    # geom_point(data = obs.total %>% filter(Site == site.loop, Compartment == "Dead"), aes(days.inf.site, tissue)) +
     theme_classic(base_family = 'Georgia')
   
   ############################## Plots of sandbox ##################################
   
   p.fit.sand.SST.midchannel
   p.I.fit.sand.SST.midchannel
+  p.D.fit.sand.SST.midchannel
   
   p.fit.sand.SST.offshore
   p.I.fit.sand.SST.offshore
-
+  p.D.fit.sand.SST.offshore
+  
   p.fit.sand.SST.nearshore
   p.I.fit.sand.SST.nearshore
+  p.D.fit.sand.SST.nearshore
+  
+  ############################## Figure of SST for paper ##################################
   
   
-    
+  #removed
+  output.basic.sand.SST.midchannel.SST <- output.basic.sand.SST.midchannel %>%
+    mutate(date = as.Date("2018-11-09") + days.model)
+  
+  # Removed tissue
+  # Sample data preparation
+  rescaler = 1.5
+  compartment = "Dead"
+  
+  # Filter and prepare the data
+  SST_data <- DHW.CRW.full
+  output.basic.sand.SST.midchannel.SST.scaled <- output.basic.sand.SST.midchannel.SST %>%
+    filter(Compartment == compartment) %>%
+    mutate(date = as.Date(date), tissue_scaled = tissue * rescaler)
+  
+  # Plot the SST data
+  plot(SST_data$date, SST_data$SST.90th_HS, type = "l", col = "#E69F00", 
+       xlim = c(as.Date("2018-01-01"), as.Date("2020-12-30")), 
+       ylim = c(23, 32), xlab = "Date", ylab = "SST (°C)", 
+       lwd = 3, 
+       cex.lab = 1.5, cex.axis = 1.3, cex.main = 1.6)  # Increased font size
+  
+  # Add vertical dashed line
+  abline(v = as.Date(c("2019-12-06")), col = "grey40", lty = 2, lwd = 2.5)
+  
+  # Add horizontal dashed line for SST threshold
+  abline(h = SST_threshold, col = "red", lty = 2, lwd = 2.5)
+  
+  # Overlay tissue data
+  par(new = TRUE)
+  
+  # Plot the tissue data with a solid black line
+  plot(output.basic.sand.SST.midchannel.SST.scaled$date, 
+       output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled, 
+       type = "l", col = "black", lty = 1, lwd = 3,  # Solid black line
+       xlim = c(as.Date("2018-01-01"), as.Date("2020-12-30")), 
+       ylim = c(0, max(output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled)), 
+       xlab = "", ylab = "", axes = FALSE)  # No y-axis, to avoid double labeling
+  
+  # Add the secondary y-axis (right axis) with two decimal places
+  axis(side = 4, at = pretty(output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled), 
+       labels = formatC(pretty(output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled) / rescaler, 
+                        format = "f", digits = 2), cex.axis = 1.3)  # Increased axis font size
+  
+  # Add a legend inside a white box
+  legend("bottomright", legend = c("SST (°C)", "Removed tissue (m²)"), 
+         col = c("#E69F00", "black"), lwd = 2, lty = c(1, 1), 
+         cex = 1.3, bty = "o", 
+         bg = rgb(1, 1, 1, alpha = 0.9))  # Semi-transparent white box
+  
+  
+  
+  
+  
+  
+  #infected
+  output.basic.sand.SST.midchannel.SST <- output.basic.sand.SST.midchannel %>%
+    mutate(date = as.Date("2018-11-09") + days.model)
+  
+  # Infected tissue
+  # Sample data preparation
+  rescaler = 1.5
+  compartment = "Infected"
+  
+  # Filter and prepare the data
+  SST_data <- DHW.CRW.full
+  output.basic.sand.SST.midchannel.SST.scaled <- output.basic.sand.SST.midchannel.SST %>%
+    filter(Compartment == compartment) %>%
+    mutate(date = as.Date(date), tissue_scaled = tissue * rescaler)
+  
+  # Plot the SST data
+  plot(SST_data$date, SST_data$SST.90th_HS, type = "l", col = "#E69F00", 
+       xlim = c(as.Date("2018-01-01"), as.Date("2020-12-30")), 
+       ylim = c(23, 32), xlab = "Date", ylab = "SST (°C)", 
+       lwd = 3, 
+       cex.lab = 1.5, cex.axis = 1.3, cex.main = 1.6)  # Increased font size
+  
+  # Add vertical dashed line
+  abline(v = as.Date(c("2019-12-06")), col = "grey40", lty = 2, lwd = 2.5)
+  
+  # Add horizontal dashed line for SST threshold
+  abline(h = SST_threshold, col = "red", lty = 2, lwd = 2.5)
+  
+  # Overlay tissue data
+  par(new = TRUE)
+  
+  # Plot the tissue data with a solid black line
+  plot(output.basic.sand.SST.midchannel.SST.scaled$date, 
+       output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled, 
+       type = "l", col = "black", lty = 1, lwd = 3,  # Solid black line
+       xlim = c(as.Date("2018-01-01"), as.Date("2020-12-30")), 
+       ylim = c(0, max(output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled)), 
+       xlab = "", ylab = "", axes = FALSE)  # No y-axis, to avoid double labeling
+  
+  # Add the secondary y-axis (right axis) with two decimal places
+  axis(side = 4, at = pretty(output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled), 
+       labels = formatC(pretty(output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled) / rescaler, 
+                        format = "f", digits = 2), cex.axis = 1.3)  # Increased axis font size
+  
+  # Add a legend inside a white box
+  legend("topright", legend = c("SST (°C)", "Infected tissue (m²)"), 
+         col = c("#E69F00", "black"), lwd = 2, lty = c(1, 1), 
+         cex = 1.2, bty = "o", 
+         bg = rgb(1, 1, 1, alpha = 0.9))  # Semi-transparent white box
+  
+  
