@@ -581,15 +581,15 @@
   # offset.HS = 0
   
   #simulation using initial state variables from naive site and parameters from fitted site
-  output.near.to.off.multi = data.frame(ode(c(S.LS = S.LS.offshore*2, I.LS = I.LS.offshore*2, R.LS = R.LS.offshore*2,
-                                                S.MS = S.MS.offshore*2, I.MS = I.MS.offshore*2, R.MS = R.MS.offshore*2,
-                                                S.HS = S.HS.offshore*2, I.HS = I.HS.offshore*2, R.HS = R.HS.offshore*2),
+  output.near.to.off.multi = data.frame(ode(c(S.LS = S.LS.offshore, I.LS = I.LS.offshore, R.LS = R.LS.offshore,
+                                                S.MS = S.MS.offshore, I.MS = I.MS.offshore, R.MS = R.MS.offshore,
+                                                S.HS = S.HS.offshore, I.HS = I.HS.offshore, R.HS = R.HS.offshore),
                                             tibble(days = days.model.offshore) %>%
                                               bind_rows(tibble(days = (max(days.model.offshore) + 1):(max(days.model.offshore) + 120))) %>%
                                               pull(days), SIR.multi, c(b.LS = beta.nearshore.LS, g.LS = gamma.nearshore.LS,
                                                            b.MS = beta.nearshore.MS, g.MS = gamma.nearshore.MS,
                                                            b.HS = beta.nearshore.HS, g.HS = gamma.nearshore.HS,
-                                                           N.LS = N.LS.offshore*2, N.MS = N.MS.offshore*2, N.HS = N.HS.offshore*2,
+                                                           N.LS = N.LS.offshore, N.MS = N.MS.offshore, N.HS = N.HS.offshore,
                                                            C = cover.offshore,
                                                            C.LS = cover.offshore.LS, C.MS = cover.offshore.MS, C.HS = cover.offshore.HS,
                                                            l = lambda)))
