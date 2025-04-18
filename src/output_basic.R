@@ -195,7 +195,7 @@
       #null conditions
       transmission_modifier = 1
       
-      # #with effect of coral cover
+      # #with effect of coral cover - I only ran this with frequency-dependence, since this essentially hard-codes density-dependence from a "null model" of frequency-dependence
       # # NOTE - previously I used a similar but more complicated equation with lambda - alpha could be renamed lambda here
       # transmission_modifier = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C)) / (1 - exp(-k_val)))
       

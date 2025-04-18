@@ -171,31 +171,31 @@
       # transmission_modifier.MS = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C.MS)) / (1 - exp(-k_val)))
       # transmission_modifier.HS = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C.HS)) / (1 - exp(-k_val)))
       
-      # #hybrid of frequency and density-dependent
-      # dS.LS.dt = -b.LS*S.LS*(P) / N.LS * transmission_modifier.LS
-      # dI.LS.dt = b.LS*S.LS*(P) / N.LS * transmission_modifier.LS - g.LS*I.LS
-      # dR.LS.dt = g.LS*I.LS
-      # 
-      # dS.MS.dt = -b.MS*S.MS*(P) / N.MS * transmission_modifier.MS
-      # dI.MS.dt = b.MS*S.MS*(P) / N.MS * transmission_modifier.MS - g.MS*I.MS
-      # dR.MS.dt = g.MS*I.MS
-      # 
-      # dS.HS.dt = -b.HS*S.HS*(P) / N.HS * transmission_modifier.HS
-      # dI.HS.dt = b.HS*S.HS*(P) / N.HS * transmission_modifier.HS - g.HS*I.HS
-      # dR.HS.dt = g.HS*I.HS
-      
-      #more frequency-dependent
-      dS.LS.dt = -b.LS*S.LS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.LS
-      dI.LS.dt = b.LS*S.LS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.LS - g.LS*I.LS
+      #hybrid of frequency and density-dependent
+      dS.LS.dt = -b.LS*S.LS*(P) / N.LS * transmission_modifier.LS
+      dI.LS.dt = b.LS*S.LS*(P) / N.LS * transmission_modifier.LS - g.LS*I.LS
       dR.LS.dt = g.LS*I.LS
 
-      dS.MS.dt = -b.MS*S.MS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.MS
-      dI.MS.dt = b.MS*S.MS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.MS - g.MS*I.MS
+      dS.MS.dt = -b.MS*S.MS*(P) / N.MS * transmission_modifier.MS
+      dI.MS.dt = b.MS*S.MS*(P) / N.MS * transmission_modifier.MS - g.MS*I.MS
       dR.MS.dt = g.MS*I.MS
 
-      dS.HS.dt = -b.HS*S.HS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.HS
-      dI.HS.dt = b.HS*S.HS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.HS - g.HS*I.HS
+      dS.HS.dt = -b.HS*S.HS*(P) / N.HS * transmission_modifier.HS
+      dI.HS.dt = b.HS*S.HS*(P) / N.HS * transmission_modifier.HS - g.HS*I.HS
       dR.HS.dt = g.HS*I.HS
+      
+      # #more frequency-dependent
+      # dS.LS.dt = -b.LS*S.LS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.LS
+      # dI.LS.dt = b.LS*S.LS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.LS - g.LS*I.LS
+      # dR.LS.dt = g.LS*I.LS
+      # 
+      # dS.MS.dt = -b.MS*S.MS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.MS
+      # dI.MS.dt = b.MS*S.MS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.MS - g.MS*I.MS
+      # dR.MS.dt = g.MS*I.MS
+      # 
+      # dS.HS.dt = -b.HS*S.HS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.HS
+      # dI.HS.dt = b.HS*S.HS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.HS - g.HS*I.HS
+      # dR.HS.dt = g.HS*I.HS
       
       # #more density-dependent
       # dS.LS.dt = -b.LS*S.LS*(P) * transmission_modifier.LS

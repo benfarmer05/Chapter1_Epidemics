@@ -8,6 +8,7 @@
   library(extrafont)
   library(ggthemes)
   library(scales)
+  library(kableExtra)
   
   ################################## Set-up ##################################
   
@@ -412,10 +413,11 @@
     ungroup()
   
   #pull maximum proportion infected and prevalence of infected colonies per site, for reference
-  max_props_infected = obs_total_with_n %>%
-    group_by(Site) %>%
-    summarize(max_tissue_normalized = max(tissue_normalized, na.rm = TRUE) * 100,
-              max_prevalence = max(prevalence, na.rm = TRUE) * 100)
+  max_prop_prev = obs_total_with_n %>%
+    filter(Compartment != 'Susceptible') %>%
+    group_by(Site, Compartment) %>%
+    summarize(max_tissue_normalized = max(tissue_normalized, na.rm = TRUE),
+              max_prevalence = max(prevalence, na.rm = TRUE))
   
   # Find the first date after the initial epidemic wave where SST exceeds threshold set during modeling
   target_date <- DHW.CRW %>%
@@ -535,42 +537,42 @@
 
   # NOTE - could choose to panel columns / rows with facet_wrap; would provide some flexibility on a fixed y-axis. then consider inserts with higher detail ?
   
-    # COLUMN 1
-    data_fig3 = data_fig3 %>%
-      mutate(Compartment = case_when(
-        Compartment == "Dead" ~ "Recovered",
-        TRUE ~ Compartment) 
-      )
-    
-    max_value.fig3 <- max(data_fig3 %>% 
-                       select(tissue) %>%
-                       pull(tissue), na.rm = TRUE)
-    
-    site.loop = 'Nearshore'
-    p.fit.nearshore.single.figures =
-    ggplot(data = data_fig3 %>% filter(Site == site.loop, Host == "Single-host", Type == "Fitted"),
-           aes(x = days.model, y = tissue, group = Compartment)) +
-     xlab("Day of outbreak") +
-     ylab("Surface area of tissue (m²)") +
-     geom_line(aes(group = Compartment), color = "black", linewidth = 0.4) +
-     geom_point(data = obs.total.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment), color = "black", size = 1.3) +
-     scale_x_continuous(limits = c(0, max_days_all_sites)) +
-     scale_shape_manual(values = c("Susceptible" = 16,
-                                   "Infected" = 17,
-                                   "Recovered" = 15),
-                        name = "") + # Removes "Compartment" from the legend title
-      theme_classic(base_family = "Georgia") +
-      theme(legend.position = "bottom",
-            axis.title = element_text(size = 9),
-            axis.text = element_text(size = 7),
-            # axis.text.x = element_blank(), #remove x-axis text but keep the line
-            # axis.ticks.x = element_blank(), #remove the tick marks
-            # axis.title.x = element_blank(),
-            # axis.title.y = element_blank(),
-            strip.text = element_text(size = 8),
-            legend.text = element_text(size = 7),
-            legend.title = element_text(size = 9),
-            legend.key.height = unit(0, "cm"))
+  # COLUMN 1
+  data_fig3 = data_fig3 %>%
+    mutate(Compartment = case_when(
+      Compartment == "Dead" ~ "Recovered",
+      TRUE ~ Compartment) 
+    )
+  
+  max_value.fig3 <- max(data_fig3 %>% 
+                     select(tissue) %>%
+                     pull(tissue), na.rm = TRUE)
+  
+  site.loop = 'Nearshore'
+  p.fit.nearshore.single.figures =
+  ggplot(data = data_fig3 %>% filter(Site == site.loop, Host == "Single-host", Type == "Fitted"),
+         aes(x = days.model, y = tissue, group = Compartment)) +
+   xlab("Day of outbreak") +
+   ylab("Surface area of tissue (m²)") +
+   geom_line(aes(group = Compartment), color = "black", linewidth = 0.4) +
+   geom_point(data = obs.total.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment), color = "black", size = 1.3) +
+   scale_x_continuous(limits = c(0, max_days_all_sites)) +
+   scale_shape_manual(values = c("Susceptible" = 16,
+                                 "Infected" = 17,
+                                 "Recovered" = 15),
+                      name = "") + # Removes "Compartment" from the legend title
+    theme_classic(base_family = "Georgia") +
+    theme(legend.position = "bottom",
+          axis.title = element_text(size = 9),
+          axis.text = element_text(size = 7),
+          # axis.text.x = element_blank(), #remove x-axis text but keep the line
+          # axis.ticks.x = element_blank(), #remove the tick marks
+          # axis.title.x = element_blank(),
+          # axis.title.y = element_blank(),
+          strip.text = element_text(size = 8),
+          legend.text = element_text(size = 7),
+          legend.title = element_text(size = 9),
+          legend.key.height = unit(0, "cm"))
     
     # site.loop = 'Midchannel'
     # p.fit.midchannel.single.figures =
@@ -603,22 +605,32 @@
     #                      name = "") + # Removes "Compartment" from the legend title
     #   theme_classic(base_family = 'Georgia')
     
-    # site.loop = 'Offshore'
-    # p.fit.offshore.single.figures =
-    # ggplot(data = data_fig3 %>% filter(Site == site.loop, Host == "Single-host", Type == "Fitted"), aes(x = days.model, y = tissue, group = Compartment)) +
-    #  xlab("Day of outbreak") +
-    #  ylab("SA of tissue (m2)") +
-    #  # ggtitle(paste0(site.loop, " - Fitted")) +
-    #  geom_line(aes(group = Compartment), color = "black", linewidth = 0.4) +
-    #  geom_point(data = obs.total.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment), color = "black", size = 1.3) +
-    #  scale_x_continuous(limits = c(0, max_days_all_sites)) +
-    #  # scale_y_continuous(limits = c(0, max_value.fig3)) +
-    #  scale_shape_manual(values = c("Susceptible" = 16,
-    #                                "Infected" = 17,
-    #                                "Recovered" = 15),
-    #                     name = "") + # Removes "Compartment" from the legend title
-    #  theme_classic(base_family = 'Georgia')
-    
+  site.loop = 'Offshore'
+  p.fit.offshore.single.figures =
+    ggplot(data = data_fig3 %>% filter(Site == site.loop, Host == "Single-host", Type == "Fitted"),
+           aes(x = days.model, y = tissue, group = Compartment)) +
+    xlab("Day of outbreak") +
+    ylab("Surface area of tissue (m²)") +
+    geom_line(aes(group = Compartment), color = "black", linewidth = 0.4) +
+    geom_point(data = obs.total.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment), color = "black", size = 1.3) +
+    scale_x_continuous(limits = c(0, max_days_all_sites)) +
+    scale_shape_manual(values = c("Susceptible" = 16,
+                                  "Infected" = 17,
+                                  "Recovered" = 15),
+                       name = "") + # Removes "Compartment" from the legend title
+    theme_classic(base_family = "Georgia") +
+    theme(legend.position = "bottom",
+          axis.title = element_text(size = 9),
+          axis.text = element_text(size = 7),
+          # axis.text.x = element_blank(), #remove x-axis text but keep the line
+          # axis.ticks.x = element_blank(), #remove the tick marks
+          # axis.title.x = element_blank(),
+          # axis.title.y = element_blank(),
+          strip.text = element_text(size = 8),
+          legend.text = element_text(size = 7),
+          legend.title = element_text(size = 9),
+          legend.key.height = unit(0, "cm"))
+  
     site.loop = 'Offshore'
     p.fit.near.to.off.single.figures =
     ggplot(data = data_fig3 %>% filter(Site == site.loop, Host == "Single-host", Type == "Projected"), aes(x = days.model, y = tissue, group = Compartment)) +
@@ -645,7 +657,7 @@
             legend.title = element_text(size = 9),
             legend.key.height = unit(0, "cm"))
     
-    fig3_col1 = (p.fit.nearshore.single.figures / p.fit.near.to.off.single.figures) + 
+    fig3_col1 = (p.fit.nearshore.single.figures / p.fit.offshore.single.figures / p.fit.near.to.off.single.figures) + 
       plot_layout(guides = "collect", axis_titles = 'collect') &
       theme(legend.position = "bottom",
             legend.box.spacing = unit(0, "cm"),
@@ -711,23 +723,33 @@
           legend.title = element_text(size = 9),
           legend.key.height = unit(0, "cm"))
   
-  # site.loop = 'Offshore'
-  # p.fit.offshore.multi.figures =
-  #   ggplot(data = data_fig3 %>% filter(Site == site.loop, Host == "Multi-host", Type == "Fitted"), aes(x = days.model, y = tissue, color = Susceptibility, shape = Compartment)) +
-  #   xlab("Day of outbreak") +
-  #   ylab("SA of tissue (m2)") +
-  #   # ggtitle(paste0(site.loop, " - Fitted")) +
-  #   geom_line(linewidth = 0.4) +
-  #   scale_color_manual(values = c("Low" = "#1E90FF",   # Blue
-  #                                 "Moderate" = "#FFD700", # Yellow
-  #                                 "High" = "#FF1493")) +  # Deep Pink
-  #   geom_point(data = obs.multi.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment, fill = Susceptibility), size = 1.3) +
-  #   scale_x_continuous(limits = c(0, max_days_all_sites)) +
-  #   scale_shape_manual(values = c("Susceptible" = 16,
-  #                                 "Infected" = 17,
-  #                                 "Recovered" = 15),
-  #                      name = "") + # Removes "Compartment" from the legend title
-  #   theme_classic(base_family = 'Georgia')
+  site.loop = 'Offshore'
+  p.fit.offshore.multi.figures =
+    ggplot(data = data_fig3 %>% filter(Site == site.loop, Host == "Multi-host", Type == "Fitted"), aes(x = days.model, y = tissue, color = Susceptibility, shape = Compartment)) +
+    xlab("Day of outbreak") +
+    ylab("Surface area of tissue (m²)") +
+    geom_line(linewidth = 0.4) +
+    scale_color_manual(values = c("Low" = "#1E90FF",   # Blue
+                                  "Moderate" = "#FFD700", # Yellow
+                                  "High" = "#FF1493")) +  # Deep Pink
+    geom_point(data = obs.multi.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment, fill = Susceptibility), size = 1.3) +
+    scale_x_continuous(limits = c(0, max_days_all_sites)) +
+    scale_shape_manual(values = c("Susceptible" = 16,
+                                  "Infected" = 17,
+                                  "Recovered" = 15),
+                       name = "") + # Removes "Compartment" from the legend title
+    theme_classic(base_family = "Georgia") +
+    theme(legend.position = "bottom",
+          axis.title = element_text(size = 9),
+          axis.text = element_text(size = 7),
+          # axis.text.x = element_blank(), #remove x-axis text but keep the line
+          # axis.ticks.x = element_blank(), #remove the tick marks
+          # axis.title.x = element_blank(),
+          # axis.title.y = element_blank(),
+          strip.text = element_text(size = 8),
+          legend.text = element_text(size = 7),
+          legend.title = element_text(size = 9),
+          legend.key.height = unit(0, "cm"))
   
   site.loop = 'Offshore'
   p.fit.near.to.off.multi.figures =
@@ -764,7 +786,7 @@
           legend.title = element_text(size = 9),
           legend.key.height = unit(0, "cm"))
   
-  fig3_col2 = (p.fit.nearshore.multi.figures / p.fit.near.to.off.multi.figures) + 
+  fig3_col2 = (p.fit.nearshore.multi.figures / p.fit.offshore.multi.figures / p.fit.near.to.off.multi.figures) + 
     plot_layout(axis_titles = 'collect', guides = "collect") &
     # plot_layout(guides = "collect", axes = "collect") &  # Collect the legends
     # theme(legend.position = "bottom",
@@ -825,14 +847,16 @@
   
   p1 = p.fit.nearshore.single.figures
   p2 = p.fit.nearshore.multi.figures
-  p3 = p.fit.near.to.off.single.figures
-  p4 = p.fit.near.to.off.multi.figures
+  p3 = p.fit.offshore.single.figures
+  p4 = p.fit.offshore.multi.figures
+  p5 = p.fit.near.to.off.single.figures
+  p6 = p.fit.near.to.off.multi.figures
   
   fig3 =
-  p1 + p2 + p3 + p4 +
+  p1 + p2 + p3 + p4 + p5 + p6 +
     plot_layout(axis_titles = "collect",
                 guide = 'collect',
-                design = "AB\nCD") &
+                design = "AB\nCD\nEF") &
     theme(legend.position = "bottom",
           axis.title = element_text(size = 9),
           axis.text = element_text(size = 7),
@@ -853,20 +877,261 @@
   # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
   # quartz(h = 5, w = 3.35)
   # quartz(h = 6, w = 7.087)
-  quartz(h = 5, w = 6)
+  quartz(h = 6, w = 5)
   
   fig3
   
   # # Save the Quartz output directly as a PDF
   # quartz.save(file = here("output", "fig3.pdf"), type = "pdf")
-  
+  #
   # #ggplot-export to image
   # ggsave(filename = here("output", "fig3.png"), device = "png", width = 6, height = 5, dpi = 1200)
   
   # Close the Quartz device
   dev.off()
   
+  ################################## Table X ##################################
+  
+  # First reshape the data to get the format you need
+  reformatted_table_format <- max_prop_prev %>%
+    # Convert from long to wide format
+    pivot_wider(
+      id_cols = Site,
+      names_from = Compartment,
+      values_from = c(max_tissue_normalized, max_prevalence)
+    ) %>%
+    # Select and rename columns in the correct order
+    transmute(
+      Site = Site,
+      "Tissue prev." = round(max_tissue_normalized_Infected, 2),
+      "Colony prev." = round(max_prevalence_Infected, 2),
+      "% Tissue lost" = round(max_tissue_normalized_Recovered, 2),
+      "% Colonies lost" = round(max_prevalence_Recovered, 2)
+    )
+  
+  mean_row <- tibble(
+    Site = "Mean",
+    "Tissue prev." = round(mean(reformatted_table_format$`Tissue prev.`, na.rm = TRUE), 2),
+    "Colony prev." = round(mean(reformatted_table_format$`Colony prev.`, na.rm = TRUE), 2),
+    "% Tissue lost" = round(mean(reformatted_table_format$`% Tissue lost`, na.rm = TRUE), 2),
+    "% Colonies lost" = round(mean(reformatted_table_format$`% Colonies lost`, na.rm = TRUE), 2)
+  )
+  
+  # Combine data with mean row
+  final_table2 <- bind_rows(reformatted_table_format, mean_row)
+  
+  # #optional html table for display in R
+  # formatted_table <- final_table2 %>%
+  #   kable("html") %>%
+  #   kable_styling(bootstrap_options = c("striped", "hover"),
+  #                 full_width = FALSE)
+  
+  ################################## Table X2 ##################################
+  
+  # NOTE - have to also run this using cover model workspace (i.e., single-host model w/ nonlinear density dependence)
+  # STOPPING POINT - 18 April 2025
+  
+  # error_eval stuff here
+  #
+  table_x2 = error_metrics %>%
+    select(-NRMSE_range, -NRMSE_mean, -sMAPE) %>%
+    filter(!(type == "DHW" | wave == "Pre-heat")) %>%
+    select(-wave)
+    
+  
+  
+  # param stuff here
+  #
+  #frequency-dependent
+  #basic
+  beta.offshore.single.freq = params.basic.offshore.full[1]
+  # min.beta.tiss.adj = min.beta.tiss * (1 / (1 + exp(-lambda.modifier * (cover.site))) + offset)
+  # beta.offshore.adj.full = params.basic.offshore.full[2]
+  gamma.offshore.single.freq = params.basic.offshore.full[3]
+  R0.offshore.single.freq = beta.offshore.single.freq / gamma.offshore.single.freq
+  #
+  beta.midchannel.single.freq = params.basic.midchannel.full[1]
+  gamma.midchannel.single.freq = params.basic.midchannel.full[3]
+  R0.midchannel.single.freq = beta.midchannel.single.freq / gamma.midchannel.single.freq
+  #
+  beta.nearshore.single.freq = params.basic.nearshore.full[1]
+  gamma.nearshore.single.freq = params.basic.nearshore.full[3]
+  R0.nearshore.single.freq = beta.nearshore.single.freq / gamma.nearshore.single.freq
+  #
+  #
+  #
+  #mixed dependency
+  #multi
+  beta.LS.offshore.multi = beta.offshore.LS
+  beta.MS.offshore.multi = beta.offshore.MS
+  beta.HS.offshore.multi = beta.offshore.HS
+  # betas.offshore.adj = c(beta.offshore.LS.adj, beta.offshore.MS.adj, beta.offshore.HS.adj)
+  gamma.LS.offshore.multi = gamma.offshore.LS
+  gamma.MS.offshore.multi = gamma.offshore.MS
+  gamma.HS.offshore.multi = gamma.offshore.HS
+  R0s.offshore.multi = c(beta.LS.offshore.multi, beta.MS.offshore.multi, beta.HS.offshore.multi) / c(gamma.LS.offshore.multi, gamma.MS.offshore.multi, gamma.HS.offshore.multi)
+  #
+  beta.LS.midchannel.multi = beta.midchannel.LS
+  beta.MS.midchannel.multi = beta.midchannel.MS
+  beta.HS.midchannel.multi = beta.midchannel.HS
+  gamma.LS.midchannel.multi = gamma.midchannel.LS
+  gamma.MS.midchannel.multi = gamma.midchannel.MS
+  gamma.HS.midchannel.multi = gamma.midchannel.HS
+  R0s.midchannel.multi = c(beta.LS.midchannel.multi, beta.MS.midchannel.multi, beta.HS.midchannel.multi) / c(gamma.LS.midchannel.multi, gamma.MS.midchannel.multi, gamma.HS.midchannel.multi)
+  #
+  beta.LS.nearshore.multi = beta.nearshore.LS
+  beta.MS.nearshore.multi = beta.nearshore.MS
+  beta.HS.nearshore.multi = beta.nearshore.HS
+  gamma.LS.nearshore.multi = gamma.nearshore.LS
+  gamma.MS.nearshore.multi = gamma.nearshore.MS
+  gamma.HS.nearshore.multi = gamma.nearshore.HS
+  R0s.nearshore.multi = c(beta.LS.nearshore.multi, beta.MS.nearshore.multi, beta.HS.nearshore.multi) / c(gamma.LS.nearshore.multi, gamma.MS.nearshore.multi, gamma.HS.nearshore.multi)
+  
+  # Create a new dataframe with the updated structure - now with separate Beta and Gamma columns
+  reformatted_table <- data.frame(
+    Simulation = character(),
+    Host = character(),
+    Dependence = character(),
+    Betas = character(),      # New column for Beta values
+    Gammas = character(),     # New column for Gamma values
+    Effective_R0 = character(),
+    R2 = numeric(),
+    RMSE = numeric(),
+    stringsAsFactors = FALSE
+  )
+  
+  # Map site/type/host combinations to the desired output format
+  for (i in 1:nrow(table_x2)) {
+    row <- table_x2[i,]
+    
+    # Determine simulation name based on site and type
+    simulation <- ""
+    if (row$site == "near") {
+      if (row$type == "Fitted") {
+        simulation <- "Nearshore"
+      } else {
+        simulation <- "Off -> Near"
+      }
+    } else if (row$site == "mid") {
+      simulation <- "Midchannel"
+    } else if (row$site == "off") {
+      if (row$type == "Fitted") {
+        simulation <- "Offshore"
+      } else {
+        simulation <- "Near -> Off"
+      }
+    }
+    
+    # Determine dependence type
+    dependence <- ifelse(row$host == "Single", "Frequency", "Mixed")
+    
+    # Initialize empty beta, gamma and R0 values (will be filled later)
+    betas <- ""
+    gammas <- ""
+    effective_r0 <- ""
+    
+    # Add to the new dataframe
+    reformatted_table <- rbind(reformatted_table, data.frame(
+      Simulation = simulation,
+      Host = row$host,
+      Dependence = dependence,
+      Betas = betas,
+      Gammas = gammas,
+      Effective_R0 = effective_r0,
+      R2 = round(row$R_squared, 2),
+      RMSE = round(row$RMSE, 2)
+    ))
+  }
+  
+  # Define the order of simulations and hosts for proper sorting
+  order_simulations <- c("Offshore", "Midchannel", "Nearshore", "Near -> Off", "Off -> Near")
+  order_hosts <- c("Single", "Multi")
+  
+  # Create sorting keys
+  simulation_order <- match(reformatted_table$Simulation, order_simulations)
+  host_order <- match(reformatted_table$Host, order_hosts)
+  
+  # Sort the table
+  reformatted_table <- reformatted_table[order(host_order, simulation_order), ]
+  
+  # Now fill in the parameter values and R0s from the provided variable names
+  
+  # Offshore Single Frequency
+  idx <- which(reformatted_table$Simulation == "Offshore" & reformatted_table$Host == "Single")
+  reformatted_table$Betas[idx] <- as.character(round(beta.offshore.single.freq, 2))
+  reformatted_table$Gammas[idx] <- as.character(round(gamma.offshore.single.freq, 2))
+  reformatted_table$Effective_R0[idx] <- as.character(round(R0.offshore.single.freq, 2))
+  
+  # Midchannel Single Frequency
+  idx <- which(reformatted_table$Simulation == "Midchannel" & reformatted_table$Host == "Single")
+  reformatted_table$Betas[idx] <- as.character(round(beta.midchannel.single.freq, 2))
+  reformatted_table$Gammas[idx] <- as.character(round(gamma.midchannel.single.freq, 2))
+  reformatted_table$Effective_R0[idx] <- as.character(round(R0.midchannel.single.freq, 2))
+  
+  # Nearshore Single Frequency
+  idx <- which(reformatted_table$Simulation == "Nearshore" & reformatted_table$Host == "Single")
+  reformatted_table$Betas[idx] <- as.character(round(beta.nearshore.single.freq, 2))
+  reformatted_table$Gammas[idx] <- as.character(round(gamma.nearshore.single.freq, 2))
+  reformatted_table$Effective_R0[idx] <- as.character(round(R0.nearshore.single.freq, 2))
+  
+  # Near -> Off Single (uses Nearshore parameters)
+  idx <- which(reformatted_table$Simulation == "Near -> Off" & reformatted_table$Host == "Single")
+  reformatted_table$Betas[idx] <- as.character(round(beta.nearshore.single.freq, 2))
+  reformatted_table$Gammas[idx] <- as.character(round(gamma.nearshore.single.freq, 2))
+  reformatted_table$Effective_R0[idx] <- as.character(round(R0.nearshore.single.freq, 2))
+  
+  # Off -> Near Single (uses Offshore parameters)
+  idx <- which(reformatted_table$Simulation == "Off -> Near" & reformatted_table$Host == "Single")
+  reformatted_table$Betas[idx] <- as.character(round(beta.offshore.single.freq, 2))
+  reformatted_table$Gammas[idx] <- as.character(round(gamma.offshore.single.freq, 2))
+  reformatted_table$Effective_R0[idx] <- as.character(round(R0.offshore.single.freq, 2))
+  
+  # Offshore Multi Mixed
+  idx <- which(reformatted_table$Simulation == "Offshore" & reformatted_table$Host == "Multi")
+  reformatted_table$Betas[idx] <- paste(round(beta.LS.offshore.multi, 2), round(beta.MS.offshore.multi, 2), round(beta.HS.offshore.multi, 2), sep = ", ")
+  reformatted_table$Gammas[idx] <- paste(round(gamma.LS.offshore.multi, 2), round(gamma.MS.offshore.multi, 2), round(gamma.HS.offshore.multi, 2), sep = ", ")
+  reformatted_table$Effective_R0[idx] <- paste(round(R0s.offshore.multi, 2), collapse = ", ")
+  
+  # Midchannel Multi Mixed
+  idx <- which(reformatted_table$Simulation == "Midchannel" & reformatted_table$Host == "Multi")
+  reformatted_table$Betas[idx] <- paste(round(beta.LS.midchannel.multi, 2), round(beta.MS.midchannel.multi, 2), round(beta.HS.midchannel.multi, 2), sep = ", ")
+  reformatted_table$Gammas[idx] <- paste(round(gamma.LS.midchannel.multi, 2), round(gamma.MS.midchannel.multi, 2), round(gamma.HS.midchannel.multi, 2), sep = ", ")
+  reformatted_table$Effective_R0[idx] <- paste(round(R0s.midchannel.multi, 2), collapse = ", ")
+  
+  # Nearshore Multi Mixed
+  idx <- which(reformatted_table$Simulation == "Nearshore" & reformatted_table$Host == "Multi")
+  reformatted_table$Betas[idx] <- paste(round(beta.LS.nearshore.multi, 2), round(beta.MS.nearshore.multi, 2), round(beta.HS.nearshore.multi, 2), sep = ", ")
+  reformatted_table$Gammas[idx] <- paste(round(gamma.LS.nearshore.multi, 2), round(gamma.MS.nearshore.multi, 2), round(gamma.HS.nearshore.multi, 2), sep = ", ")
+  reformatted_table$Effective_R0[idx] <- paste(round(R0s.nearshore.multi, 2), collapse = ", ")
+  
+  # Near -> Off Multi (uses Nearshore parameters)
+  idx <- which(reformatted_table$Simulation == "Near -> Off" & reformatted_table$Host == "Multi")
+  reformatted_table$Betas[idx] <- paste(round(beta.LS.nearshore.multi, 2), round(beta.MS.nearshore.multi, 2), round(beta.HS.nearshore.multi, 2), sep = ", ")
+  reformatted_table$Gammas[idx] <- paste(round(gamma.LS.nearshore.multi, 2), round(gamma.MS.nearshore.multi, 2), round(gamma.HS.nearshore.multi, 2), sep = ", ")
+  reformatted_table$Effective_R0[idx] <- paste(round(R0s.nearshore.multi, 2), collapse = ", ")
+  
+  # Off -> Near Multi (uses Offshore parameters)
+  idx <- which(reformatted_table$Simulation == "Off -> Near" & reformatted_table$Host == "Multi")
+  reformatted_table$Betas[idx] <- paste(round(beta.LS.offshore.multi, 2), round(beta.MS.offshore.multi, 2), round(beta.HS.offshore.multi, 2), sep = ", ")
+  reformatted_table$Gammas[idx] <- paste(round(gamma.LS.offshore.multi, 2), round(gamma.MS.offshore.multi, 2), round(gamma.HS.offshore.multi, 2), sep = ", ")
+  reformatted_table$Effective_R0[idx] <- paste(round(R0s.offshore.multi, 2), collapse = ", ")
+  
+  # Print the final table
+  print(reformatted_table)  
+  
+  #write to CSV for easy dumping of data into Word table in manuscript
+  output_path <- here("output", "tablex2.csv")
+  
+  # Write the table to a CSV file without row names
+  write.csv(reformatted_table, output_path, row.names = FALSE)
+  
+  # Print the file path for confirmation
+  cat("Table saved to: ", output_path, "\n")
+  # Print the final table
+  print(reformatted_table)
+  
   ################################## Save output ##################################
 
   # #pass workspace to downstream script
   # save.image(file = here("output", "tables_figures_workspace.RData"))
+  

@@ -212,15 +212,15 @@ library(here)
     with(as.list(p),{
       P = (I.LS + I.MS + I.HS)
       
-      ### TEST ###
-      transmission_modifier.LS = (1 - 0) + 0*((1 - exp(-3*0.01460644)) / (1 - exp(-3)))
-      transmission_modifier.MS = (1 - alpha_val) + alpha_val*((1 - exp(-3*0.003109595)) / (1 - exp(-3)))
-      transmission_modifier.HS = (1 - alpha_val) + alpha_val*((1 - exp(-3*0.0009200924)) / (1 - exp(-3)))
-      
-      transmission_modifier.LS
-      transmission_modifier.MS
-      transmission_modifier.HS
-      ### TEST ###
+      # ### TEST ###
+      # transmission_modifier.LS = (1 - 0) + 0*((1 - exp(-3*0.01460644)) / (1 - exp(-3)))
+      # transmission_modifier.MS = (1 - alpha_val) + alpha_val*((1 - exp(-3*0.003109595)) / (1 - exp(-3)))
+      # transmission_modifier.HS = (1 - alpha_val) + alpha_val*((1 - exp(-3*0.0009200924)) / (1 - exp(-3)))
+      # 
+      # transmission_modifier.LS
+      # transmission_modifier.MS
+      # transmission_modifier.HS
+      # ### TEST ###
       
       transmission_modifier.LS = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C.LS)) / (1 - exp(-k_val)))
       transmission_modifier.MS = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C.MS)) / (1 - exp(-k_val)))
