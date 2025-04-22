@@ -195,9 +195,9 @@
       # #null conditions
       # transmission_modifier = 1
       
-      # #with effect of coral cover - I only ran this with frequency-dependence, since this essentially hard-codes density-dependence from a "null model" of frequency-dependence
-      # # NOTE - previously I used a similar but more complicated equation with lambda - alpha could be renamed lambda here
-      # transmission_modifier = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C)) / (1 - exp(-k_val)))
+      #with effect of coral cover - I only ran this with frequency-dependence, since this essentially hard-codes density-dependence from a "null model" of frequency-dependence
+      # NOTE - previously I used a similar but more complicated equation with lambda - alpha could be renamed lambda here
+      transmission_modifier = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C)) / (1 - exp(-k_val)))
       
       # # TEST - 21 APRIL 2025
       # #with N
@@ -226,246 +226,246 @@
     })
   }
   
-  ################################## Optimize single-host model ##################################
-  my.SIRS.basic = vector('list', length(sites))
-  params.basic = vector('list', length(sites))
-  curr.type = 'Fitted' #the below is for a basic fitting model for single-host transmission (no DHW or projection)
-  
-  for(i in 1:length(sites)){
-    
-    site.loop = sites[i]
-  
-    # site.loop = "mid" #for testing purposes
-    # i = 1
-    # site.loop = "near" #for testing purposes
-    # i = 2
-    # site.loop = "off" #for testing purposes
-    # i = 3
-    
-    days <- days_sites %>% # NOTE - make sure this is working right with backtracked patient zero corals
-      filter(site == site.loop) %>%
-      pull(days) %>%
-      unlist()
-    
-    days.obs <- days_sites %>%
-      filter(site == site.loop) %>%
-      pull(days.obs) %>%
-      unlist() 
-    
-    days.model <- days_sites %>%
-      filter(site == site.loop) %>%
-      pull(days.model) %>%
-      unlist()
-    
-    N.site = susceptible_ref %>%
-      filter(Site == site.loop) %>%
-      slice(1) %>% #all values for N.site are the same between categories, so slice first row
-      pull(N.site)
-    
-    cover.site = susceptible_ref %>%
-      filter(Site == site.loop) %>%
-      slice(1) %>% #same as above
-      pull(cover.site)
-    
-    #sequence of infected & removed SA's for each SusCat within site. remove timepoints before the first infection (zero omit)
-    inftiss = obs.model %>%
-      filter(Site == site.loop, Category == "Total", Compartment == "Infected") %>%
-      slice(head(row_number(), n()-DHW.modifier)) %>%
-      pull(tissue)    
-    
-    remtiss = obs.model %>%
-      filter(Site == site.loop, Category == "Total", Compartment == "Dead") %>%
-      slice(head(row_number(), n()-DHW.modifier)) %>%
-      pull(tissue)
-    
-    # Trim 'inftiss' and 'remtiss' using the same indices as 'days'
-    first_valid_idx <- which(!is.na(days))[1] #find the first non-NA index
-    inftiss <- inftiss[first_valid_idx:length(inftiss)]
-    remtiss <- remtiss[first_valid_idx:length(remtiss)]
-    
-    #initial conditions
-    I.tiss = inftiss[1] #first non-NA & non-zero infection entry
-    # I.tiss = 1e-4 #m2 - equivalent to 100 mm2, which is a rough approximation of a fully infected medium-sized coral polyp
-    S.tiss = N.site - I.tiss
-    R.tiss = 0
-    
-    # Set up the data and initial conditions
-    coraldata.tiss = list(inftiss, remtiss)
-    initial_state.tiss = c(S.tiss, I.tiss, R.tiss, N.site, cover.site)
-    
-    objective_function = function(params, data, time, initial_state){
-      
-      # #testing
-      # betas = 3.05 #0.76
-      # gammas = 3.01 #0.56
-      # lambdas = 1.0
-      # initial_state = initial_state.tiss
-      # time = days.model
-      # data = coraldata.tiss
-      
-      betas = params[1]
-      gammas = params[2]
-      lambdas = params[3]
-      
-      SIR.out = tryCatch({
-        data.frame(ode(c(S = initial_state[1], I = initial_state[2], R = initial_state[3]),
-                       time, SIR, c(b = betas, g = gammas,
-                                    N = initial_state[4],
-                                    l = lambdas,
-                                    C = initial_state[5])))
-      }, error = function(e) {
-        print("Error in ODE:")
-        print(e)
-        return(NA)
-      })
-      
-      #SST approach
-      time_cutoff <- SST_sites %>%
-        filter(site == site.loop, date >= date_threshold, SST >= SST_threshold_value) %>%
-        summarize(first_exceed_time = min(time, na.rm = TRUE)) %>%
-        pull(first_exceed_time)
-      
-      # #DHW approach
-      # time_cutoff <- DHW_sites %>%
-      #   filter(site == site.loop, date >= date_threshold, DHW >= DHW_threshold_value) %>%
-      #   summarize(first_exceed_time = min(time, na.rm = TRUE)) %>%
-      #   pull(first_exceed_time)
-      
-      # Trim days.obs and SIR.out based on the time_cutoff
-      days.obs_trimmed <- days.obs[days.obs < time_cutoff]
-      
-      # Extract simulated values
-      sim.inf <- SIR.out[which(SIR.out$time %in% days.obs_trimmed), which(colnames(SIR.out) %in% 'I')]
-      sim.rem <- SIR.out[which(SIR.out$time %in% days.obs_trimmed), which(colnames(SIR.out) %in% 'R')]
-      sim.inf.total = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'I')]
-      sim.rem.total = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R')]
-      
-      # Extract observed values
-      obs.inf <- unlist(data[[1]])[days.obs < time_cutoff]  # NOTE - this is a bit hard-coded; refer to this line if there are bugs
-      obs.rem <- unlist(data[[2]])[days.obs < time_cutoff]  # NOTE - this is a bit hard-coded; refer to this line if there are bugs
-      obs.inf.total = unlist(data[[1]])
-      obs.rem.total = unlist(data[[2]])
-      
-      # # NOTE - this was a version where fit was not constrained to the first epidemic wave
-      # #extract simulated values at time points matching observations
-      # sim.inf = SIR.out[which(SIR.out$time %in% head(days.obs, -1)), which(colnames(SIR.out) %in% 'I')] # NOTE - remove final timepoint for infecteds (because of backtracking, see processing script)
-      # sim.rem = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R')]
-      # 
-      # #extract observed values [repetitive code, but works]
-      # obs.inf = unlist(data[[1]])[-length(data[[1]])] # NOTE - remove final timepoint for infecteds (because of backtracking, see processing script)
-      # obs.rem = unlist(data[2])
-      
-      # # NOTE - this as a version where rescaling was required, because infections were part of the fitting process (not *just* removal)
-      # #use ratio of maximum removed value to maximum infected value to rescale removed. fits the 'I' curve better this way
-      # max_obs_inf = max(obs.inf)
-      # max_obs_rem = max(obs.rem)
-      # rem.inf.ratio = max_obs_rem/max_obs_inf
-      # obs.rem = obs.rem/rem.inf.ratio
-      # sim.rem = sim.rem/rem.inf.ratio
-      # 
-      # # #test to separately rescale removed simulated curve
-      # # max_sim_inf = max(sim.inf)
-      # # max_sim_rem = max(sim.rem)
-      # # rem.inf.ratio = max_sim_rem/max_sim_inf
-      # # sim.rem = sim.rem/rem.inf.ratio
-      
-      # Calculate residuals
-      diff.inf = (sim.inf - obs.inf)
-      diff.rem = (sim.rem - obs.rem)
-      diff.inf.total = (sim.inf.total - obs.inf.total)
-      diff.rem.total = (sim.rem.total - obs.rem.total)
-      
-      #aggregate sum of absolute residuals
-      # NOTE - this is not sum of squares and should be clearly stated/defended in the manuscript if used
-      sum_abs_diff_I = sum(sum(abs(diff.inf)))
-      sum_abs_diff_R = sum(sum(abs(diff.rem)))
-      sum_diff.abs = sum_abs_diff_R
-      # sum_diff.abs = sum_abs_diff_I # NOTE - 13 march 2025 edit to test fitting to infection too, for better integration with thermal stress
-      sum_abs_diff_I.total = sum(sum(abs(diff.inf.total)))
-      sum_abs_diff_R.total = sum(sum(abs(diff.rem.total)))
-      sum_diff.abs.total = sum_abs_diff_R.total
-      
-      #minimize using sum of squared residuals
-      sum_diff = sum(diff.rem^2)
-      sum_diff.total = sum(diff.rem.total^2)
-      
-      # # NOTE - see Kalizhanova et al. 2024 (TB SIR) for other error assessments - including mean absolute error (MAE)
-      # # Total Sum of Squares (TSS) for removal only
-      # mean_obs_rem = mean(obs.rem, na.rm = TRUE)  # Compute mean of observed removals
-      # tss_rem = sum((obs.rem - mean_obs_rem)^2)   # Sum of squared differences from mean
-      # mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
-      # tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
-      # 
-      # #R-squared
-      # r_squared_rem = 1 - (sum_diff / tss_rem)
-      # r_squared_rem.total = 1 - (sum_diff.total / tss_rem.total)
-      # 
-      # error_eval <<- error_eval %>%
-      #   mutate(
-      #     SSR = if_else(site == site.loop & host == curr.host & type == curr.type, 
-      #                   if_else(wave == 'Pre-heat', sum_diff, if_else(wave == 'Both', sum_diff.total, SSR)), SSR),
-      #     TSS = if_else(site == site.loop & host == curr.host & type == curr.type, 
-      #                   if_else(wave == 'Pre-heat', tss_rem, if_else(wave == 'Both', tss_rem.total, TSS)), TSS),
-      #     R_squared = if_else(site == site.loop & host == curr.host & type == curr.type, 
-      #                         if_else(wave == 'Pre-heat', r_squared_rem, if_else(wave == 'Both', r_squared_rem.total, R_squared)), R_squared),
-      #     
-      #     # Update list-columns with vectors
-      #     sim_inf = if_else(site == site.loop & host == curr.host & type == curr.type, 
-      #                       if_else(wave == 'Pre-heat', list(sim.inf), if_else(wave == 'Both', list(sim.inf.total), sim_inf)), sim_inf),
-      #     sim_rem = if_else(site == site.loop & host == curr.host & type == curr.type, 
-      #                       if_else(wave == 'Pre-heat', list(sim.rem), if_else(wave == 'Both', list(sim.rem.total), sim_rem)), sim_rem),
-      #     obs_inf = if_else(site == site.loop & host == curr.host & type == curr.type, 
-      #                       if_else(wave == 'Pre-heat', list(obs.inf), if_else(wave == 'Both', list(obs.inf.total), obs_inf)), obs_inf),
-      #     obs_rem = if_else(site == site.loop & host == curr.host & type == curr.type, 
-      #                       if_else(wave == 'Pre-heat', list(obs.rem), if_else(wave == 'Both', list(obs.rem.total), obs_rem)), obs_rem)
-      #   )
-      
-      return(sum_diff.abs.total) #return only the residual metric for the epidemic wave being fit to
-    }
-    
-    # uniform
-    lower_bounds.tiss = c(0, 0, lambda.modifier)  #lower bounds for beta, gamma and lambda
-    upper_bounds.tiss = c(4, 4, lambda.modifier)  #upper bounds for beta, gamma and lambda
-    # lower_bounds.tiss = c(0.00001, 0.00001, lambda.modifier)  #lower bounds for beta, gamma and lambda
-    # upper_bounds.tiss = c(4, 4, lambda.modifier)  #upper bounds for beta, gamma and lambda
-    
-    control = list(itermax = 100)  # Maximum number of iterations. 200 is default
-    
-    # Run the optimization
-    result.tiss = DEoptim(fn = objective_function, lower = lower_bounds.tiss, upper = upper_bounds.tiss,
-                          data = coraldata.tiss, time = days.model, initial_state = initial_state.tiss,
-                          control = control)
-    
-    # Extract the optimized parameters
-    optimized_params.tiss = result.tiss$optim$bestmem
-    
-    # Print the optimized parameters
-    min.beta.tiss = as.numeric(optimized_params.tiss[1])
-    min.gamma.tiss = as.numeric(optimized_params.tiss[2])
-    min.lambda.tiss = as.numeric(optimized_params.tiss[3])
-    min.beta.tiss.adj = min.beta.tiss * (1 / (1 + exp(-lambda.modifier * (cover.site))) + offset)
-    # min.beta.tiss.adj = min.beta.tiss * (min.lambda.tiss * (1-exp(-130*(cover.site))))
-    # min.beta.tiss.adj = (min.beta.tiss * (1 + min.lambda.tiss * sqrt(cover.site)))
-    # min.beta.tiss.adj = (min.beta.tiss * (min.lambda.tiss * sqrt(cover.site)))
-    R0 = min.beta.tiss.adj / min.gamma.tiss
-    cat("Optimized Tissue Model Parameters for", site.loop, " site:\n")
-    cat("Beta:", min.beta.tiss, "\n")
-    cat("Cover-adjusted beta:", min.beta.tiss.adj, "\n")
-    cat("Gamma:", min.gamma.tiss, "\n")
-    cat("Lambda:", min.lambda.tiss, "\n")
-    cat("R0:", R0, '\n')
-    
-    params.basic[[i]] = c(min.beta.tiss, min.beta.tiss.adj, min.gamma.tiss, min.lambda.tiss, R0, cover.site)
-    
-    #simulation using initial state variables and best-fit beta/gamma parameters
-    SIR.out.tiss = data.frame(ode(c(S = initial_state.tiss[1], I = initial_state.tiss[2], R = initial_state.tiss[3]),
-                                  days.model, SIR, c(b = min.beta.tiss, g = min.gamma.tiss,
-                                               N = initial_state.tiss[4],
-                                               l = min.lambda.tiss,
-                                               C = initial_state.tiss[5])))
-    my.SIRS.basic[[i]] = SIR.out.tiss
-  }
-  
+  # ################################## Optimize single-host model ##################################
+  # my.SIRS.basic = vector('list', length(sites))
+  # params.basic = vector('list', length(sites))
+  # curr.type = 'Fitted' #the below is for a basic fitting model for single-host transmission (no DHW or projection)
+  # 
+  # for(i in 1:length(sites)){
+  #   
+  #   site.loop = sites[i]
+  # 
+  #   # site.loop = "mid" #for testing purposes
+  #   # i = 1
+  #   # site.loop = "near" #for testing purposes
+  #   # i = 2
+  #   # site.loop = "off" #for testing purposes
+  #   # i = 3
+  #   
+  #   days <- days_sites %>% # NOTE - make sure this is working right with backtracked patient zero corals
+  #     filter(site == site.loop) %>%
+  #     pull(days) %>%
+  #     unlist()
+  #   
+  #   days.obs <- days_sites %>%
+  #     filter(site == site.loop) %>%
+  #     pull(days.obs) %>%
+  #     unlist() 
+  #   
+  #   days.model <- days_sites %>%
+  #     filter(site == site.loop) %>%
+  #     pull(days.model) %>%
+  #     unlist()
+  #   
+  #   N.site = susceptible_ref %>%
+  #     filter(Site == site.loop) %>%
+  #     slice(1) %>% #all values for N.site are the same between categories, so slice first row
+  #     pull(N.site)
+  #   
+  #   cover.site = susceptible_ref %>%
+  #     filter(Site == site.loop) %>%
+  #     slice(1) %>% #same as above
+  #     pull(cover.site)
+  #   
+  #   #sequence of infected & removed SA's for each SusCat within site. remove timepoints before the first infection (zero omit)
+  #   inftiss = obs.model %>%
+  #     filter(Site == site.loop, Category == "Total", Compartment == "Infected") %>%
+  #     slice(head(row_number(), n()-DHW.modifier)) %>%
+  #     pull(tissue)    
+  #   
+  #   remtiss = obs.model %>%
+  #     filter(Site == site.loop, Category == "Total", Compartment == "Dead") %>%
+  #     slice(head(row_number(), n()-DHW.modifier)) %>%
+  #     pull(tissue)
+  #   
+  #   # Trim 'inftiss' and 'remtiss' using the same indices as 'days'
+  #   first_valid_idx <- which(!is.na(days))[1] #find the first non-NA index
+  #   inftiss <- inftiss[first_valid_idx:length(inftiss)]
+  #   remtiss <- remtiss[first_valid_idx:length(remtiss)]
+  #   
+  #   #initial conditions
+  #   I.tiss = inftiss[1] #first non-NA & non-zero infection entry
+  #   # I.tiss = 1e-4 #m2 - equivalent to 100 mm2, which is a rough approximation of a fully infected medium-sized coral polyp
+  #   S.tiss = N.site - I.tiss
+  #   R.tiss = 0
+  #   
+  #   # Set up the data and initial conditions
+  #   coraldata.tiss = list(inftiss, remtiss)
+  #   initial_state.tiss = c(S.tiss, I.tiss, R.tiss, N.site, cover.site)
+  #   
+  #   objective_function = function(params, data, time, initial_state){
+  #     
+  #     # #testing
+  #     # betas = 3.05 #0.76
+  #     # gammas = 3.01 #0.56
+  #     # lambdas = 1.0
+  #     # initial_state = initial_state.tiss
+  #     # time = days.model
+  #     # data = coraldata.tiss
+  #     
+  #     betas = params[1]
+  #     gammas = params[2]
+  #     lambdas = params[3]
+  #     
+  #     SIR.out = tryCatch({
+  #       data.frame(ode(c(S = initial_state[1], I = initial_state[2], R = initial_state[3]),
+  #                      time, SIR, c(b = betas, g = gammas,
+  #                                   N = initial_state[4],
+  #                                   l = lambdas,
+  #                                   C = initial_state[5])))
+  #     }, error = function(e) {
+  #       print("Error in ODE:")
+  #       print(e)
+  #       return(NA)
+  #     })
+  #     
+  #     #SST approach
+  #     time_cutoff <- SST_sites %>%
+  #       filter(site == site.loop, date >= date_threshold, SST >= SST_threshold_value) %>%
+  #       summarize(first_exceed_time = min(time, na.rm = TRUE)) %>%
+  #       pull(first_exceed_time)
+  #     
+  #     # #DHW approach
+  #     # time_cutoff <- DHW_sites %>%
+  #     #   filter(site == site.loop, date >= date_threshold, DHW >= DHW_threshold_value) %>%
+  #     #   summarize(first_exceed_time = min(time, na.rm = TRUE)) %>%
+  #     #   pull(first_exceed_time)
+  #     
+  #     # Trim days.obs and SIR.out based on the time_cutoff
+  #     days.obs_trimmed <- days.obs[days.obs < time_cutoff]
+  #     
+  #     # Extract simulated values
+  #     sim.inf <- SIR.out[which(SIR.out$time %in% days.obs_trimmed), which(colnames(SIR.out) %in% 'I')]
+  #     sim.rem <- SIR.out[which(SIR.out$time %in% days.obs_trimmed), which(colnames(SIR.out) %in% 'R')]
+  #     sim.inf.total = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'I')]
+  #     sim.rem.total = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R')]
+  #     
+  #     # Extract observed values
+  #     obs.inf <- unlist(data[[1]])[days.obs < time_cutoff]  # NOTE - this is a bit hard-coded; refer to this line if there are bugs
+  #     obs.rem <- unlist(data[[2]])[days.obs < time_cutoff]  # NOTE - this is a bit hard-coded; refer to this line if there are bugs
+  #     obs.inf.total = unlist(data[[1]])
+  #     obs.rem.total = unlist(data[[2]])
+  #     
+  #     # # NOTE - this was a version where fit was not constrained to the first epidemic wave
+  #     # #extract simulated values at time points matching observations
+  #     # sim.inf = SIR.out[which(SIR.out$time %in% head(days.obs, -1)), which(colnames(SIR.out) %in% 'I')] # NOTE - remove final timepoint for infecteds (because of backtracking, see processing script)
+  #     # sim.rem = SIR.out[which(SIR.out$time %in% days.obs), which(colnames(SIR.out) %in% 'R')]
+  #     # 
+  #     # #extract observed values [repetitive code, but works]
+  #     # obs.inf = unlist(data[[1]])[-length(data[[1]])] # NOTE - remove final timepoint for infecteds (because of backtracking, see processing script)
+  #     # obs.rem = unlist(data[2])
+  #     
+  #     # # NOTE - this as a version where rescaling was required, because infections were part of the fitting process (not *just* removal)
+  #     # #use ratio of maximum removed value to maximum infected value to rescale removed. fits the 'I' curve better this way
+  #     # max_obs_inf = max(obs.inf)
+  #     # max_obs_rem = max(obs.rem)
+  #     # rem.inf.ratio = max_obs_rem/max_obs_inf
+  #     # obs.rem = obs.rem/rem.inf.ratio
+  #     # sim.rem = sim.rem/rem.inf.ratio
+  #     # 
+  #     # # #test to separately rescale removed simulated curve
+  #     # # max_sim_inf = max(sim.inf)
+  #     # # max_sim_rem = max(sim.rem)
+  #     # # rem.inf.ratio = max_sim_rem/max_sim_inf
+  #     # # sim.rem = sim.rem/rem.inf.ratio
+  #     
+  #     # Calculate residuals
+  #     diff.inf = (sim.inf - obs.inf)
+  #     diff.rem = (sim.rem - obs.rem)
+  #     diff.inf.total = (sim.inf.total - obs.inf.total)
+  #     diff.rem.total = (sim.rem.total - obs.rem.total)
+  #     
+  #     #aggregate sum of absolute residuals
+  #     # NOTE - this is not sum of squares and should be clearly stated/defended in the manuscript if used
+  #     sum_abs_diff_I = sum(sum(abs(diff.inf)))
+  #     sum_abs_diff_R = sum(sum(abs(diff.rem)))
+  #     sum_diff.abs = sum_abs_diff_R
+  #     # sum_diff.abs = sum_abs_diff_I # NOTE - 13 march 2025 edit to test fitting to infection too, for better integration with thermal stress
+  #     sum_abs_diff_I.total = sum(sum(abs(diff.inf.total)))
+  #     sum_abs_diff_R.total = sum(sum(abs(diff.rem.total)))
+  #     sum_diff.abs.total = sum_abs_diff_R.total
+  #     
+  #     #minimize using sum of squared residuals
+  #     sum_diff = sum(diff.rem^2)
+  #     sum_diff.total = sum(diff.rem.total^2)
+  #     
+  #     # # NOTE - see Kalizhanova et al. 2024 (TB SIR) for other error assessments - including mean absolute error (MAE)
+  #     # # Total Sum of Squares (TSS) for removal only
+  #     # mean_obs_rem = mean(obs.rem, na.rm = TRUE)  # Compute mean of observed removals
+  #     # tss_rem = sum((obs.rem - mean_obs_rem)^2)   # Sum of squared differences from mean
+  #     # mean_obs_rem.total = mean(obs.rem.total, na.rm = TRUE)
+  #     # tss_rem.total = sum((obs.rem.total - mean_obs_rem.total)^2)
+  #     # 
+  #     # #R-squared
+  #     # r_squared_rem = 1 - (sum_diff / tss_rem)
+  #     # r_squared_rem.total = 1 - (sum_diff.total / tss_rem.total)
+  #     # 
+  #     # error_eval <<- error_eval %>%
+  #     #   mutate(
+  #     #     SSR = if_else(site == site.loop & host == curr.host & type == curr.type, 
+  #     #                   if_else(wave == 'Pre-heat', sum_diff, if_else(wave == 'Both', sum_diff.total, SSR)), SSR),
+  #     #     TSS = if_else(site == site.loop & host == curr.host & type == curr.type, 
+  #     #                   if_else(wave == 'Pre-heat', tss_rem, if_else(wave == 'Both', tss_rem.total, TSS)), TSS),
+  #     #     R_squared = if_else(site == site.loop & host == curr.host & type == curr.type, 
+  #     #                         if_else(wave == 'Pre-heat', r_squared_rem, if_else(wave == 'Both', r_squared_rem.total, R_squared)), R_squared),
+  #     #     
+  #     #     # Update list-columns with vectors
+  #     #     sim_inf = if_else(site == site.loop & host == curr.host & type == curr.type, 
+  #     #                       if_else(wave == 'Pre-heat', list(sim.inf), if_else(wave == 'Both', list(sim.inf.total), sim_inf)), sim_inf),
+  #     #     sim_rem = if_else(site == site.loop & host == curr.host & type == curr.type, 
+  #     #                       if_else(wave == 'Pre-heat', list(sim.rem), if_else(wave == 'Both', list(sim.rem.total), sim_rem)), sim_rem),
+  #     #     obs_inf = if_else(site == site.loop & host == curr.host & type == curr.type, 
+  #     #                       if_else(wave == 'Pre-heat', list(obs.inf), if_else(wave == 'Both', list(obs.inf.total), obs_inf)), obs_inf),
+  #     #     obs_rem = if_else(site == site.loop & host == curr.host & type == curr.type, 
+  #     #                       if_else(wave == 'Pre-heat', list(obs.rem), if_else(wave == 'Both', list(obs.rem.total), obs_rem)), obs_rem)
+  #     #   )
+  #     
+  #     return(sum_diff.abs.total) #return only the residual metric for the epidemic wave being fit to
+  #   }
+  #   
+  #   # uniform
+  #   lower_bounds.tiss = c(0, 0, lambda.modifier)  #lower bounds for beta, gamma and lambda
+  #   upper_bounds.tiss = c(4, 4, lambda.modifier)  #upper bounds for beta, gamma and lambda
+  #   # lower_bounds.tiss = c(0.00001, 0.00001, lambda.modifier)  #lower bounds for beta, gamma and lambda
+  #   # upper_bounds.tiss = c(4, 4, lambda.modifier)  #upper bounds for beta, gamma and lambda
+  #   
+  #   control = list(itermax = 100)  # Maximum number of iterations. 200 is default
+  #   
+  #   # Run the optimization
+  #   result.tiss = DEoptim(fn = objective_function, lower = lower_bounds.tiss, upper = upper_bounds.tiss,
+  #                         data = coraldata.tiss, time = days.model, initial_state = initial_state.tiss,
+  #                         control = control)
+  #   
+  #   # Extract the optimized parameters
+  #   optimized_params.tiss = result.tiss$optim$bestmem
+  #   
+  #   # Print the optimized parameters
+  #   min.beta.tiss = as.numeric(optimized_params.tiss[1])
+  #   min.gamma.tiss = as.numeric(optimized_params.tiss[2])
+  #   min.lambda.tiss = as.numeric(optimized_params.tiss[3])
+  #   min.beta.tiss.adj = min.beta.tiss * (1 / (1 + exp(-lambda.modifier * (cover.site))) + offset)
+  #   # min.beta.tiss.adj = min.beta.tiss * (min.lambda.tiss * (1-exp(-130*(cover.site))))
+  #   # min.beta.tiss.adj = (min.beta.tiss * (1 + min.lambda.tiss * sqrt(cover.site)))
+  #   # min.beta.tiss.adj = (min.beta.tiss * (min.lambda.tiss * sqrt(cover.site)))
+  #   R0 = min.beta.tiss.adj / min.gamma.tiss
+  #   cat("Optimized Tissue Model Parameters for", site.loop, " site:\n")
+  #   cat("Beta:", min.beta.tiss, "\n")
+  #   cat("Cover-adjusted beta:", min.beta.tiss.adj, "\n")
+  #   cat("Gamma:", min.gamma.tiss, "\n")
+  #   cat("Lambda:", min.lambda.tiss, "\n")
+  #   cat("R0:", R0, '\n')
+  #   
+  #   params.basic[[i]] = c(min.beta.tiss, min.beta.tiss.adj, min.gamma.tiss, min.lambda.tiss, R0, cover.site)
+  #   
+  #   #simulation using initial state variables and best-fit beta/gamma parameters
+  #   SIR.out.tiss = data.frame(ode(c(S = initial_state.tiss[1], I = initial_state.tiss[2], R = initial_state.tiss[3]),
+  #                                 days.model, SIR, c(b = min.beta.tiss, g = min.gamma.tiss,
+  #                                              N = initial_state.tiss[4],
+  #                                              l = min.lambda.tiss,
+  #                                              C = initial_state.tiss[5])))
+  #   my.SIRS.basic[[i]] = SIR.out.tiss
+  # }
+  # 
   # ################################## Model: thermal stress w/ single-host ##################################
   # SIR.DHW = function(t,y,p,SST,DHW){ # 'p' is parameters or params
   #   {
@@ -966,11 +966,15 @@
     }
     
     # uniform
-    lower_bounds.tiss = c(0, 0, lambda.modifier)  #lower bounds for beta, gamma and lambda
-    upper_bounds.tiss = c(4, 4, lambda.modifier)  #upper bounds for beta, gamma and lambda
-    # lower_bounds.tiss = c(0.00001, 0.00001, lambda.modifier)  #lower bounds for beta, gamma and lambda
-    # upper_bounds.tiss = c(4, 4, lambda.modifier)  #upper bounds for beta, gamma and lambda
     
+    # TEST
+    lower_bounds.tiss = c(0, 0, lambda.modifier)  #lower bounds for beta, gamma and lambda
+    upper_bounds.tiss = c(0.1, 3, lambda.modifier)  #upper bounds for beta, gamma and lambda
+    # TEST
+    
+    # lower_bounds.tiss = c(0, 0, lambda.modifier)  #lower bounds for beta, gamma and lambda
+    # upper_bounds.tiss = c(4, 4, lambda.modifier)  #upper bounds for beta, gamma and lambda
+
     control = list(itermax = 100)  # Maximum number of iterations. 200 is default
     
     # Run the optimization

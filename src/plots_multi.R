@@ -580,20 +580,43 @@
   # offset.MS = 0
   # offset.HS = 0
   
+  
+  # TESTING - this showed that you CAN project using density-dependent framework, just have to essentially convert to frequency dependence with the site:site ratio
+  ratio.near.to.off = N.nearshore / N.offshore
+  ratio.near.to.off.LS = N.LS.nearshore / N.LS.offshore
+  ratio.near.to.off.MS = N.MS.nearshore / N.MS.offshore
+  ratio.near.to.off.HS = N.HS.nearshore / N.HS.offshore
+
   #simulation using initial state variables from naive site and parameters from fitted site
   output.near.to.off.multi = data.frame(ode(c(S.LS = S.LS.offshore, I.LS = I.LS.offshore, R.LS = R.LS.offshore,
-                                                S.MS = S.MS.offshore, I.MS = I.MS.offshore, R.MS = R.MS.offshore,
-                                                S.HS = S.HS.offshore, I.HS = I.HS.offshore, R.HS = R.HS.offshore),
+                                              S.MS = S.MS.offshore, I.MS = I.MS.offshore, R.MS = R.MS.offshore,
+                                              S.HS = S.HS.offshore, I.HS = I.HS.offshore, R.HS = R.HS.offshore),
                                             tibble(days = days.model.offshore) %>%
                                               bind_rows(tibble(days = (max(days.model.offshore) + 1):(max(days.model.offshore) + 120))) %>%
-                                              pull(days), SIR.multi, c(b.LS = beta.nearshore.LS, g.LS = gamma.nearshore.LS,
-                                                           b.MS = beta.nearshore.MS, g.MS = gamma.nearshore.MS,
-                                                           b.HS = beta.nearshore.HS, g.HS = gamma.nearshore.HS,
-                                                           N.LS = N.LS.offshore, N.MS = N.MS.offshore, N.HS = N.HS.offshore,
-                                                           C = cover.offshore,
-                                                           C.LS = cover.offshore.LS, C.MS = cover.offshore.MS, C.HS = cover.offshore.HS,
-                                                           l = lambda)))
+                                              pull(days), SIR.multi, c(b.LS = beta.nearshore.LS * ratio.near.to.off, g.LS = gamma.nearshore.LS,
+                                                                       b.MS = beta.nearshore.MS * ratio.near.to.off, g.MS = gamma.nearshore.MS,
+                                                                       b.HS = beta.nearshore.HS * ratio.near.to.off, g.HS = gamma.nearshore.HS,
+                                                                       N.LS = N.LS.offshore, N.MS = N.MS.offshore, N.HS = N.HS.offshore,
+                                                                       C = cover.offshore,
+                                                                       C.LS = cover.offshore.LS, C.MS = cover.offshore.MS, C.HS = cover.offshore.HS,
+                                                                       l = lambda)))
+
+  # TESTING
   
+  # #simulation using initial state variables from naive site and parameters from fitted site
+  # output.near.to.off.multi = data.frame(ode(c(S.LS = S.LS.offshore, I.LS = I.LS.offshore, R.LS = R.LS.offshore,
+  #                                               S.MS = S.MS.offshore, I.MS = I.MS.offshore, R.MS = R.MS.offshore,
+  #                                               S.HS = S.HS.offshore, I.HS = I.HS.offshore, R.HS = R.HS.offshore),
+  #                                           tibble(days = days.model.offshore) %>%
+  #                                             bind_rows(tibble(days = (max(days.model.offshore) + 1):(max(days.model.offshore) + 120))) %>%
+  #                                             pull(days), SIR.multi, c(b.LS = beta.nearshore.LS, g.LS = gamma.nearshore.LS,
+  #                                                          b.MS = beta.nearshore.MS, g.MS = gamma.nearshore.MS,
+  #                                                          b.HS = beta.nearshore.HS, g.HS = gamma.nearshore.HS,
+  #                                                          N.LS = N.LS.offshore, N.MS = N.MS.offshore, N.HS = N.HS.offshore,
+  #                                                          C = cover.offshore,
+  #                                                          C.LS = cover.offshore.LS, C.MS = cover.offshore.MS, C.HS = cover.offshore.HS,
+  #                                                          l = lambda)))
+
   #calculate R-squared and update error table
   # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
   sim.rem.total = rowSums(output.near.to.off.multi[which(output.near.to.off.multi$time %in% days.obs), 
@@ -848,19 +871,42 @@
   
   P.nearshore = I.LS.nearshore + I.MS.nearshore + I.HS.nearshore
   
+  
+  # TESTING - this showed that you CAN project using density-dependent framework, just have to essentially convert to frequency dependence with the site:site ratio
+  ratio.off.to.near = N.offshore /N.nearshore
+  ratio.off.to.near.LS = N.LS.offshore / N.LS.nearshore
+  ratio.off.to.near.MS = N.MS.offshore / N.MS.nearshore
+  ratio.off.to.near.HS = N.HS.offshore / N.HS.nearshore
+
   #simulation using initial state variables from naive site and parameters from fitted site
   output.off.to.near.multi = data.frame(ode(c(S.LS = S.LS.nearshore, I.LS = I.LS.nearshore, R.LS = R.LS.nearshore,
                                               S.MS = S.MS.nearshore, I.MS = I.MS.nearshore, R.MS = R.MS.nearshore,
                                               # S.HS = S.HS.nearshore, I.HS = I.HS.nearshore, R.HS = R.HS.nearshore,
                                               # P = P.nearshore),
                                               S.HS = S.HS.nearshore, I.HS = I.HS.nearshore, R.HS = R.HS.nearshore),
-                                            days.model.nearshore, SIR.multi, c(b.LS = beta.offshore.LS, g.LS = gamma.offshore.LS,
-                                                                              b.MS = beta.offshore.MS, g.MS = gamma.offshore.MS,
-                                                                              b.HS = beta.offshore.HS, g.HS = gamma.offshore.HS,
-                                                                              N.LS = N.LS.nearshore, N.MS = N.MS.nearshore, N.HS = N.HS.nearshore,
-                                                                              C = cover.nearshore,
-                                                                              C.LS = cover.nearshore.LS, C.MS = cover.nearshore.MS, C.HS = cover.nearshore.HS,
-                                                                              l = lambda)))
+                                            days.model.nearshore, SIR.multi, c(b.LS = beta.offshore.LS * ratio.off.to.near, g.LS = gamma.offshore.LS,
+                                                                               b.MS = beta.offshore.MS * ratio.off.to.near, g.MS = gamma.offshore.MS,
+                                                                               b.HS = beta.offshore.HS * ratio.off.to.near, g.HS = gamma.offshore.HS,
+                                                                               N.LS = N.LS.nearshore, N.MS = N.MS.nearshore, N.HS = N.HS.nearshore,
+                                                                               C = cover.nearshore,
+                                                                               C.LS = cover.nearshore.LS, C.MS = cover.nearshore.MS, C.HS = cover.nearshore.HS,
+                                                                               l = lambda)))
+
+  # TESTING
+  
+  # #simulation using initial state variables from naive site and parameters from fitted site
+  # output.off.to.near.multi = data.frame(ode(c(S.LS = S.LS.nearshore, I.LS = I.LS.nearshore, R.LS = R.LS.nearshore,
+  #                                             S.MS = S.MS.nearshore, I.MS = I.MS.nearshore, R.MS = R.MS.nearshore,
+  #                                             # S.HS = S.HS.nearshore, I.HS = I.HS.nearshore, R.HS = R.HS.nearshore,
+  #                                             # P = P.nearshore),
+  #                                             S.HS = S.HS.nearshore, I.HS = I.HS.nearshore, R.HS = R.HS.nearshore),
+  #                                           days.model.nearshore, SIR.multi, c(b.LS = beta.offshore.LS, g.LS = gamma.offshore.LS,
+  #                                                                             b.MS = beta.offshore.MS, g.MS = gamma.offshore.MS,
+  #                                                                             b.HS = beta.offshore.HS, g.HS = gamma.offshore.HS,
+  #                                                                             N.LS = N.LS.nearshore, N.MS = N.MS.nearshore, N.HS = N.HS.nearshore,
+  #                                                                             C = cover.nearshore,
+  #                                                                             C.LS = cover.nearshore.LS, C.MS = cover.nearshore.MS, C.HS = cover.nearshore.HS,
+  #                                                                             l = lambda)))
   
   #calculate R-squared and update error table
   # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed

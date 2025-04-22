@@ -141,6 +141,18 @@
   
   
   
+  ################################## define cover params ##################################
+  
+  #with effect of coral cover
+  alpha_val = 0.13
+  # 0.01 produces too much outbreak at offshore
+  # 0.05 too I think
+  # 0.1 produces just a little too much outbreak, but R-squared is very bad (-0.57)...interesting
+  # 0.13 looks really good!! It is slightly out of phase but about on the money
+  # 0.15 produces not quite enough outbreak (R-squared = 0.28)
+  # 0.2 produces no outbreak at all. R-squared is -0.1 (technically better than with a = 0.1, but only because values near 0 are technically closer than a slightly poorly predicted actual outbreak)
+  k_val = 3
+  
   ################################## Model: multi-host ##################################
   SIR.multi = function(t,y,p){
     {
@@ -161,41 +173,57 @@
     with(as.list(p),{
         P = (I.LS + I.MS + I.HS)
 
-      #null conditions
-      transmission_modifier.LS = 1
-      transmission_modifier.MS = 1
-      transmission_modifier.HS = 1
+      # #null conditions
+      # transmission_modifier.LS = 1
+      # transmission_modifier.MS = 1
+      # transmission_modifier.HS = 1
       
-      # #with effect of coral cover
+      # #with effect of coral cover: group-scaled
       # transmission_modifier.LS = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C.LS)) / (1 - exp(-k_val)))
       # transmission_modifier.MS = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C.MS)) / (1 - exp(-k_val)))
       # transmission_modifier.HS = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C.HS)) / (1 - exp(-k_val)))
+      # #with effect of coral cover: community-scaled
+      # transmission_modifier.LS = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*(C.LS + C.MS + C.HS))) / (1 - exp(-k_val)))
+      # transmission_modifier.MS = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*(C.LS + C.MS + C.HS))) / (1 - exp(-k_val)))
+      # transmission_modifier.HS = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*(C.LS + C.MS + C.HS))) / (1 - exp(-k_val)))
+      # #TEST
+      # transmission_modifier.LS = (1 - 0.001) + 0.001*((1 - exp(-k_val*C.LS)) / (1 - exp(-k_val)))
+      # transmission_modifier.MS = (1 - 0.08) + 0.08*((1 - exp(-k_val*C.MS)) / (1 - exp(-k_val)))
+      # transmission_modifier.HS = (1 - 0.3) + 0.3*((1 - exp(-k_val*C.HS)) / (1 - exp(-k_val)))
+      # #TEST - works fairly well for N.community- & C.community-scaled model (which was initially fit with a = 0.13). unclear what further adjusting a.group means though
+      # transmission_modifier.LS = (1 - 0.90) + 0.90*((1 - exp(-k_val*(C.LS + C.MS + C.HS))) / (1 - exp(-k_val)))
+      # transmission_modifier.MS = (1 - 0.85) + 0.85*((1 - exp(-k_val*(C.LS + C.MS + C.HS))) / (1 - exp(-k_val)))
+      # transmission_modifier.HS = (1 - 0.70) + 0.70*((1 - exp(-k_val*(C.LS + C.MS + C.HS))) / (1 - exp(-k_val)))
+      #TEST - works fairly well for N.community- & C.community-scaled model (which was initially fit with a = 0.13). unclear what further adjusting a.group means though
+      transmission_modifier.LS = (1 - 0.90) + 0.90*((1 - exp(-k_val*(C.LS + C.MS + C.HS))) / (1 - exp(-k_val)))
+      transmission_modifier.MS = (1 - 0.80) + 0.80*((1 - exp(-k_val*(C.LS + C.MS + C.HS))) / (1 - exp(-k_val)))
+      transmission_modifier.HS = (1 - 0.75) + 0.75*((1 - exp(-k_val*(C.LS + C.MS + C.HS))) / (1 - exp(-k_val)))
       
-      #hybrid of frequency and density-dependent
-      dS.LS.dt = -b.LS*S.LS*(P) / N.LS * transmission_modifier.LS
-      dI.LS.dt = b.LS*S.LS*(P) / N.LS * transmission_modifier.LS - g.LS*I.LS
-      dR.LS.dt = g.LS*I.LS
-
-      dS.MS.dt = -b.MS*S.MS*(P) / N.MS * transmission_modifier.MS
-      dI.MS.dt = b.MS*S.MS*(P) / N.MS * transmission_modifier.MS - g.MS*I.MS
-      dR.MS.dt = g.MS*I.MS
-
-      dS.HS.dt = -b.HS*S.HS*(P) / N.HS * transmission_modifier.HS
-      dI.HS.dt = b.HS*S.HS*(P) / N.HS * transmission_modifier.HS - g.HS*I.HS
-      dR.HS.dt = g.HS*I.HS
-      
-      # #more frequency-dependent
-      # dS.LS.dt = -b.LS*S.LS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.LS
-      # dI.LS.dt = b.LS*S.LS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.LS - g.LS*I.LS
+      # #hybrid of frequency and density-dependent
+      # dS.LS.dt = -b.LS*S.LS*(P) / N.LS * transmission_modifier.LS
+      # dI.LS.dt = b.LS*S.LS*(P) / N.LS * transmission_modifier.LS - g.LS*I.LS
       # dR.LS.dt = g.LS*I.LS
       # 
-      # dS.MS.dt = -b.MS*S.MS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.MS
-      # dI.MS.dt = b.MS*S.MS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.MS - g.MS*I.MS
+      # dS.MS.dt = -b.MS*S.MS*(P) / N.MS * transmission_modifier.MS
+      # dI.MS.dt = b.MS*S.MS*(P) / N.MS * transmission_modifier.MS - g.MS*I.MS
       # dR.MS.dt = g.MS*I.MS
       # 
-      # dS.HS.dt = -b.HS*S.HS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.HS
-      # dI.HS.dt = b.HS*S.HS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.HS - g.HS*I.HS
+      # dS.HS.dt = -b.HS*S.HS*(P) / N.HS * transmission_modifier.HS
+      # dI.HS.dt = b.HS*S.HS*(P) / N.HS * transmission_modifier.HS - g.HS*I.HS
       # dR.HS.dt = g.HS*I.HS
+      
+      #more frequency-dependent
+      dS.LS.dt = -b.LS*S.LS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.LS
+      dI.LS.dt = b.LS*S.LS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.LS - g.LS*I.LS
+      dR.LS.dt = g.LS*I.LS
+
+      dS.MS.dt = -b.MS*S.MS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.MS
+      dI.MS.dt = b.MS*S.MS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.MS - g.MS*I.MS
+      dR.MS.dt = g.MS*I.MS
+
+      dS.HS.dt = -b.HS*S.HS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.HS
+      dI.HS.dt = b.HS*S.HS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.HS - g.HS*I.HS
+      dR.HS.dt = g.HS*I.HS
       
       # #more density-dependent
       # dS.LS.dt = -b.LS*S.LS*(P) * transmission_modifier.LS
@@ -601,15 +629,19 @@
     
     ############################## OPTIMIZE PARAMETERS ############################################################
     
-    # NOTE - TEMP
-    # uniform or no?
+    # TEST
     lower_bounds.tiss = c(0, 0, 0, 0, 0, 0)  # Lower bounds for betas and gammas - maybe more relaxed?
-    # upper_bounds.tiss = c(0.09/N.LS.site, 0.11, 0.15/N.MS.site, 0.16, 2.0/N.HS.site, 1.0)  # Upper bounds for betas and gammas
-    # upper_bounds.tiss = c(0.15/N.LS.site, 0.10, 0.15/N.MS.site, 0.10, 1.5/N.HS.site, 1.5)  # Upper bounds for betas and gammas
-    # upper_bounds.tiss = c(0.003/N.LS.site, 0.01, 0.01/N.MS.site, 0.02, 0.15/N.HS.site, 0.10)  # Upper bounds for betas and gammas
-
-    # upper_bounds.tiss = c(1/N.LS.site, 1, 1/N.MS.site, 1, 1.5/N.HS.site, 1.5)  # Upper bounds for betas and gammas
-    upper_bounds.tiss = c(4, 4, 4, 4, 4, 4)  # Upper bounds for betas and gammas
+    upper_bounds.tiss = c(1, 1.5, 1, 1.5, 1, 4)  # Upper bounds for betas and gammas
+    # TEST
+    
+    # # uniform or no?
+    # lower_bounds.tiss = c(0, 0, 0, 0, 0, 0)  # Lower bounds for betas and gammas - maybe more relaxed?
+    # # upper_bounds.tiss = c(0.09/N.LS.site, 0.11, 0.15/N.MS.site, 0.16, 2.0/N.HS.site, 1.0)  # Upper bounds for betas and gammas
+    # # upper_bounds.tiss = c(0.15/N.LS.site, 0.10, 0.15/N.MS.site, 0.10, 1.5/N.HS.site, 1.5)  # Upper bounds for betas and gammas
+    # # upper_bounds.tiss = c(0.003/N.LS.site, 0.01, 0.01/N.MS.site, 0.02, 0.15/N.HS.site, 0.10)  # Upper bounds for betas and gammas
+    # 
+    # # upper_bounds.tiss = c(1/N.LS.site, 1, 1/N.MS.site, 1, 1.5/N.HS.site, 1.5)  # Upper bounds for betas and gammas
+    # upper_bounds.tiss = c(4, 4, 4, 4, 4, 4)  # Upper bounds for betas and gammas
 
     # # NOTE - TEMP
     # STOPPING POINT - 12 feb 2025; not sure what on earth is going wrong but it seems like sum of squares (sum_diff) is not porting between functions correctly...need to make sure it is, so I can properly record R-squared values. and multi-host model should actually have a quite good R-squared so something is wonky

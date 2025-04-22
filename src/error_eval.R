@@ -65,19 +65,19 @@
   # List of all models with corresponding metadata
   model_list <- list(
     # Nearshore models
-    list(output = output.basic.nearshore, site = "near", host = "Single", type = "DHW", wave = "Pre-heat"),
+    # list(output = output.basic.nearshore, site = "near", host = "Single", type = "DHW", wave = "Pre-heat"),
     list(output = output.basic.nearshore.full, site = "near", host = "Single", type = "Fitted", wave = "Full"),
     # list(output = output.basic.nearshore.DHW, site = "near", host = "Single", type = "DHW", wave = "Full"),
     list(output = output.nearshore, site = "near", host = "Multi", type = "Fitted", wave = "Full"),
     
     # Midchannel models
-    list(output = output.basic.midchannel, site = "mid", host = "Single", type = "DHW", wave = "Pre-heat"),
+    # list(output = output.basic.midchannel, site = "mid", host = "Single", type = "DHW", wave = "Pre-heat"),
     list(output = output.basic.midchannel.full, site = "mid", host = "Single", type = "Fitted", wave = "Full"),
     # list(output = output.basic.midchannel.DHW, site = "mid", host = "Single", type = "DHW", wave = "Full"),
     list(output = output.midchannel, site = "mid", host = "Multi", type = "Fitted", wave = "Full"),
     
     # Offshore models
-    list(output = output.basic.offshore, site = "off", host = "Single", type = "DHW", wave = "Pre-heat"),
+    # list(output = output.basic.offshore, site = "off", host = "Single", type = "DHW", wave = "Pre-heat"),
     list(output = output.basic.offshore.full, site = "off", host = "Single", type = "Fitted", wave = "Full"),
     # list(output = output.basic.offshore.DHW, site = "off", host = "Single", type = "DHW", wave = "Full"),
     list(output = output.offshore, site = "off", host = "Multi", type = "Fitted", wave = "Full"),

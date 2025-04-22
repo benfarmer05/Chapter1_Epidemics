@@ -15,8 +15,8 @@
   ################################## Set-up ##################################
   # NOTE - run this while working within plots_basic.R and/or plots_multi.R if doing more than just the
   #         plotting sandbox section
-  load(here("output/plots_basic_workspace.RData"))
-  # load(here("output/plots_multi_workspace.RData"))
+  # load(here("output/plots_basic_workspace.RData"))
+  load(here("output/plots_multi_workspace.RData"))
   
   ################################## sandbox: cover ##################################
   
@@ -193,21 +193,21 @@
     }
     with(as.list(p),{
 
-      # #with cover
-      # transmission_modifier = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C)) / (1 - exp(-k_val)))
+      #with cover
+      transmission_modifier = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C)) / (1 - exp(-k_val)))
       
-      #with N
-      transmission_modifier = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*N*(1/max(N_range)))) / (1 - exp(-k_val)))
+      # #with N
+      # transmission_modifier = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*N*(1/max(N_range)))) / (1 - exp(-k_val)))
       
-      # #frequency-dependent
-      # dS.dt = -b * S * I / N * transmission_modifier
-      # dI.dt = b * S * I / N * transmission_modifier - g * I
-      # dR.dt = g * I
-      
-      #density-dependent
-      dS.dt = -b * S * I * transmission_modifier
-      dI.dt = b * S * I * transmission_modifier - g * I
+      #frequency-dependent
+      dS.dt = -b * S * I / N * transmission_modifier
+      dI.dt = b * S * I / N * transmission_modifier - g * I
       dR.dt = g * I
+      
+      # #density-dependent
+      # dS.dt = -b * S * I * transmission_modifier
+      # dI.dt = b * S * I * transmission_modifier - g * I
+      # dR.dt = g * I
       
       return(list(c(dS.dt, dI.dt, dR.dt)))
     })
@@ -262,8 +262,6 @@
   
   ################################## multi-host projection optimization ##################################
   
-  library(dplyr)
-  
   SIR.multi_project = function(t,y,p){
     {
       S.LS = y[1]
@@ -295,16 +293,30 @@
       transmission_modifier.MS = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C.MS)) / (1 - exp(-k_val)))
       transmission_modifier.HS = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C.HS)) / (1 - exp(-k_val)))
       
-      dS.LS.dt = -b.LS*S.LS*(P) / N.LS * transmission_modifier.LS
-      dI.LS.dt = b.LS*S.LS*(P) / N.LS * transmission_modifier.LS - g.LS*I.LS
+      # #hybrid of frequency and density-dependent
+      # dS.LS.dt = -b.LS*S.LS*(P) / N.LS * transmission_modifier.LS
+      # dI.LS.dt = b.LS*S.LS*(P) / N.LS * transmission_modifier.LS - g.LS*I.LS
+      # dR.LS.dt = g.LS*I.LS
+      # 
+      # dS.MS.dt = -b.MS*S.MS*(P) / N.MS * transmission_modifier.MS
+      # dI.MS.dt = b.MS*S.MS*(P) / N.MS * transmission_modifier.MS - g.MS*I.MS
+      # dR.MS.dt = g.MS*I.MS
+      # 
+      # dS.HS.dt = -b.HS*S.HS*(P) / N.HS * transmission_modifier.HS
+      # dI.HS.dt = b.HS*S.HS*(P) / N.HS * transmission_modifier.HS - g.HS*I.HS
+      # dR.HS.dt = g.HS*I.HS
+      
+      #more frequency-dependent
+      dS.LS.dt = -b.LS*S.LS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.LS
+      dI.LS.dt = b.LS*S.LS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.LS - g.LS*I.LS
       dR.LS.dt = g.LS*I.LS
       
-      dS.MS.dt = -b.MS*S.MS*(P) / N.MS * transmission_modifier.MS
-      dI.MS.dt = b.MS*S.MS*(P) / N.MS * transmission_modifier.MS - g.MS*I.MS
+      dS.MS.dt = -b.MS*S.MS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.MS
+      dI.MS.dt = b.MS*S.MS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.MS - g.MS*I.MS
       dR.MS.dt = g.MS*I.MS
       
-      dS.HS.dt = -b.HS*S.HS*(P) / N.HS * transmission_modifier.HS
-      dI.HS.dt = b.HS*S.HS*(P) / N.HS * transmission_modifier.HS - g.HS*I.HS
+      dS.HS.dt = -b.HS*S.HS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.HS
+      dI.HS.dt = b.HS*S.HS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.HS - g.HS*I.HS
       dR.HS.dt = g.HS*I.HS
       
       return(list(c(dS.LS.dt, dI.LS.dt, dR.LS.dt, dS.MS.dt, dI.MS.dt, dR.MS.dt, dS.HS.dt, dI.HS.dt, dR.HS.dt), P = P))
@@ -319,7 +331,7 @@
   k_val = 3
   
   best_r_squared <- -Inf
-  best_lambda <- c(lambda.LS = NA, lambda.MS = NA, lambda.HS = NA)
+  best_alpha <- c(alpha.LS = NA, alpha.MS = NA, alpha.HS = NA)
   
   site.loop = 'Offshore'
   curr.site = 'off'
@@ -327,7 +339,6 @@
     filter(Site == curr.site, Category == "Total", Compartment == "Dead") %>%
     slice(head(row_number(), n()-DHW.modifier)) %>%
     pull(tissue)
-  
   
   for (i in alpha_values) {
     

@@ -988,90 +988,6 @@
   gamma.HS.nearshore.multi = gamma.nearshore.HS
   R0s.nearshore.multi = c(beta.LS.nearshore.multi, beta.MS.nearshore.multi, beta.HS.nearshore.multi) / c(gamma.LS.nearshore.multi, gamma.MS.nearshore.multi, gamma.HS.nearshore.multi)
 
-  # TEST - stopping point - note - 21 April 2025
-  # - working out Jacobian matrix for group-wide R0
-  # Define parameters
-
-  # Vectors for iteration
-  betas.offshore.jacobian.freq <- c(beta.LS.offshore.multi, beta.MS.offshore.multi, beta.HS.offshore.multi)
-  gammas.offshore.jacobian.freq <- c(gamma.LS.offshore.multi, gamma.MS.offshore.multi, gamma.HS.offshore.multi)
-  Ns.offshore <- c(N.LS.offshore, N.MS.offshore, N.HS.offshore)
-  
-  # Construct F matrix
-  F <- matrix(0, nrow = 3, ncol = 3)
-  for (i in 1:3) {
-    for (j in 1:3) {
-      F[i, j] <- betas.offshore.jacobian.freq[j] * Ns.offshore[i] / Ns.offshore[j]
-    }
-  }
-  
-  # Construct V matrix (diagonal with gammas)
-  V <- diag(gammas.offshore.jacobian.freq)
-  
-  # Next-generation matrix
-  K.offshore.freq <- F %*% solve(V)
-  
-  # R0 is the dominant eigenvalue
-  eigenvalues.offshore.freq <- eigen(K.offshore.freq)$values
-  R0.offshore.jacobian.freq <- max(Re(eigenvalues.offshore.freq))
-  
-  # Vectors for iteration
-  betas.midchannel.jacobian.freq <- c(beta.LS.midchannel.multi, beta.MS.midchannel.multi, beta.HS.midchannel.multi)
-  gammas.midchannel.jacobian.freq <- c(gamma.LS.midchannel.multi, gamma.MS.midchannel.multi, gamma.HS.midchannel.multi)
-  Ns.midchannel <- c(N.LS.midchannel, N.MS.midchannel, N.HS.midchannel)
-  
-  # Construct F matrix
-  F <- matrix(0, nrow = 3, ncol = 3)
-  for (i in 1:3) {
-    for (j in 1:3) {
-      F[i, j] <- betas.midchannel.jacobian.freq[j] * Ns.midchannel[i] / Ns.midchannel[j]
-    }
-  }
-  
-  # Construct V matrix (diagonal with gammas)
-  V <- diag(gammas.midchannel.jacobian.freq)
-  
-  # Next-generation matrix
-  K.midchannel.freq <- F %*% solve(V)
-  
-  # R0 is the dominant eigenvalue
-  eigenvalues.midchannel.freq <- eigen(K.midchannel.freq)$values
-  R0.midchannel.jacobian.freq <- max(Re(eigenvalues.midchannel.freq))
-  
-  # Vectors for iteration
-  betas.nearshore.jacobian.freq <- c(beta.LS.nearshore.multi, beta.MS.nearshore.multi, beta.HS.nearshore.multi)
-  gammas.nearshore.jacobian.freq <- c(gamma.LS.nearshore.multi, gamma.MS.nearshore.multi, gamma.HS.nearshore.multi)
-  Ns.nearshore <- c(N.LS.nearshore, N.MS.nearshore, N.HS.nearshore)
-  
-  # Construct F matrix
-  F <- matrix(0, nrow = 3, ncol = 3)
-  for (i in 1:3) {
-    for (j in 1:3) {
-      F[i, j] <- betas.nearshore.jacobian.freq[j] * Ns.nearshore[i] / Ns.nearshore[j]
-    }
-  }
-  
-  # Construct V matrix (diagonal with gammas)
-  V <- diag(gammas.nearshore.jacobian.freq)
-  
-  # Next-generation matrix
-  K.nearshore.freq <- F %*% solve(V)
-  
-  # R0 is the dominant eigenvalue
-  eigenvalues.nearshore.freq <- eigen(K.nearshore.freq)$values
-  R0.nearshore.jacobian.freq <- max(Re(eigenvalues.nearshore.freq))
-
-  # Show results
-  K.offshore.freq
-  R0.offshore.jacobian.freq
-  K.midchannel.freq
-  R0.midchannel.jacobian.freq
-  K.nearshore.freq
-  R0.nearshore.jacobian.freq
-  
-  
-  
-  
   # Create a new dataframe with the updated structure - now with separate Beta and Gamma columns
   reformatted_table <- data.frame(
     Simulation = character(),
@@ -1215,7 +1131,296 @@
   # Print the final table
   print(reformatted_table)
 
-
+  
+  ################################## Force of infection / R0 ##################################
+  
+  # TEST - stopping point - note - 22 April 2025
+  # - working out Jacobian matrix for group-wide R0
+  # Define parameters
+  
+  # OFFSHORE
+  betas.offshore.jacobian.freq <- c(beta.LS.offshore.multi, beta.MS.offshore.multi, beta.HS.offshore.multi)
+  gammas.offshore.jacobian.freq <- c(gamma.LS.offshore.multi, gamma.MS.offshore.multi, gamma.HS.offshore.multi)
+  Ns.offshore <- c(N.LS.offshore, N.MS.offshore, N.HS.offshore)
+  
+  # Define group names for clear labeling
+  group_names <- c("LS", "MS", "HS")
+  
+  # Construct F matrix
+  F.offshore.freq <- matrix(0, nrow = 3, ncol = 3)
+  for (i in 1:3) {
+    for (j in 1:3) {
+      F.offshore.freq[i, j] <- betas.offshore.jacobian.freq[j] * Ns.offshore[i] / Ns.offshore[j]
+    }
+  }
+  
+  # Add row and column names to F matrix
+  rownames(F.offshore.freq) <- paste0("To_", group_names)
+  colnames(F.offshore.freq) <- paste0("From_", group_names)
+  
+  # Construct V matrix (diagonal with gammas)
+  V.offshore.freq <- diag(gammas.offshore.jacobian.freq)
+  
+  # Add row and column names to V matrix
+  rownames(V.offshore.freq) <- group_names
+  colnames(V.offshore.freq) <- group_names
+  
+  # Next-generation matrix
+  K.offshore.freq <- F.offshore.freq %*% solve(V.offshore.freq)
+  
+  # Add row and column names to K matrix
+  rownames(K.offshore.freq) <- paste0("To_", group_names)
+  colnames(K.offshore.freq) <- paste0("From_", group_names)
+  
+  # R0 is the dominant eigenvalue
+  eigenvalues.offshore.freq <- eigen(K.offshore.freq)$values
+  R0.offshore.jacobian.freq <- max(Re(eigenvalues.offshore.freq))
+  
+  
+  
+  
+  # MIDCHANNEL
+  betas.midchannel.jacobian.freq <- c(beta.LS.midchannel.multi, beta.MS.midchannel.multi, beta.HS.midchannel.multi)
+  gammas.midchannel.jacobian.freq <- c(gamma.LS.midchannel.multi, gamma.MS.midchannel.multi, gamma.HS.midchannel.multi)
+  Ns.midchannel <- c(N.LS.midchannel, N.MS.midchannel, N.HS.midchannel)
+  
+  # Construct F matrix
+  F.midchannel.freq <- matrix(0, nrow = 3, ncol = 3)
+  for (i in 1:3) {
+    for (j in 1:3) {
+      F.midchannel.freq[i, j] <- betas.midchannel.jacobian.freq[j] * Ns.midchannel[i] / Ns.midchannel[j]
+    }
+  }
+  
+  # Add row and column names to F matrix
+  rownames(F.midchannel.freq) <- paste0("To_", group_names)
+  colnames(F.midchannel.freq) <- paste0("From_", group_names)
+  
+  # Construct V matrix (diagonal with gammas)
+  V.midchannel.freq <- diag(gammas.midchannel.jacobian.freq)
+  
+  # Add row and column names to V matrix
+  rownames(V.midchannel.freq) <- group_names
+  colnames(V.midchannel.freq) <- group_names
+  
+  # Next-generation matrix
+  K.midchannel.freq <- F.midchannel.freq %*% solve(V.midchannel.freq)
+  
+  # Add row and column names to K matrix
+  rownames(K.midchannel.freq) <- paste0("To_", group_names)
+  colnames(K.midchannel.freq) <- paste0("From_", group_names)
+  
+  # R0 is the dominant eigenvalue
+  eigenvalues.midchannel.freq <- eigen(K.midchannel.freq)$values
+  R0.midchannel.jacobian.freq <- max(Re(eigenvalues.midchannel.freq))
+  
+  
+  
+  
+  # NEARSHORE
+  betas.nearshore.jacobian.freq <- c(beta.LS.nearshore.multi, beta.MS.nearshore.multi, beta.HS.nearshore.multi)
+  gammas.nearshore.jacobian.freq <- c(gamma.LS.nearshore.multi, gamma.MS.nearshore.multi, gamma.HS.nearshore.multi)
+  Ns.nearshore <- c(N.LS.nearshore, N.MS.nearshore, N.HS.nearshore)
+  
+  # Construct F matrix
+  F.nearshore.freq <- matrix(0, nrow = 3, ncol = 3)
+  for (i in 1:3) {
+    for (j in 1:3) {
+      F.nearshore.freq[i, j] <- betas.nearshore.jacobian.freq[j] * Ns.nearshore[i] / Ns.nearshore[j]
+    }
+  }
+  
+  # Add row and column names to F matrix
+  rownames(F.nearshore.freq) <- paste0("To_", group_names)
+  colnames(F.nearshore.freq) <- paste0("From_", group_names)
+  
+  # Construct V matrix (diagonal with gammas)
+  V.nearshore.freq <- diag(gammas.nearshore.jacobian.freq)
+  
+  # Add row and column names to V matrix
+  rownames(V.nearshore.freq) <- group_names
+  colnames(V.nearshore.freq) <- group_names
+  
+  # Next-generation matrix
+  K.nearshore.freq <- F.nearshore.freq %*% solve(V.nearshore.freq)
+  
+  # Add row and column names to K matrix
+  rownames(K.nearshore.freq) <- paste0("To_", group_names)
+  colnames(K.nearshore.freq) <- paste0("From_", group_names)
+  
+  # R0 is the dominant eigenvalue
+  eigenvalues.nearshore.freq <- eigen(K.nearshore.freq)$values
+  R0.nearshore.jacobian.freq <- max(Re(eigenvalues.nearshore.freq))
+  
+  
+  
+  # NEAR TO OFF
+  betas.nearshore.jacobian.freq
+  gammas.nearshore.jacobian.freq
+  Ns.offshore
+  
+  # Construct F matrix
+  F.near.to.off.freq <- matrix(0, nrow = 3, ncol = 3)
+  for (i in 1:3) {
+    for (j in 1:3) {
+      F.near.to.off.freq[i, j] <- betas.nearshore.jacobian.freq[j] * Ns.offshore[i] / Ns.offshore[j]
+    }
+  }
+  
+  # Add row and column names to F matrix
+  rownames(F.near.to.off.freq) <- paste0("To_", group_names)
+  colnames(F.near.to.off.freq) <- paste0("From_", group_names)
+  
+  # Construct V matrix (diagonal with gammas)
+  V.near.to.off.freq <- diag(gammas.nearshore.jacobian.freq)
+  
+  # Add row and column names to V matrix
+  rownames(V.near.to.off.freq) <- group_names
+  colnames(V.near.to.off.freq) <- group_names
+  
+  # Next-generation matrix
+  K.near.to.off.freq <- F.near.to.off.freq %*% solve(V.near.to.off.freq)
+  
+  # Add row and column names to K matrix
+  rownames(K.near.to.off.freq) <- paste0("To_", group_names)
+  colnames(K.near.to.off.freq) <- paste0("From_", group_names)
+  
+  # R0 is the dominant eigenvalue
+  eigenvalues.near.to.off.freq <- eigen(K.near.to.off.freq)$values
+  R0.near.to.off.jacobian.freq <- max(Re(eigenvalues.near.to.off.freq))
+  
+  
+  
+  # OFF TO NEAR
+  betas.offshore.jacobian.freq
+  gammas.offshore.jacobian.freq
+  Ns.nearshore
+  
+  # Construct F matrix
+  F.off.to.near.freq <- matrix(0, nrow = 3, ncol = 3)
+  for (i in 1:3) {
+    for (j in 1:3) {
+      F.off.to.near.freq[i, j] <- betas.offshore.jacobian.freq[j] * Ns.nearshore[i] / Ns.nearshore[j]
+    }
+  }
+  
+  # Add row and column names to F matrix
+  rownames(F.off.to.near.freq) <- paste0("To_", group_names)
+  colnames(F.off.to.near.freq) <- paste0("From_", group_names)
+  
+  # Construct V matrix (diagonal with gammas)
+  V.off.to.near.freq <- diag(gammas.offshore.jacobian.freq)
+  
+  # Add row and column names to V matrix
+  rownames(V.off.to.near.freq) <- group_names
+  colnames(V.off.to.near.freq) <- group_names
+  
+  # Next-generation matrix
+  K.off.to.near.freq <- F.off.to.near.freq %*% solve(V.off.to.near.freq)
+  
+  # Add row and column names to K matrix
+  rownames(K.off.to.near.freq) <- paste0("To_", group_names)
+  colnames(K.off.to.near.freq) <- paste0("From_", group_names)
+  
+  # R0 is the dominant eigenvalue
+  eigenvalues.off.to.near.freq <- eigen(K.off.to.near.freq)$values
+  R0.off.to.near.jacobian.freq <- max(Re(eigenvalues.off.to.near.freq))
+  
+  
+  
+  
+  # RESULTS
+  # # Print F matrix with interpretation
+  # # cat("Offshore F Matrix (new infections):\n")
+  # print(F.offshore.freq)
+  # # cat("\nInterpretation: F[i,j] represents infection rate from group j to group i\n")
+  # # cat("For example, F['To_LS', 'From_MS'] is the rate at which MS group infects LS group\n\n")
+  # 
+  # # Print V matrix with interpretation
+  # # cat("Offshore V Matrix (transition rates):\n")
+  # print(V.offshore.freq)
+  # # cat("\nInterpretation: V contains the recovery rates for each group on the diagonal\n\n")
+  # 
+  # # Print K matrix with interpretation
+  # # cat("Offshore K Matrix (next-generation matrix):\n")
+  # print(K.offshore.freq)
+  # # cat("\nInterpretation: K[i,j] is the expected number of new infections in group i\n")
+  # # cat("produced by a single infected individual in group j during its infectious period\n\n")
+  
+  # cat("Offshore R0 value:", R0.offshore.jacobian.freq, "\n")
+  # 
+  # print(F.midchannel.freq)
+  # print(V.midchannel.freq)
+  # print(K.midchannel.freq)
+  # cat("Midchannel R0 value:", R0.midchannel.jacobian.freq, "\n")
+  # 
+  # print(F.nearshore.freq)
+  # print(V.nearshore.freq)
+  # print(K.nearshore.freq)
+  # cat("Nearshore R0 value:", R0.nearshore.jacobian.freq, "\n")
+  
+  #R0s
+  cat("Offshore R0 value:", R0.offshore.jacobian.freq, "\n")
+  cat("Midchannel R0 value:", R0.midchannel.jacobian.freq, "\n")
+  cat("Nearshore R0 value:", R0.nearshore.jacobian.freq, "\n")
+  cat("Near -> Off R0 value:", R0.near.to.off.jacobian.freq, "\n")
+  cat("Off -> Near R0 value:", R0.off.to.near.jacobian.freq, "\n")
+  
+  #Fs
+  print(F.offshore.freq)
+  print(F.midchannel.freq)
+  print(F.nearshore.freq)
+  print(F.near.to.off.freq)
+  print(F.off.to.near.freq)
+  
+  #Ks
+  print(K.offshore.freq)
+  print(K.midchannel.freq)
+  print(K.nearshore.freq)
+  print(K.near.to.off.freq)
+  print(K.off.to.near.freq)
+  
+  #forces of infection exerted on species j by the rest of the community (Dobson 2004)
+  print(rowSums(K.offshore.freq))
+  print(rowSums(K.midchannel.freq))
+  print(rowSums(K.nearshore.freq))
+  print(rowSums(K.near.to.off.freq))
+  print(rowSums(K.off.to.near.freq))
+  
+  #forces of infection placed on other species due to presence of infections in species j (Dobson 2004):
+  print(colSums(K.offshore.freq))
+  print(colSums(K.midchannel.freq))
+  print(colSums(K.nearshore.freq))
+  print(colSums(K.near.to.off.freq))
+  print(colSums(K.off.to.near.freq))
+  
+  #re-write table with community-wide R0 instead of within-group
+  idx <- which(reformatted_table$Simulation == "Offshore" & reformatted_table$Host == "Multi")
+  reformatted_table$Effective_R0[idx] <- paste(round(R0.offshore.jacobian.freq, 2), collapse = ", ")
+  
+  idx <- which(reformatted_table$Simulation == "Midchannel" & reformatted_table$Host == "Multi")
+  reformatted_table$Effective_R0[idx] <- paste(round(R0.midchannel.jacobian.freq, 2), collapse = ", ")
+  
+  idx <- which(reformatted_table$Simulation == "Nearshore" & reformatted_table$Host == "Multi")
+  reformatted_table$Effective_R0[idx] <- paste(round(R0.nearshore.jacobian.freq, 2), collapse = ", ")
+  
+  idx <- which(reformatted_table$Simulation == "Near -> Off" & reformatted_table$Host == "Multi")
+  reformatted_table$Effective_R0[idx] <- paste(round(R0.near.to.off.jacobian.freq, 2), collapse = ", ")
+  
+  idx <- which(reformatted_table$Simulation == "Off -> Near" & reformatted_table$Host == "Multi")
+  reformatted_table$Effective_R0[idx] <- paste(round(R0.off.to.near.jacobian.freq, 2), collapse = ", ")
+  
+  output_path <- here("output", "tablex2_freqency.csv")
+  
+  # Write the table to a CSV file without row names
+  write.csv(reformatted_table, output_path, row.names = FALSE)
+  
+  # Print the file path for confirmation
+  cat("Table saved to: ", output_path, "\n")
+  # Print the final table
+  print(reformatted_table)
+  
+  
   # ################################## Table X2 - Dens. ##################################
   # 
   # # error_eval stuff here
