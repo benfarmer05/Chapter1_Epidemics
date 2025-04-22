@@ -1092,7 +1092,7 @@
   
   #whole outbreak simulations
   (p.fit.offshore.multi | p.fit.midchannel.multi | p.fit.nearshore.multi) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
-
+  
   #projection vs fitted
   (p.fit.offshore.multi | p.fit.near.to.off.multi)
   (p.fit.nearshore.multi | p.fit.off.to.near.multi)

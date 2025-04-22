@@ -1,16 +1,27 @@
   
-
-# .rs.restartR(clean = TRUE)
-rm(list=ls())
-
-library(ggplot2)
-library(here)
-
-# NOTE - run this while working within plots_basic.R and/or plots_multi.R if doing more than just the
-#         plotting sandbox section
-
-################################## alpha / k parameter plotting sandbox ##################################
-
+  # NOTE:
+  #   - the below script is only intended to understanding the behavior of alpha (effect of host density
+  #       on SCTLD transmission). the final value of alpha actually used in publication was found by starting here,
+  #       and then going back to output_basic.R and working toward a value that best projected Nearshore -> Offshore
+  
+  # .rs.restartR(clean = TRUE)
+  rm(list=ls())
+  
+  library(ggplot2)
+  library(dplyr)
+  library(here)
+  library(deSolve)
+  
+  ################################## Set-up ##################################
+  # NOTE - run this while working within plots_basic.R and/or plots_multi.R if doing more than just the
+  #         plotting sandbox section
+  load(here("output/plots_basic_workspace.RData"))
+  # load(here("output/plots_multi_workspace.RData"))
+  
+  ################################## sandbox: cover ##################################
+  
+  # COVER-BASED VERSION
+  
   # CC = seq(0.001,1,.001)
   # lmbds = c(1,10,100,1000)
   # 
@@ -116,11 +127,63 @@ library(here)
   # quartz(h = 4, w = 4)
   # fig3_col1
   
-  #ggplot-export to image
-  ggsave(filename = here("output", "alpha.png"), device = "png", width = 4, height = 4, dpi = 1200)
+  # #ggplot-export to image
+  # ggsave(filename = here("output", "alpha.png"), device = "png", width = 4, height = 4, dpi = 1200)
+  
+  ################################## sandbox: N ##################################
+  
+  # N-BASED VERSION
+  reef_area = 1000 #or could do 600, the 2-D area of reef sites, in m2
+  N.offshore.scaled = N.offshore / reef_area
+  N.nearshore.scaled = N.nearshore / reef_area
+  N_range = seq(0,reef_area,1)
+  # N_range = N_range / reef_area
+  a = seq(0,1,0.01) #alpha (weight of N)
+  k = 3 #shape of curve
+  
+  #self-scaled
+  
+  # Set font to Georgia
+  par(family = "Georgia")  
+  
+  plot(NA, NA, 
+       xlim = range(N_range), 
+       ylim = c(0, 1),
+       # xlab = "Population size (density of tissue SA per 1000 m²)", 
+       xlab = "Population size (m²)", 
+       ylab = "Transmission Modifier")
+  
+  for (i in 1:length(a)) {
+    
+    mods.1 <- (1 - a[i]) + a[i] * ((1 - exp(-3 * N_range * (1/max(N_range)))) / (1 - exp(-3)))
+    
+    col_choice <- ifelse(a[i] == 0.13, 'blue', adjustcolor('red', alpha.f = 0.5))  
+    lwd_choice <- ifelse(a[i] == 0.13, 2, 0.5)  # Thicker for α = 0.13
+    
+    lines(N_range, mods.1, col = col_choice, lwd = lwd_choice)
+    
+    # Add site-specific stars only for α = 0.13
+    if (a[i] == 0.13) {
+      points(N.nearshore, (1 - a[i]) + a[i] * ((1 - exp(-3 * N.nearshore * (1/max(N_range)))) / (1 - exp(-3))), 
+             pch = 8, col = "orange", cex = 1.5, lwd = 2)  # Nearshore (orange)
+      
+      points(N.offshore, (1 - a[i]) + a[i] * ((1 - exp(-3 * N.offshore * (1/max(N_range)))) / (1 - exp(-3))), 
+             pch = 8, col = "magenta", cex = 1.5, lwd = 2)  # Offshore (magenta)
+    }
+  }
+  
+  # Add legend slightly lower than the top right
+  legend("topright", 
+         legend = c(expression(alpha == 0.13), "Nearshore", "Offshore"), 
+         col = c("blue", "orange", "magenta"), 
+         pch = c(NA, 8, 8), 
+         lwd = c(2, NA, NA), 
+         bty = "n",
+         # y.intersp = 1.5,   # Increase spacing between legend items
+         inset = c(0, 0.1)) # Move the legend slightly downward
+  
   
   ################################## single-host projection optimization ##################################
-  library(dplyr)
   
   SIR_project = function(t,y,p){ # 'p' is parameters or params
     {
@@ -130,10 +193,20 @@ library(here)
     }
     with(as.list(p),{
 
-      transmission_modifier = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C)) / (1 - exp(-k_val)))
+      # #with cover
+      # transmission_modifier = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C)) / (1 - exp(-k_val)))
       
-      dS.dt = -b * S * I / N * transmission_modifier
-      dI.dt = b * S * I / N * transmission_modifier - g * I
+      #with N
+      transmission_modifier = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*N*(1/max(N_range)))) / (1 - exp(-k_val)))
+      
+      # #frequency-dependent
+      # dS.dt = -b * S * I / N * transmission_modifier
+      # dI.dt = b * S * I / N * transmission_modifier - g * I
+      # dR.dt = g * I
+      
+      #density-dependent
+      dS.dt = -b * S * I * transmission_modifier
+      dI.dt = b * S * I * transmission_modifier - g * I
       dR.dt = g * I
       
       return(list(c(dS.dt, dI.dt, dR.dt)))
@@ -153,17 +226,17 @@ library(here)
     
     # Run the model
     output.basic.offshore.transfer = data.frame(ode(c(S = S.offshore, I = I.offshore, R = R.offshore),
-                                                    days.model.offshore, SIR_project, c(b = beta.nearshore, g = gamma.nearshore,
+                                                    days.model.offshore, SIR_project, c(b = params.basic.nearshore.full[1], g = params.basic.nearshore.full[3],
                                                                                 N = N.offshore,
-                                                                                C = cover.offshore,
-                                                                                l = lambda)))
+                                                                                C = cover.offshore.full,
+                                                                                l = lambda.modifier)))
     
     
     # Compute R-squared
     sim.rem.total = output.basic.offshore.transfer[which(output.basic.offshore.transfer$time %in% days.obs),
                                                    which(colnames(output.basic.offshore.transfer) %in% c('R'))]
     
-    # NOTE - this asssumes that obs.rem.total is pulling data for offshore correctly from the upstream environment. note if any issues
+    # NOTE - this assumes that obs.rem.total is pulling data for offshore correctly from the upstream environment. note if any issues
     if (length(obs.rem.total) > length(sim.rem.total)) {
       obs.rem.total <- obs.rem.total[(length(obs.rem.total) - length(sim.rem.total) + 1):length(obs.rem.total)]
     }
@@ -186,10 +259,6 @@ library(here)
   print(best_r_squared)
   
   #best alpha value was: 0.07107107
-  
-  
-  
-  
   
   ################################## multi-host projection optimization ##################################
   
@@ -314,12 +383,12 @@ library(here)
   ################################## sandbox for manually tweaking alpha ##################################
   
   #sandbox conditions
-  beta.nearshore.sand = 0.65137 # 0.76 #0.64
-  gamma.nearshore.sand = 0.5622153 # 0.56
+  beta.nearshore.sand = params.basic.nearshore.full[1] #0.65137 # 0.76 #0.64
+  gamma.nearshore.sand = params.basic.nearshore.full[3] #0.5622153 # 0.56
   alpha_val = 0.07107107 # 0.03 # 0.07107107 # 0
   k_val = 3
   lambda_val = 1.0
-  offset_val = 1 - 1 / (1 + exp(-lambda * 1.0))
+  offset_val = 1 - 1 / (1 + exp(-lambda_val * 1.0))
   
   
   SIR.sand.no_cover = function(t,y,p){ # 'p' is parameters or params

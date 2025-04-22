@@ -1050,7 +1050,7 @@
                                                 N = N.offshore,
                                                 l = lambda.nearshore.full,
                                                 C = cover.offshore.full)))
-
+  
   #calculate R-squared and update error table
   # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed
   sim.rem.total = output.basic.offshore.transfer[which(output.basic.offshore.transfer$time %in% days.obs), which(colnames(output.basic.offshore.transfer) %in% 'R')]

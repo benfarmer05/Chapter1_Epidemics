@@ -192,22 +192,35 @@
     }
     with(as.list(p),{
       
-      #null conditions
-      transmission_modifier = 1
+      # #null conditions
+      # transmission_modifier = 1
       
       # #with effect of coral cover - I only ran this with frequency-dependence, since this essentially hard-codes density-dependence from a "null model" of frequency-dependence
       # # NOTE - previously I used a similar but more complicated equation with lambda - alpha could be renamed lambda here
       # transmission_modifier = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C)) / (1 - exp(-k_val)))
       
-      #frequency-dependent
-      dS.dt = -b * S * I / N * transmission_modifier
-      dI.dt = b * S * I / N * transmission_modifier - g * I
-      dR.dt = g * I
+      # # TEST - 21 APRIL 2025
+      # #with N
+      # transmission_modifier = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*N*(1/1000))) / (1 - exp(-k_val)))
+      # # #output from freq.-dependent
+      # 1.256466 * ((1 - alpha_val) + alpha_val*((1 - exp(-k_val*16.45688*(1/1000))) / (1 - exp(-k_val)))) #off
+      # 3.118351 * ((1 - alpha_val) + alpha_val*((1 - exp(-k_val*31.46229*(1/1000))) / (1 - exp(-k_val)))) #mid
+      # # 0.671040 * (1 - alpha_val) + alpha_val*((1 - exp(-k_val*172.82766*(1/1000))) / (1 - exp(-k_val))) #near
+      # #output from dens.-dependent
+      # 0.076374 * (1 - 0.13) + 0.13*((1 - exp(-3*16.45688*(1/1000))) / (1 - exp(-3)))  #off
+      # 3.118351 * (1 - alpha_val) + alpha_val*((1 - exp(-k_val*31.46229*(1/1000))) / (1 - exp(-k_val))) #mid
+      # 0.671040 * (1 - alpha_val) + alpha_val*((1 - exp(-k_val*172.82766*(1/1000))) / (1 - exp(-k_val))) #near
+      # # TEST - 21 APRIL 2025
       
-      # #density-dependent
-      # dS.dt = -b * S * I * transmission_modifier
-      # dI.dt = b * S * I * transmission_modifier - g * I
+      # #frequency-dependent
+      # dS.dt = -b * S * I / N * transmission_modifier
+      # dI.dt = b * S * I / N * transmission_modifier - g * I
       # dR.dt = g * I
+      
+      #density-dependent
+      dS.dt = -b * S * I * transmission_modifier
+      dI.dt = b * S * I * transmission_modifier - g * I
+      dR.dt = g * I
       
       return(list(c(dS.dt, dI.dt, dR.dt)))
     })
