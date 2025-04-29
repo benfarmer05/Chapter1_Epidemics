@@ -5,7 +5,7 @@
   library(here)
   library(ggplot2)
   library(dplyr)
-
+  
   ################################## Set-up ##################################
   
   #import workspace from upstream script
@@ -237,55 +237,55 @@
   
   
   
-  ################################## Plot SST & DHW through time ##################################
-  
-  # Plot SST over time
-  ggplot(SST_df, aes(x = date, y = SST)) +
-    geom_line(color = "blue") +
-    labs(title = "Sea Surface Temperature (SST) Over Time",
-         x = "Date",
-         y = "SST (°C)") +
-    theme_minimal()
-  
-  # Merge the two datasets by date
-  SST_DHW_df <- full_join(SST_df, DHW_df, by = c("date", "time"))
-  
-  # Plot SST and DHW over time
-  ggplot(SST_DHW_df, aes(x = date)) +
-    geom_line(aes(y = SST, color = "SST"), size = 1) +
-    geom_line(aes(y = DHW, color = "DHW"), size = 1) +
-    scale_color_manual(values = c("SST" = "#E69F00", "DHW" = "#0072B2"), 
-                       name = "Variable", labels = c("SST (°C)", "DHW (°C-weeks)")) +
-    labs(title = "Sea Surface Temperature (SST) and Degree Heating Weeks (DHW) Over Time",
-         x = "Date",
-         y = "Value") +
-    theme_minimal()
-  
-  
-  ################################## Attempt at unified plot ##################################
-  
-  # Merge the datasets
-  SST_DHW_df <- full_join(SST_df, DHW_df, by = c("date", "time"))
-  SST_DHW_df$date <- as.Date(SST_DHW_df$date)
-  
-  ggplot(SST_DHW_df, aes(x = date)) +
-    geom_line(aes(y = SST, color = "SST"), size = 1) +
-    geom_line(aes(y = DHW * 3, color = "DHW"), size = 1) +  # Scale DHW for visibility
-    geom_vline(xintercept = as.Date("2019-11-16"), color = "black", linetype = "dashed") +
-    geom_vline(xintercept = as.Date("2019-12-06"), color = "black", linetype = "dashed") +
-    scale_y_continuous(
-      name = "SST (°C)", 
-      sec.axis = sec_axis(~ . / 3, name = "DHW (°C-weeks)")  # Reverse the scaling
-    ) +
-    scale_color_manual(
-      name = "Variable",
-      values = c("SST" = "#E69F00", "DHW" = "#0072B2"),  # Explicitly matching colors
-      breaks = c("SST", "DHW"),  # Ensure correct order in legend
-      labels = c("SST (°C)", "DHW (°C-weeks)")
-    ) +
-    labs(x = "Date", color = "Variable") +
-    theme_minimal()
-  
+  # ################################## Plot SST & DHW through time ##################################
+  # 
+  # # Plot SST over time
+  # ggplot(SST_df, aes(x = date, y = SST)) +
+  #   geom_line(color = "blue") +
+  #   labs(title = "Sea Surface Temperature (SST) Over Time",
+  #        x = "Date",
+  #        y = "SST (°C)") +
+  #   theme_minimal()
+  # 
+  # # Merge the two datasets by date
+  # SST_DHW_df <- full_join(SST_df, DHW_df, by = c("date", "time"))
+  # 
+  # # Plot SST and DHW over time
+  # ggplot(SST_DHW_df, aes(x = date)) +
+  #   geom_line(aes(y = SST, color = "SST"), size = 1) +
+  #   geom_line(aes(y = DHW, color = "DHW"), size = 1) +
+  #   scale_color_manual(values = c("SST" = "#E69F00", "DHW" = "#0072B2"), 
+  #                      name = "Variable", labels = c("SST (°C)", "DHW (°C-weeks)")) +
+  #   labs(title = "Sea Surface Temperature (SST) and Degree Heating Weeks (DHW) Over Time",
+  #        x = "Date",
+  #        y = "Value") +
+  #   theme_minimal()
+  # 
+  # 
+  # ################################## Attempt at unified plot ##################################
+  # 
+  # # Merge the datasets
+  # SST_DHW_df <- full_join(SST_df, DHW_df, by = c("date", "time"))
+  # SST_DHW_df$date <- as.Date(SST_DHW_df$date)
+  # 
+  # ggplot(SST_DHW_df, aes(x = date)) +
+  #   geom_line(aes(y = SST, color = "SST"), size = 1) +
+  #   geom_line(aes(y = DHW * 3, color = "DHW"), size = 1) +  # Scale DHW for visibility
+  #   geom_vline(xintercept = as.Date("2019-11-16"), color = "black", linetype = "dashed") +
+  #   geom_vline(xintercept = as.Date("2019-12-06"), color = "black", linetype = "dashed") +
+  #   scale_y_continuous(
+  #     name = "SST (°C)", 
+  #     sec.axis = sec_axis(~ . / 3, name = "DHW (°C-weeks)")  # Reverse the scaling
+  #   ) +
+  #   scale_color_manual(
+  #     name = "Variable",
+  #     values = c("SST" = "#E69F00", "DHW" = "#0072B2"),  # Explicitly matching colors
+  #     breaks = c("SST", "DHW"),  # Ensure correct order in legend
+  #     labels = c("SST (°C)", "DHW (°C-weeks)")
+  #   ) +
+  #   labs(x = "Date", color = "Variable") +
+  #   theme_minimal()
+  # 
   ################################## Plot multiple years ##################################
   
   #removed tissue and DHW / SST

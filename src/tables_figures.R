@@ -22,6 +22,28 @@
   #import workspace from upstream script
   load(here("output/error_eval_workspace.RData"))
 
+  
+  ################################## Proportions ##################################
+  
+  #test of proportions - confirms that though shapes of projected outbreaks look identical to source fit, they aren't exactly
+  max(output.raw.nearshore$I.LS) / max(output.raw.nearshore$I.HS)
+  max(output.raw.near.to.off.multi$I.LS) / max(output.raw.near.to.off.multi$I.HS)
+  #
+  #comparison of peak infection prevalence
+  (max(output.raw.nearshore$I.LS) + max(output.raw.nearshore$I.MS) + max(output.raw.nearshore$I.HS)) /
+    (max(output.raw.nearshore$S.LS) + max(output.raw.nearshore$S.MS) + max(output.raw.nearshore$S.HS)) *
+    100
+  (max(output.raw.near.to.off.multi$I.LS) + max(output.raw.near.to.off.multi$I.MS) + max(output.raw.near.to.off.multi$I.HS)) /
+    (max(output.raw.near.to.off.multi$S.LS) + max(output.raw.near.to.off.multi$S.MS) + max(output.raw.near.to.off.multi$S.HS)) *
+    100
+  #comparison of proportions of tissue lost
+  max(output.raw.nearshore$R.LS) / max(output.raw.nearshore$S.LS)
+  max(output.raw.near.to.off.multi$R.LS) / max(output.raw.near.to.off.multi$S.LS)
+  max(output.raw.nearshore$R.MS) / max(output.raw.nearshore$S.MS)
+  max(output.raw.near.to.off.multi$R.MS) / max(output.raw.near.to.off.multi$S.MS)
+  max(output.raw.nearshore$R.HS) / max(output.raw.nearshore$S.HS)
+  max(output.raw.near.to.off.multi$R.HS) / max(output.raw.near.to.off.multi$S.HS)
+  
   ################################## Table 1 ##################################
   
   # NOTE - the coral cover conversions done here are not ratios based on particular taxa. this could be improved by re-analyzing CPCe output,

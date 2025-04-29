@@ -11,6 +11,7 @@
   library(dplyr)
   library(here)
   library(deSolve)
+  library(extrafont)
   
   ################################## Set-up ##################################
   # NOTE - run this while working within plots_basic.R and/or plots_multi.R if doing more than just the
@@ -22,113 +23,60 @@
   
   # COVER-BASED VERSION
   
-  # CC = seq(0.001,1,.001)
-  # lmbds = c(1,10,100,1000)
-  # 
-  # plot(CC,CC*CC, type = 'n')
-  # for (l in 1:length(lmbds)) {
-  #   mods.new <- 1-exp(-lmbds[l]*CC)
-  #   lines(CC, mods.new, type = 'l')
-  # }
-  
   CC = seq(0.001,1,.001)
-  a = seq(0,1,0.01) #alpha (weight of coral cover)
-  # a = 0 #best_alpha
+  # a = seq(0,1,0.01) #alpha (weight of coral cover)
+  a = seq(0,1,0.05) #alpha (weight of coral cover)
+  a = sort(c(a, 0.13))  # add 0.13 and sort the sequence (if 0.13 or other value of interest is already there, can comment this out)
   k = 3 #shape of curve?
   
-  # plot(CC,CC*CC, type = 'n')
-  # for (i in 1:length(a)) {
-  #   mods.1 <- (1-a[i]) + a[i]*((1-exp(-k*CC))/(1-exp(-k)))
-  #   col_choice <- ifelse(a[i] == 0.13, 'blue', 'red')  # Highlight α = 0.13 in blue
-  #   lwd_choice <- ifelse(a[i] == 0.13, 2, 1)  # Make α = 0.13 thicker
-  #   lines(CC, mods.1, type = 'l', col = col_choice, lwd = lwd_choice)
-  #   # lines(CC, mods.1, type = 'l', col = 'red', lwd = 1)
-  # }
+  dpi = 1200
+  png(here("output/transmission_plot.png"), width = 3.35 * dpi, height = 3 * dpi, res = dpi)
+  # pdf(here("output/transmission_plot.pdf"), width = 3.35, height = 3, family = 'Georgia')
   
-  # plot(CC,CC*CC, type = 'n')
-  # for (i in 1:length(a)) {
-  #   mods.1 <- (1 - a[i]) + a[i] * ((1 - exp(-k * CC)) / (1 - exp(-k)))
-  #   col_choice <- ifelse(a[i] == 0.13, 'blue', 'red')  # Highlight α = 0.13 in blue
-  #   lwd_choice <- ifelse(a[i] == 0.13, 2, 1)  # Make α = 0.13 thicker
-  #   lines(CC, mods.1, type = 'l', col = col_choice, lwd = lwd_choice)
-  #   
-  #   # Add stars at CC = 0.247 and CC = 0.0215
-  #   if (0.247 %in% CC) {
-  #     points(0.247, (1 - a[i]) + a[i] * ((1 - exp(-k * 0.247)) / (1 - exp(-k))), 
-  #            pch = 8, col = col_choice, cex = 1.2)
-  #   }
-  #   if (0.0215 %in% CC) {
-  #     points(0.0215, (1 - a[i]) + a[i] * ((1 - exp(-k * 0.0215)) / (1 - exp(-k))), 
-  #            pch = 8, col = col_choice, cex = 1.2)
-  #   }
-  # }
+  par(family = "Georgia")
+  # par(mar = c(4.5, 4.5, 1, 1)) #adjust margins (bottom, left, top, right)
+  par(mar = c(3, 3, 1, 1)) #adjust margins (bottom, left, top, right)
+  par(mgp = c(1.5, 0.5, 0))  # Reduce space between axis labels and titles
   
-  # Set font to Georgia
-  par(family = "Georgia")  
-  
-  plot(CC, CC * CC, type = 'n', 
-       xlab = "Coral Cover (CC)", 
-       ylab = "Transmission Modifier")#, 
-       # main = "Effect of Coral Cover on Transmission Modifier")
+  plot(NA, NA, 
+       xlim = c(0, 100), 
+       ylim = c(0, 1),
+       xlab = "Coral cover (%)", 
+       ylab = "Scalar",
+       cex.lab = 0.75,
+       cex.axis = 0.6
+  )
   
   for (i in 1:length(a)) {
-    
-    # #test
-    # alp = 0.13
-    # beta = 0.6
-    # cov1 = 0.247 #nearshore
-    # cov2 = 0.0215 #offshore
-    # mods1 <- (1 - alp) + alp * ((1 - exp(-3 * cov1)) / (1 - exp(-3)))
-    # mods2 <- (1 - alp) + alp * ((1 - exp(-3 * cov2)) / (1 - exp(-3)))
-    # beta1.adj = beta*mods1
-    # beta2.adj = beta*mods2
-    # (1 - beta1.adj / beta) * 100
-    # (1 - beta2.adj / beta) * 100
-    
     mods.1 <- (1 - a[i]) + a[i] * ((1 - exp(-3 * CC)) / (1 - exp(-3)))
     
-    col_choice <- ifelse(a[i] == 0.13, 'blue', adjustcolor('red', alpha.f = 0.5))  
-    lwd_choice <- ifelse(a[i] == 0.13, 2, 0.5)  # Thicker for α = 0.13
+    col_choice <- ifelse(a[i] == 0.13, 'blue', adjustcolor('red', alpha.f = 1))  
+    lwd_choice <- ifelse(a[i] == 0.13, 2, 1)  # Thicker for α = 0.13
     
-    lines(CC, mods.1, col = col_choice, lwd = lwd_choice)
+    #plot in terms of 0 to 100 coral cover
+    lines(CC * 100, mods.1, col = col_choice, lwd = lwd_choice)
     
-    # Add site-specific stars only for α = 0.13
     if (a[i] == 0.13) {
-      points(0.247, (1 - a[i]) + a[i] * ((1 - exp(-3 * 0.247)) / (1 - exp(-3))), 
-             pch = 8, col = "orange", cex = 1.5, lwd = 2)  # Nearshore (orange)
+      points(0.247 * 100, (1 - a[i]) + a[i] * ((1 - exp(-3 * 0.247)) / (1 - exp(-3))), 
+             pch = 8, col = "orange", cex = 0.75, lwd = 2)  # Nearshore (orange)
       
-      points(0.0215, (1 - a[i]) + a[i] * ((1 - exp(-3 * 0.0215)) / (1 - exp(-3))), 
-             pch = 8, col = "magenta", cex = 1.5, lwd = 2)  # Offshore (magenta)
+      points(0.0215 * 100, (1 - a[i]) + a[i] * ((1 - exp(-3 * 0.0215)) / (1 - exp(-3))), 
+             pch = 8, col = "magenta", cex = 0.75, lwd = 2)  # Offshore (magenta)
     }
+    
   }
   
   # Add legend slightly lower than the top right
   legend("topright", 
-         legend = c(expression(alpha == 0.13), "25% cover", "2% cover"), 
+         legend = c(expression(alpha == 0.13), "Nearshore", "Offshore"), 
          col = c("blue", "orange", "magenta"), 
          pch = c(NA, 8, 8), 
          lwd = c(2, NA, NA), 
          bty = "n",
-         # y.intersp = 1.5,   # Increase spacing between legend items
+         cex = 0.6,
          inset = c(0, 0.1)) # Move the legend slightly downward
   
-  
-  # CC = seq(0.001,1,.001)
-  # a = seq(0,1,0.1)
-  # k = 5
-  # 
-  # plot(CC,CC*CC, type = 'n')
-  # for (i in 1:length(a)) {
-  #   mods.2 <- (1-a[i])*CC + a[i]*((1-exp(-k*CC))/(1-exp(-k)))
-  #   lines(CC, mods.2, type = 'l', col = 'red', lwd = 1)
-  # }
-  
-  # #for Benthics
-  # quartz(h = 4, w = 4)
-  # fig3_col1
-  
-  # #ggplot-export to image
-  # ggsave(filename = here("output", "alpha.png"), device = "png", width = 4, height = 4, dpi = 1200)
+  dev.off()
   
   ################################## sandbox: N ##################################
   
