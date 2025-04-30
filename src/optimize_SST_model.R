@@ -1687,11 +1687,11 @@
     
     figS4
     
-    # Save the Quartz output directly as a PDF
-    quartz.save(file = here("output", "figS4.pdf"), type = "pdf")
-    
-    #ggplot-export to image
-    ggsave(filename = here("output", "figS4.png"), device = "png", width = 3.35, height = 3, dpi = 1200)
+    # # Save the Quartz output directly as a PDF
+    # quartz.save(file = here("output", "figS4.pdf"), type = "pdf")
+    # 
+    # #ggplot-export to image
+    # ggsave(filename = here("output", "figS4.png"), device = "png", width = 3.35, height = 3, dpi = 1200)
     
     # Close the Quartz device
     dev.off()
@@ -1862,6 +1862,18 @@
   
   ############################## Export PNG / PDFs ##################################
   
+  #default font size in base R is 12 usually (can find with par('ps'))
+  linewidths = 1 * par('ps')
+  titlesize = 1
+  textsize = 1
+  
+  
+  # linewidths = 0.4
+  # symbsizes = 1.3
+  # titlesize = 9
+  # textsize = 7
+  
+  
   plot_SST_rem <- function(for_pdf = FALSE) {
     
     #removed
@@ -1952,6 +1964,8 @@
   }
   
   save_plot_rem("fig4rem", width = 8, height = 5, dpi = 1200)
+  # save_plot_rem("fig4rem", width = 3.35, height = 3, dpi = 1200)
+  
   # dev.off()
   
   plot_SST_inf <- function(for_pdf = FALSE) {
