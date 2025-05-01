@@ -9,6 +9,7 @@
   library(ggthemes)
   library(scales)
   library(kableExtra)
+  library(cowplot)
   
   ################################## Set-up ##################################
   
@@ -379,6 +380,103 @@
                                       Type = extract_metadata(.y)$Type))
   
   
+  
+  ################################## Figure S1 ##################################
+  
+  linewidths =  1.3 #0.4 #0.75 is roughly 1 pt. ggplot measures these in mm, not points
+  symbsizes = 0.4
+  titlesize = 10 #9  #text sizes in ggplot are actually in units of points, when specified using element_text
+  textsize = 9
+  palette = 'viridis'
+  symbalpha = 1
+  tensoralpha = 0.7
+  GAMalpha = 1
+  
+  figS1.main = ggplot(SA_predictions, aes(x = x, y = y)) +
+    geom_point(color = "black", size = symbsizes, alpha = symbalpha, show.legend = FALSE) + #alpha = 0.7
+    # geom_line(aes(y = pred_linear, color = "Linear"), linewidth = 1, alpha = 0.7) +
+    geom_line(aes(y = pred_gam, color = "GAM"), linewidth = linewidths, alpha = GAMalpha) +
+    geom_line(aes(y = pred_gam_gamma_tp, color = "GAM with Tensor Product"), linewidth = linewidths, alpha = tensoralpha) +
+    # geom_line(aes(y = pred_gam_gamma_ps, color = "GAM with P-splines"), linewidth = linewidths, alpha = 0.7) +
+    labs(
+      x = "Maximum colony diameter (cm)",
+      y = "Colony surface area (m²)",
+      color = "Model"
+    ) +
+    scale_color_manual(
+      values = c(
+        "GAM" = "#00BFC4", # "#1B9E77",    # red        
+        "GAM with Tensor Product" = "#E7298A" #darkorange
+      )
+    ) +
+    theme_classic(base_family = "Georgia") +
+    theme(
+      axis.title = element_text(size = titlesize, color = 'black'),
+      axis.text = element_text(size = textsize, color = 'black'),
+      axis.ticks = element_line(color = "black"),
+      legend.text = element_text(size = textsize),
+      legend.position = "bottom",
+      legend.title = element_blank(),
+      legend.box.spacing = unit(0, "cm"),
+      plot.margin = margin(t = 5, r = 5, b = 0, l = 5)
+    )
+  
+
+  
+  
+  # Create the inset (zoomed-in) plot
+  # Note: The inset plot won't have its own legend to avoid duplication
+  figS1.inset = ggplot(SA_predictions, aes(x = x, y = y)) +
+    geom_point(color = "black", size = symbsizes, alpha = symbalpha) +
+    geom_line(aes(y = pred_gam, color = "GAM"), linewidth = linewidths, alpha = GAMalpha) +
+    geom_line(aes(y = pred_gam_gamma_tp, color = "GAM with Tensor Product"), linewidth = linewidths, alpha = tensoralpha) +
+    labs(
+      x = "Maximum colony diameter (cm)",
+      y = "Colony surface area (m²)"
+    ) +
+    scale_color_manual(
+      values = c(
+        "GAM" = "#00BFC4", # "#1B9E77",            #red
+        "GAM with Tensor Product" = "#E7298A"  #darkorange
+      )
+    ) +
+    xlim(0, 20) +
+    ylim(0, 0.10) +
+    theme_classic(base_family = "Georgia") +
+    theme(
+      axis.title = element_blank(),
+      axis.text = element_text(size = textsize - 2, color = 'black'),
+      axis.ticks = element_line(color = "black"),
+      legend.position = "none"  # No legend for the inset
+    )
+  
+  # Combine the plots using cowplot's ggdraw and draw_plot functions
+  figS1 = ggdraw() +
+    draw_plot(figS1.main) +
+    # Add the inset plot - adjust these parameters as needed:
+    # x, y: position of the bottom-left corner of the inset (0,0 is bottom-left, 1,1 is top-right)
+    # width, height: size of the inset as a proportion of the main plot
+    draw_plot(figS1.inset, x = 0.15, y = 0.55, width = 0.45, height = 0.40) +
+    # Optional: Add a border around the inset
+    draw_label("", x = 0.15, y = 0.55, hjust = 0, vjust = 0, size = 12)
+  
+  
+
+  # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
+  # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
+  quartz(h = 3, w = 3.35)
+  # quartz(h = 5, w = 7.087)
+  # quartz(h = 6, w = 5)
+  
+  figS1
+  
+  # # Save the Quartz output directly as a PDF
+  # quartz.save(file = here("output", "figS1.pdf"), type = "pdf")
+  # 
+  # #ggplot-export to image
+  # ggsave(filename = here("output", "figS1.png"), device = "png", width = 3.35, height = 3, dpi = 1200)
+  
+  dev.off()
   
   ################################## Figure 2  ##################################
   

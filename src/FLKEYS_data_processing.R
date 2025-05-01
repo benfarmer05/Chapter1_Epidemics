@@ -6,6 +6,7 @@
   library(tidyverse)
   library(mgcv)
   library(gratia)
+  library(cowplot)
   
   ################################## Set-up ##################################
   
@@ -13,7 +14,7 @@
   cover = read.csv(here("data", "cover_long.csv"))
   prograte = read.csv(here("data", "SWG_SCTLDprogrates.csv"))
   cover = read.csv(here("data/cover_long.csv"))
-  
+    
   #   LOW SUSCEPTIBILITY (LS)
   #         - Slow onset/slow tissue loss [SSID] -> high cover
   #         - moderate onset/slow tissue loss [SINT, PCLI] -> high cover
@@ -269,84 +270,158 @@
       pred_gam_gamma_ps = predict(SA.GAM_gamma_ps, newdata = data.frame(x = Max_width), type = 'response')
     )
   
+  ################################## Figure S2 ##################################
+  
+  linewidths =  0.75 #0.4 #0.75 is roughly 1 pt. ggplot measures these in mm, not points
+  symbsizes = 0.75
+  titlesize = 10 #9  #text sizes in ggplot are actually in units of points, when specified using element_text
+  textsize = 9
+  palette = 'viridis'
+  trainalpha = 0.7
+  GAMsymbalpha = 1
+  tensorsymbalpha = 1
+  tensoralpha = 0.7
+  GAMalpha = 1
+  tickalpha = 1
+  
   # Plot predictions with ggplot
-  ggplot(survey_predictions, aes(x = Max_width)) +
-    
-    # Lines for each model
-    geom_line(aes(y = pred_gam, color = "GAM"), linewidth = 1, alpha = 0.7) +
-    # geom_line(aes(y = pred_gam_identity, color = "GAM with Zero Intercept"), linewidth = 1, alpha = 0.7) +
-    # geom_line(aes(y = pred_gam_linear, color = "GAM with Linear Term"), linewidth = 1, alpha = 0.7) +
-    # geom_line(aes(y = pred_gam_cr, color = "GAM with CR Basis"), linewidth = 1, alpha = 0.7) +
-    # geom_line(aes(y = pred_gam_gamma, color = "GAM with Gamma"), linewidth = 1, alpha = 0.7) +
-    # geom_line(aes(y = pred_gam_scaled, color = "GAM with Scaled x"), linewidth = 1, alpha = 0.7) +
-    # geom_line(aes(y = pred_gam_complex, color = "Complex GAM"), linewidth = 1, alpha = 0.7) +
-    # geom_line(aes(y = pred_gam_penalized, color = "Penalized GAM"), linewidth = 1, alpha = 0.7) +
-    # geom_line(aes(y = pred_gam_log_y, color = "Log-transformed GAM"), linewidth = 1, alpha = 0.7) +
-    # geom_line(aes(y = pred_gam_adaptive, color = "Adaptive GAM"), linewidth = 1, alpha = 0.7) +
-    # geom_line(aes(y = pred_gam_varying_knots, color = "Varying Knots GAM"), linewidth = 1, alpha = 0.7) +
-    # geom_line(aes(y = pred_gam_gamma_1.5, color = "GAM Gamma 1.5"), linewidth = 1, alpha = 0.7) +
-    geom_line(aes(y = pred_gam_gamma_tp, color = "GAM Tensor Product"), linewidth = 1, alpha = 0.7) +
-    geom_line(aes(y = pred_gam_gamma_ps, color = "GAM P-splines"), linewidth = 1, alpha = 0.7) +
-    
-    # Points for each model's predictions
-    geom_point(aes(y = pred_gam, color = "GAM"), size = 2, alpha = 0.7, show.legend = FALSE) +
-    # geom_point(aes(y = pred_gam_identity, color = "GAM with Zero Intercept"), size = 2, alpha = 0.7, show.legend = FALSE) +
-    # geom_point(aes(y = pred_gam_linear, color = "GAM with Linear Term"), size = 2, alpha = 0.7, show.legend = FALSE) +
-    # geom_point(aes(y = pred_gam_cr, color = "GAM with CR Basis"), size = 2, alpha = 0.7, show.legend = FALSE) +
-    # geom_point(aes(y = pred_gam_gamma, color = "GAM with Gamma"), size = 2, alpha = 0.7, show.legend = FALSE) +
-    # geom_point(aes(y = pred_gam_scaled, color = "GAM with Scaled x"), size = 2, alpha = 0.7, show.legend = FALSE) +
-    # geom_point(aes(y = pred_gam_complex, color = "Complex GAM"), size = 2, alpha = 0.7, show.legend = FALSE) +
-    # geom_point(aes(y = pred_gam_penalized, color = "Penalized GAM"), size = 2, alpha = 0.7, show.legend = FALSE) +
-    # geom_point(aes(y = pred_gam_log_y, color = "Log-transformed GAM"), size = 2, alpha = 0.7, show.legend = FALSE) +
-    # geom_point(aes(y = pred_gam_adaptive, color = "Adaptive GAM"), size = 2, alpha = 0.7, show.legend = FALSE) +
-    # geom_point(aes(y = pred_gam_varying_knots, color = "Varying Knots GAM"), size = 2, alpha = 0.7, show.legend = FALSE) +
-    # geom_point(aes(y = pred_gam_gamma_1.5, color = "GAM Gamma 1.5"), size = 2, alpha = 0.7, show.legend = FALSE) +
-    geom_point(aes(y = pred_gam_gamma_tp, color = "GAM Tensor Product"), size = 2, alpha = 0.7, show.legend = FALSE) +
-    geom_point(aes(y = pred_gam_gamma_ps, color = "GAM P-splines"), size = 2, alpha = 0.7, show.legend = FALSE) +
+  figS2.main = ggplot(survey_predictions, aes(x = Max_width)) +
     
     #points from Sharp dataset for comparison
-    geom_point(data = SA_predictions, aes(x = x, y = y), color = "black", size = 2, alpha = 0.5, show.legend = FALSE) + # Points are black
-
+    geom_point(data = SA_predictions, aes(x = x, y = y, color = 'Training'),
+               size = 0.5, alpha = trainalpha) + # Points are black
+    
+    # Lines for each model
+    geom_line(aes(y = pred_gam, color = "GAM"), linewidth = linewidths, alpha = GAMalpha, linetype = 'dashed') +
+    geom_line(aes(y = pred_gam_gamma_tp, color = "TP GAM"), linewidth = linewidths, alpha = tensoralpha, linetype = 'dashed') +
+    # geom_line(aes(y = pred_gam_gamma_ps, color = "GAM P-splines"), linewidth = 1, alpha = 0.7) +
+    # geom_line(aes(y = pred_gam_linear, color = "GAM with Linear Term"), linewidth = 1, alpha = 0.7) +
+    
+    # Points for each model's predictions
+    geom_point(aes(y = pred_gam, color = "GAM"), shape = 17, size = symbsizes, alpha = GAMsymbalpha, show.legend = FALSE) +
+    geom_point(aes(y = pred_gam_gamma_tp, color = "TP GAM"), shape = 17, size = symbsizes, alpha = tensorsymbalpha, show.legend = FALSE) +
+    # geom_point(aes(y = pred_gam_gamma_ps, color = "GAM P-splines"), size = 2, alpha = 0.7, show.legend = FALSE) +
+    # geom_point(aes(y = pred_gam_linear, color = "GAM with Linear Term"), size = 2, alpha = 0.7, show.legend = FALSE) +
+    
     # # Add density plot or histogram for observation density
     # geom_density(data = survey, aes(x = Max_width), color = "blue", size = 1, alpha = 0.3, linetype = "dashed") +  # Density plot
     # # geom_histogram(data = survey, aes(x = Max_width, y = ..density..), bins = 30, fill = "blue", alpha = 0.3) +  # Histogram
     
     # Add tick marks on the bottom
-    geom_rug(data = survey, aes(x = Max_width), sides = "b", color = "grey", alpha = 0.5) +
+    geom_rug(data = survey, aes(x = Max_width), sides = "b", color = "grey", alpha = tickalpha) +
+    
+    #vertical line at the end-point of the training dataset
+    geom_vline(xintercept = max(SA_predictions$x), linetype = "dashed", 
+               color = "grey30", alpha = 0.8, linewidth = linewidths) +
     
     # Labels and theme
     labs(
-      x = "Max diameter (cm)",
-      y = "Surface area (m2)",
-      title = "Model Predictions for Surface Area vs. Max Diameter (Survey Data)",
+      x = "Maximum colony diameter (cm)",
+      y = "Colony surface area (m2)",
       color = "Model"
     ) +
+    # scale_color_manual(
+    #   values = c(
+    #     "GAM" = "red",
+    #     # "GAM with Linear Term" = "green",
+    #     # "GAM P-splines" = "darkcyan",
+    #     "GAM with Tensor Product" = "darkorange")
+    # ) +
     scale_color_manual(
       values = c(
-        "GAM" = "red",
-        "GAM with Zero Intercept" = "pink",
-        "GAM with Linear Term" = "green",
-        "GAM with CR Basis" = "purple",
-        "GAM with Gamma" = "orange",
-        "GAM with Scaled x" = "brown",
-        "Complex GAM" = "cyan",
-        "Penalized GAM" = "magenta",
-        "Log-transformed GAM" = "yellow",
-        "Adaptive GAM" = "darkgreen",
-        "Varying Knots GAM" = "darkblue",
-        "GAM Gamma 1.5" = "darkred",
-        "GAM Tensor Product" = "darkorange",
-        "GAM P-splines" = "darkcyan"        )
+        "GAM" = "#00BFC4",
+        "TP GAM" = "#E7298A",
+        "Training" = "black"  # Add the black color for training data
+      )
     ) +
     # xlim(0, max(SA_predictions$x)) +
     # ylim(0, max(SA_predictions$y)) +
     # xlim(0, 20) +
     # ylim(0, 0.10) +
-    theme_minimal() +
+    theme_classic(base_family = "Georgia") +
+      theme(
+        axis.title = element_text(size = titlesize, color = 'black'),
+        axis.text = element_text(size = textsize, color = 'black'),
+        axis.ticks = element_line(color = "black"),
+        legend.text = element_text(size = textsize),
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.box.spacing = unit(0, "cm"),
+        plot.margin = margin(t = 5, r = 5, b = 0, l = 5)
+      )
+  
+  
+  
+  # Create the inset (zoomed-in) plot
+  # Note: The inset plot won't have its own legend to avoid duplication
+  figS2.inset = ggplot(survey_predictions, aes(x = Max_width)) +
+    
+    #points from Sharp dataset for comparison
+    geom_point(data = SA_predictions, aes(x = x, y = y, color = 'Training'),
+               size = 0.5, alpha = trainalpha) + # Points are black
+    
+    # Lines for each model
+    geom_line(aes(y = pred_gam, color = "GAM"), linewidth = linewidths, alpha = GAMalpha, linetype = 'dashed') +
+    geom_line(aes(y = pred_gam_gamma_tp, color = "TP GAM"), linewidth = linewidths, alpha = tensoralpha, linetype = 'dashed') +
+    
+    # Points for each model's predictions
+    geom_point(aes(y = pred_gam, color = "GAM"), shape = 17, size = symbsizes, alpha = GAMsymbalpha, show.legend = FALSE) +
+    geom_point(aes(y = pred_gam_gamma_tp, color = "TP GAM"), shape = 17, size = symbsizes, alpha = tensorsymbalpha, show.legend = FALSE) +
+    
+    # Labels and theme
+    labs(
+      x = "Maximum colony diameter (cm)",
+      y = "Colony surface area (m2)",
+      color = "Model"
+    ) +
+    scale_color_manual(
+      values = c(
+        "GAM" = "#00BFC4",
+        "TP GAM" = "#E7298A",
+        "Training" = "black"  # Add the black color for training data
+      )
+    ) +
+    # xlim(0, max(SA_predictions$x)) +
+    # ylim(0, max(SA_predictions$y)) +
+    xlim(0, 20) +
+    ylim(0, 0.10) +
+    theme_classic(base_family = "Georgia") +
     theme(
-      legend.position = "bottom",
-      legend.title = element_blank()
+      axis.title = element_blank(),
+      axis.text = element_text(size = textsize - 2, color = 'black'),
+      axis.ticks = element_line(color = "black"),
+      legend.position = "none"  # No legend for the inset
     )
+  
+  # Combine the plots using cowplot's ggdraw and draw_plot functions
+  figS2 = ggdraw() +
+    draw_plot(figS2.main) +
+    # Add the inset plot - adjust these parameters as needed:
+    # x, y: position of the bottom-left corner of the inset (0,0 is bottom-left, 1,1 is top-right)
+    # width, height: size of the inset as a proportion of the main plot
+    draw_plot(figS2.inset, x = 0.15, y = 0.55, width = 0.45, height = 0.40) +
+    # Optional: Add a border around the inset
+    draw_label("", x = 0.15, y = 0.55, hjust = 0, vjust = 0, size = 12)
+  
+  
+  # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
+  # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
+  quartz(h = 3, w = 3.35)
+  # quartz(h = 5, w = 7.087)
+  # quartz(h = 6, w = 5)
+  
+  figS2
+  
+  # Save the Quartz output directly as a PDF
+  quartz.save(file = here("output", "figS2.pdf"), type = "pdf")
+  
+  #ggplot-export to image
+  ggsave(filename = here("output", "figS2.png"), device = "png", width = 3.35, height = 3, dpi = 1200)
+  
+  dev.off()
+  
+  
+  ################################## Integrate surface area ##################################
   
   # Generate predictions and confidence intervals
   plot_data <- smooth_estimates(SA.GAM_gamma_tp, smooth = "s(x)", overall = TRUE)
