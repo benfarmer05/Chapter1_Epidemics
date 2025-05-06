@@ -1863,16 +1863,10 @@
   ############################## Export PNG / PDFs ##################################
   
   #default font size in base R is 12 usually (can find with par('ps'))
-  linewidths = 1 * par('ps')
-  titlesize = 1
-  textsize = 1
-  
-  
-  # linewidths = 0.4
-  # symbsizes = 1.3
-  # titlesize = 9
-  # textsize = 7
-  
+  linewidths = 1 * 2.14 #default (1) is usually 0.75 mm ... but hard to know? 1-pt width is 0.35 mm (~2.14:1 ratio)
+  symbsize = 10 / par('ps') #1 * 2.14
+  titlesize = 10 / par('ps')
+  textsize = 8 / par('ps')
   
   plot_SST_rem <- function(for_pdf = FALSE) {
     
@@ -1891,27 +1885,32 @@
       mutate(date = as.Date(date), tissue_scaled = tissue)
     
     # Add extra space on the right for the secondary y-axis label
-    par(mar = c(5, 5, 4, 6))  # bottom, left, top, right
+    par(mar = c(3, 3, 1, 3))  # bottom, left, top, right
+    
+    #control additional space between tick marks and axis text/labels
+    par(mgp = c(1.6, 0.5, 0))  #title, text, tick marks. default is usually c(3, 1, 0)
     
     # Plot the SST data
     plot(SST_data$date, SST_data$SST.90th_HS, type = "l", col = "#E69F00", 
          xlim = c(as.Date("2018-01-01"), as.Date("2020-12-30")), 
          ylim = c(23, 32), xlab = "Date", ylab = "SST (°C)", 
-         lwd = 3, 
-         cex.lab = 1.5, cex.axis = 1.3, cex.main = 1.6,
+         # lwd = 3, 
+         # cex.lab = 1.5, cex.axis = 1.3, cex.main = 1.6,
+         lwd = linewidths, 
+         cex.lab = titlesize, cex.axis = textsize,
          family = 'Georgia')  # Increased font size
     
     # Add vertical dashed line
-    abline(v = as.Date(c("2019-12-06")), col = "grey40", lty = 2, lwd = 2.5)
+    abline(v = as.Date(c("2019-12-06")), col = "grey40", lty = 2, lwd = linewidths)
     
     # Add horizontal dashed line for SST threshold
-    abline(h = SST_threshold, col = "red", lty = 2, lwd = 2.5)
+    abline(h = SST_threshold, col = "red", lty = 2, lwd = linewidths)
     
     # Overlay tissue data
     par(new = TRUE)
     plot(output.basic.sand.SST.midchannel.SST.scaled$date, 
          output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled, 
-         type = "l", col = "black", lty = 1, lwd = 3,  # Solid black line
+         type = "l", col = "black", lty = 1, lwd = linewidths,  # Solid black line
          xlim = c(as.Date("2018-01-01"), as.Date("2020-12-30")), 
          ylim = c(0, max(output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled)), 
          xlab = "", ylab = "", axes = FALSE,
@@ -1923,24 +1922,31 @@
     points(dead_dates, dead_data$tissue, 
            pch = 16,  # Solid circle
            col = "black",  # Red color for visibility
-           cex = 1.2)  # Size of points
-    
+           # cex = 1.2)  # Size of points
+           cex = symbsize)  # Size of points
+  
     # Add the secondary y-axis (right axis) with two decimal places
     axis(side = 4, at = pretty(output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled), 
          labels = formatC(pretty(output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled), 
-                          format = "f", digits = 2), cex.axis = 1.3,
+                          format = "f", digits = 2), cex.axis = textsize,
          family = 'Georgia')  # Increased axis font size
     
-    mtext("Removed tissue (m²)", side = 4, line = 3, cex = 1.5, family = "Georgia")
+    # mtext("Removed tissue (m²)", side = 4, line = 3, cex = 1.5, family = "Georgia")
+    mtext("Removed tissue (m²)", side = 4, line = 1.7, cex = titlesize, family = "Georgia")
     
     # Set font to Georgia before drawing legend
     par(family = "Georgia")
     
     # Add a legend inside a white box
-    legend("bottomright", legend = c("SST (°C)", "Removed tissue (m²)"),
-           col = c("#E69F00", "black"), lwd = 2, lty = c(1, 1),
-           cex = 1.3, bty = "o",
-           bg = rgb(1, 1, 1, alpha = 0.9)
+    legend("bottomright", legend = c("SST (°C)", "Tissue (m²)"),
+           # col = c("#E69F00", "black"), lwd = 2, lty = c(1, 1),
+           # cex = 1.3, bty = "o",
+           col = c("#E69F00", "black"), lwd = linewidths, lty = c(1, 1),
+           cex = textsize, bty = "o",
+           x.intersp = 0.5, #spacing between text and edges
+           y.intersp = 0.85, #spacing between lines
+           inset = 0.02, #moves legend away from side of plot
+           bg = rgb(1, 1, 1, alpha = 0.7)
     )
     
     #reset global font
@@ -1963,13 +1969,12 @@
     
   }
   
-  save_plot_rem("fig4rem", width = 8, height = 5, dpi = 1200)
-  # save_plot_rem("fig4rem", width = 3.35, height = 3, dpi = 1200)
-  
+  save_plot_rem("fig4rem", width = 3.35, height = 3, dpi = 1200)
+
   # dev.off()
   
   plot_SST_inf <- function(for_pdf = FALSE) {
-      
+    
     #infected
     output.basic.sand.SST.midchannel.SST <- output.basic.sand.SST.midchannel %>%
       mutate(date = as.Date("2018-11-09") + days.model)
@@ -1985,27 +1990,32 @@
       mutate(date = as.Date(date), tissue_scaled = tissue)
     
     # Add extra space on the right for the secondary y-axis label
-    par(mar = c(5, 5, 4, 6))  # bottom, left, top, right
+    par(mar = c(3, 3, 1, 3))  # bottom, left, top, right
+    
+    #control additional space between tick marks and axis text/labels
+    par(mgp = c(1.6, 0.5, 0))  #title, text, tick marks. default is usually c(3, 1, 0)
     
     # Plot the SST data
     plot(SST_data$date, SST_data$SST.90th_HS, type = "l", col = "#E69F00", 
          xlim = c(as.Date("2018-01-01"), as.Date("2020-12-30")), 
          ylim = c(23, 32), xlab = "Date", ylab = "SST (°C)", 
-         lwd = 3, 
-         cex.lab = 1.5, cex.axis = 1.3, cex.main = 1.6,
+         # lwd = 3, 
+         # cex.lab = 1.5, cex.axis = 1.3, cex.main = 1.6,
+         lwd = linewidths, 
+         cex.lab = titlesize, cex.axis = textsize,
          family = 'Georgia')  # Increased font size
     
     # Add vertical dashed line
-    abline(v = as.Date(c("2019-11-12")), col = "grey40", lty = 2, lwd = 2.5)
+    abline(v = as.Date(c("2019-12-06")), col = "grey40", lty = 2, lwd = linewidths)
     
     # Add horizontal dashed line for SST threshold
-    abline(h = SST_threshold, col = "red", lty = 2, lwd = 2.5)
+    abline(h = SST_threshold, col = "red", lty = 2, lwd = linewidths)
     
     # Overlay tissue data
     par(new = TRUE)
     plot(output.basic.sand.SST.midchannel.SST.scaled$date, 
          output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled, 
-         type = "l", col = "black", lty = 1, lwd = 3,  # Solid black line
+         type = "l", col = "black", lty = 1, lwd = linewidths,  # Solid black line
          xlim = c(as.Date("2018-01-01"), as.Date("2020-12-30")), 
          ylim = c(0, max(output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled)), 
          xlab = "", ylab = "", axes = FALSE,
@@ -2019,24 +2029,29 @@
     points(inf_dates, inf_data$tissue, 
            pch = 16,  # Solid circle
            col = "black",  # Red color for visibility
-           cex = 1.2)  # Size of points
+           cex = symbsize)  # Size of points
     
     # Add the secondary y-axis (right axis) with two decimal places
     axis(side = 4, at = pretty(output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled), 
          labels = formatC(pretty(output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled), 
-                          format = "f", digits = 3), cex.axis = 1.3,
+                          format = "f", digits = 2), cex.axis = textsize,
          family = 'Georgia')  # Increased axis font size
     
-    mtext("Infected tissue (m²)", side = 4, line = 3, cex = 1.5, family = "Georgia")
+    mtext("Infected tissue (m²)", side = 4, line = 1.7, cex = titlesize, family = "Georgia")
     
     # Set font to Georgia before drawing legend
     par(family = "Georgia")
     
     # Add a legend inside a white box
-    legend("topright", legend = c("SST (°C)", "Infected tissue (m²)"),
-           col = c("#E69F00", "black"), lwd = 2, lty = c(1, 1),
-           cex = 1.3, bty = "o",
-           bg = rgb(1, 1, 1, alpha = 0.9)
+    legend("topleft", legend = c("SST (°C)", "Tissue (m²)"),
+           # col = c("#E69F00", "black"), lwd = 2, lty = c(1, 1),
+           # cex = 1.3, bty = "o",
+           col = c("#E69F00", "black"), lwd = linewidths, lty = c(1, 1),
+           cex = textsize, bty = "o",
+           x.intersp = 0.5, #spacing between text and edges
+           y.intersp = 0.85, #spacing between lines
+           # inset = 0.015, #moves legend away from side of plot
+           bg = rgb(1, 1, 1, alpha = 0.7)
     )
     
     #reset global font
@@ -2058,7 +2073,7 @@
     dev.off()
   }
   
-  save_plot_inf("fig4inf", width = 8, height = 5, dpi = 1200)
+  save_plot_inf("fig4inf", width = 3.35, height = 3, dpi = 1200)
   # dev.off()
   
   # ############################# Abandoned code for creating the above using ggplot ##################################
