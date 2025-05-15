@@ -1920,7 +1920,7 @@
     dead_data <- obs.total[obs.total$Site == 'Midchannel' & obs.total$Compartment == "Dead", ]
     dead_dates <- as.Date(dead_data$date)
     points(dead_dates, dead_data$tissue, 
-           pch = 16,  # Solid circle
+           pch = 15,  # Solid square
            col = "black",  # Red color for visibility
            # cex = 1.2)  # Size of points
            cex = symbsize)  # Size of points
@@ -2027,7 +2027,7 @@
       filter(date != max(date, na.rm = TRUE)) #remove the final "observation", as this was not really an observation (is always zero because cannot backtrack)
     inf_dates <- as.Date(inf_data$date)
     points(inf_dates, inf_data$tissue, 
-           pch = 16,  # Solid circle
+           pch = 17,  # Solid triangle
            col = "black",  # Red color for visibility
            cex = symbsize)  # Size of points
     

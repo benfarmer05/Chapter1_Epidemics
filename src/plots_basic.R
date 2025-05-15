@@ -388,7 +388,8 @@
     slice(1) %>% #all values for N.site are the same between categories, so slice first row
     pull(N.site)
   
-  output.basic.nearshore.full = my.SIRS.basic.full[[order]]
+  output.basic.nearshore.full.raw = my.SIRS.basic.full[[order]]
+  output.basic.nearshore.full = output.basic.nearshore.full.raw
   params.basic.nearshore.full = params.basic.full[[order]] #beta, cover-adjusted beta, gamma, lambda, R0, cover
   beta.nearshore.full = params.basic.nearshore.full[1]
   beta.nearshore.adj.full = params.basic.nearshore.full[2]
@@ -490,7 +491,8 @@
     slice(1) %>% #all values for N.site are the same between categories, so slice first row
     pull(N.site)
   
-  output.basic.midchannel.full = my.SIRS.basic.full[[order]]
+  output.basic.midchannel.full.raw = my.SIRS.basic.full[[order]]
+  output.basic.midchannel.full = output.basic.midchannel.full.raw
   params.basic.midchannel.full = params.basic.full[[order]] #beta, cover-adjusted beta, gamma, lambda, R0, cover
   beta.midchannel.full = params.basic.midchannel.full[1]
   beta.midchannel.adj.full = params.basic.midchannel.full[2]
@@ -593,7 +595,8 @@
     slice(1) %>% #all values for N.site are the same between categories, so slice first row
     pull(N.site)
   
-  output.basic.offshore.full = my.SIRS.basic.full[[order]]
+  output.basic.offshore.full.raw = my.SIRS.basic.full[[order]]
+  output.basic.offshore.full = output.basic.offshore.full.raw
   params.basic.offshore.full = params.basic.full[[order]] #beta, cover-adjusted beta, gamma, lambda, R0, cover
   beta.offshore.full = params.basic.offshore.full[1]
   beta.offshore.adj.full = params.basic.offshore.full[2]
@@ -1042,24 +1045,26 @@
   
   
   
-  # TESTING - this showed that you CAN project using density-dependent framework, just have to essentially convert to frequency dependence with the site:site ratio
-  ratio.near.to.off = N.nearshore / N.offshore
-
-  #simulation using initial state variables from naive site and parameters from fitted site
-  output.basic.offshore.transfer = data.frame(ode(c(S = S.offshore, I = I.offshore, R = R.offshore),
-                                                  days.model.offshore, SIR, c(b = beta.nearshore.full * ratio.near.to.off, g = gamma.nearshore.full,
-                                                                              N = N.offshore,
-                                                                              l = lambda.nearshore.full,
-                                                                              C = cover.offshore.full)))
-
-  # TESTING
-  
+  # # TESTING - this showed that you CAN project using density-dependent framework, just have to essentially convert to frequency dependence with the site:site ratio
+  # ratio.near.to.off = N.nearshore / N.offshore
+  # 
   # #simulation using initial state variables from naive site and parameters from fitted site
   # output.basic.offshore.transfer = data.frame(ode(c(S = S.offshore, I = I.offshore, R = R.offshore),
-  #                                           days.model.offshore, SIR, c(b = beta.nearshore.full, g = gamma.nearshore.full,
-  #                                               N = N.offshore,
-  #                                               l = lambda.nearshore.full,
-  #                                               C = cover.offshore.full)))
+  #                                                 days.model.offshore, SIR, c(b = beta.nearshore.full * ratio.near.to.off, g = gamma.nearshore.full,
+  #                                                                             N = N.offshore,
+  #                                                                             l = lambda.nearshore.full,
+  #                                                                             C = cover.offshore.full)))
+  # 
+  # # TESTING
+  
+  #simulation using initial state variables from naive site and parameters from fitted site
+  output.basic.offshore.transfer.raw = data.frame(ode(c(S = S.offshore, I = I.offshore, R = R.offshore),
+                                            days.model.offshore, SIR, c(b = beta.nearshore.full, g = gamma.nearshore.full,
+                                                N = N.offshore,
+                                                l = lambda.nearshore.full,
+                                                C = cover.offshore.full)))
+  
+  output.basic.offshore.transfer = output.basic.offshore.transfer.raw
   
   #calculate R-squared and update error table
   # NOTE - could also fill in SSR, TSS, and observations/simulated values to error table if needed

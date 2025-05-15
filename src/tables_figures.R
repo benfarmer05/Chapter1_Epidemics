@@ -22,9 +22,24 @@
   
   #import workspace from upstream script
   load(here("output/error_eval_workspace.RData"))
-
   
   # ################################## Proportions ##################################
+  # 
+  # 
+  # # SINGLE-HOST
+  # #comparison of peak infection prevalence
+  # max(output.basic.nearshore.full.raw$I) / max(output.basic.nearshore.full.raw$S) * 100
+  # max(output.basic.offshore.transfer.raw$I) / max(output.basic.offshore.transfer.raw$S) * 100
+  # max(output.basic.offshore.full.raw$I) / max(output.basic.offshore.full.raw$S) * 100
+  # 
+  # #comparison of proportions of tissue lost
+  # max(output.basic.nearshore.full.raw$R) / max(output.basic.nearshore.full.raw$S) * 100
+  # max(output.basic.offshore.transfer.raw$R) / max(output.basic.offshore.transfer.raw$S) * 100
+  # max(output.basic.offshore.full.raw$R) / max(output.basic.offshore.full.raw$S) * 100
+  # 
+  # 
+  # 
+  # # MULTI-HOST
   # 
   # #test of proportions - confirms that though shapes of projected outbreaks look identical to source fit, they aren't exactly
   # max(output.raw.nearshore$I.LS) / max(output.raw.nearshore$I.HS)
