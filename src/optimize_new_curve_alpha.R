@@ -21,62 +21,192 @@
   
   ################################## sandbox: cover ##################################
   
-  # COVER-BASED VERSION
-  
-  CC = seq(0.001,1,.001)
-  # a = seq(0,1,0.01) #alpha (weight of coral cover)
-  a = seq(0,1,0.05) #alpha (weight of coral cover)
-  a = sort(c(a, 0.13))  # add 0.13 and sort the sequence (if 0.13 or other value of interest is already there, can comment this out)
+  CC = seq(0.001, 1, .001)
+  a = seq(0, 1, 0.05) #alpha (weight of coral cover)
+  a = sort(c(a, 0.13))  # add 0.13 and sort the sequence
   k = 3 #shape of curve?
   
-  dpi = 1200
-  png(here("output/transmission_plot.png"), width = 3.35 * dpi, height = 3 * dpi, res = dpi)
-  # pdf(here("output/transmission_plot.pdf"), width = 3.35, height = 3, family = 'Georgia')
+  # Create data frame for all curves
+  plot_data <- expand.grid(CC = CC, alpha = a) %>%
+    mutate(
+      mods = (1 - alpha) + alpha * ((1 - exp(-3 * CC)) / (1 - exp(-3))),
+      coral_cover_pct = CC * 100,
+      is_special = alpha == 0.13
+    )
   
-  par(family = "Georgia")
-  # par(mar = c(4.5, 4.5, 1, 1)) #adjust margins (bottom, left, top, right)
-  par(mar = c(3, 3, 1, 1)) #adjust margins (bottom, left, top, right)
-  par(mgp = c(1.5, 0.5, 0))  # Reduce space between axis labels and titles
-  
-  plot(NA, NA, 
-       xlim = c(0, 100), 
-       ylim = c(0, 1),
-       xlab = "Coral cover (%)", 
-       ylab = "Scalar",
-       cex.lab = 0.75,
-       cex.axis = 0.6
+  # Create data for special points
+  special_points <- data.frame(
+    coral_cover_pct = c(0.247 * 100, 0.0215 * 100),
+    mods = c(
+      (1 - 0.13) + 0.13 * ((1 - exp(-3 * 0.247)) / (1 - exp(-3))),
+      (1 - 0.13) + 0.13 * ((1 - exp(-3 * 0.0215)) / (1 - exp(-3)))
+    ),
+    point_type = c("Nearshore", "Offshore")
   )
   
-  for (i in 1:length(a)) {
-    mods.1 <- (1 - a[i]) + a[i] * ((1 - exp(-3 * CC)) / (1 - exp(-3)))
+  # Create the plot
+  p <- ggplot() +
+    # Add gradient lines (excluding the special alpha = 0.13)
+    geom_line(data = filter(plot_data, !is_special), 
+              aes(x = coral_cover_pct, y = mods, color = alpha, group = alpha),
+              linewidth = 0.6) +
     
-    col_choice <- ifelse(a[i] == 0.13, 'blue', adjustcolor('red', alpha.f = 1))  
-    lwd_choice <- ifelse(a[i] == 0.13, 2, 1)  # Thicker for α = 0.13
+    # Add special alpha = 0.13 line in blue
+    geom_line(data = filter(plot_data, is_special),
+              aes(x = coral_cover_pct, y = mods),
+              color = "blue", linewidth = 0.6) + #linetype = 'dashed'
     
-    #plot in terms of 0 to 100 coral cover
-    lines(CC * 100, mods.1, col = col_choice, lwd = lwd_choice)
+    # Add special points (using fill aesthetic to avoid conflict)
+    geom_point(data = special_points,
+               aes(x = coral_cover_pct, y = mods, fill = point_type),
+               shape = 23, size = 2, stroke = 1, color = "black") +
     
-    if (a[i] == 0.13) {
-      points(0.247 * 100, (1 - a[i]) + a[i] * ((1 - exp(-3 * 0.247)) / (1 - exp(-3))), 
-             pch = 8, col = "orange", cex = 0.75, lwd = 2)  # Nearshore (orange)
-      
-      points(0.0215 * 100, (1 - a[i]) + a[i] * ((1 - exp(-3 * 0.0215)) / (1 - exp(-3))), 
-             pch = 8, col = "magenta", cex = 0.75, lwd = 2)  # Offshore (magenta)
-    }
+    # Scales and colors
+    scale_color_viridis_c(name = expression(alpha), option = "inferno") +
+    scale_fill_manual(name = "", 
+                      values = c("Nearshore" = "orange", "Offshore" = "magenta"),
+                      guide = "none") +
     
-  }
+    # Axes
+    scale_x_continuous(name = "Coral cover (%)", 
+                       limits = c(0, 100),
+                       expand = c(0, 0)) +
+    scale_y_continuous(name = "Scalar",
+                       limits = c(0, 1),
+                       expand = c(0, 0),
+                       breaks = seq(0, 1, 0.2)) +
+    
+    
+    
+    # Theme
+    theme_classic(base_family = 'Georgia') +
+    theme(
+      axis.title = element_text(size = 9),
+      axis.text = element_text(size = 7, color = 'black'),
+      legend.text = element_text(size = 7),
+      legend.title = element_text(size = 9),
+      legend.key.size = unit(0.5, "lines"),
+      plot.margin = margin(t = 8, r = 15, b = 8, l = 8),
+      # Position legends inside the plot
+      legend.position = "inside",
+      legend.position.inside = c(0.85, 0.75), # moved to upper right
+      legend.box = "vertical",
+      legend.margin = margin(5, 5, 5, 5),
+      legend.background = element_rect(fill = "white", color = NA, linewidth = 0.3)
+    ) +
+    
+    # Guides for legends
+    guides(
+      color = guide_colorbar(
+        title = expression(alpha),
+        title.position = "top",
+        title.hjust = 0.5,
+        barwidth = 0.8,
+        barheight = 3,
+        order = 1
+      )
+    )
   
-  # Add legend slightly lower than the top right
-  legend("topright", 
-         legend = c(expression(alpha == 0.13), "Nearshore", "Offshore"), 
-         col = c("blue", "orange", "magenta"), 
-         pch = c(NA, 8, 8), 
-         lwd = c(2, NA, NA), 
-         bty = "n",
-         cex = 0.6,
-         inset = c(0, 0.1)) # Move the legend slightly downward
+  # Create a custom legend using annotations
+  fig2a <- p + 
+    # Add manual legend box (moved to middle right area)
+    annotate("rect", xmin = 70, xmax = 95, ymin = 0.25, ymax = 0.45, 
+             fill = "white", color = NA, linewidth = 0.3) +
+    
+    # Alpha = 0.13 line sample and label
+    annotate("segment", x = 72, xend = 76, y = 0.41, yend = 0.41,
+             color = "blue", linewidth = 1) + # ,linetype = 'dashed'
+    annotate("text", x = 77, y = 0.41, 
+             label = expression(alpha == 0.13), 
+             hjust = 0, size = 3, family = "Georgia") +
+    
+    # Nearshore point and label
+    annotate("point", x = 74, y = 0.36, 
+             shape = 23, fill = "orange", color = "black", size = 2, stroke = 1) +
+    annotate("text", x = 77, y = 0.36, 
+             label = "Nearshore", 
+             hjust = 0, size = 3, family = "Georgia") +
+    
+    # Offshore point and label  
+    annotate("point", x = 74, y = 0.31, 
+             shape = 23, fill = "magenta", color = "black", size = 2, stroke = 1) +
+    annotate("text", x = 77, y = 0.31, 
+             label = "Offshore", 
+             hjust = 0, size = 3, family = "Georgia")
   
+  #max dimensions are 7.087 in. wide by 9.45 in. tall (3.35 inches preferred)
+  quartz(h = 3, w = 3.35)
+  
+  fig2a
+  
+  # Save the Quartz output directly as a PDF
+  quartz.save(file = here("output", "fig2a.pdf"), type = "pdf")
+  
+  #ggplot-export to image
+  ggsave(filename = here("output", "fig2a.png"), device = "png", width = 3.35, height = 3, dpi = 1200)
+  
+  # Close the Quartz device
   dev.off()
+  
+  
+  # # IN BASE R
+  # 
+  # # COVER-BASED VERSION
+  # 
+  # CC = seq(0.001,1,.001)
+  # # a = seq(0,1,0.01) #alpha (weight of coral cover)
+  # a = seq(0,1,0.05) #alpha (weight of coral cover)
+  # a = sort(c(a, 0.13))  # add 0.13 and sort the sequence (if 0.13 or other value of interest is already there, can comment this out)
+  # k = 3 #shape of curve?
+  # 
+  # dpi = 1200
+  # png(here("output/transmission_plot.png"), width = 3.35 * dpi, height = 3 * dpi, res = dpi)
+  # # pdf(here("output/transmission_plot.pdf"), width = 3.35, height = 3, family = 'Georgia')
+  # 
+  # par(family = "Georgia")
+  # # par(mar = c(4.5, 4.5, 1, 1)) #adjust margins (bottom, left, top, right)
+  # par(mar = c(3, 3, 1, 1)) #adjust margins (bottom, left, top, right)
+  # par(mgp = c(1.5, 0.5, 0))  # Reduce space between axis labels and titles
+  # 
+  # plot(NA, NA, 
+  #      xlim = c(0, 100), 
+  #      ylim = c(0, 1),
+  #      xlab = "Coral cover (%)", 
+  #      ylab = "Scalar",
+  #      cex.lab = 0.75,
+  #      cex.axis = 0.6
+  # )
+  # 
+  # for (i in 1:length(a)) {
+  #   mods.1 <- (1 - a[i]) + a[i] * ((1 - exp(-3 * CC)) / (1 - exp(-3)))
+  #   
+  #   col_choice <- ifelse(a[i] == 0.13, 'blue', adjustcolor('red', alpha.f = 1))  
+  #   lwd_choice <- ifelse(a[i] == 0.13, 2, 1)  # Thicker for α = 0.13
+  #   
+  #   #plot in terms of 0 to 100 coral cover
+  #   lines(CC * 100, mods.1, col = col_choice, lwd = lwd_choice)
+  #   
+  #   if (a[i] == 0.13) {
+  #     points(0.247 * 100, (1 - a[i]) + a[i] * ((1 - exp(-3 * 0.247)) / (1 - exp(-3))), 
+  #            pch = 8, col = "orange", cex = 0.75, lwd = 2)  # Nearshore (orange)
+  #     
+  #     points(0.0215 * 100, (1 - a[i]) + a[i] * ((1 - exp(-3 * 0.0215)) / (1 - exp(-3))), 
+  #            pch = 8, col = "magenta", cex = 0.75, lwd = 2)  # Offshore (magenta)
+  #   }
+  #   
+  # }
+  # 
+  # # Add legend slightly lower than the top right
+  # legend("topright", 
+  #        legend = c(expression(alpha == 0.13), "Nearshore", "Offshore"), 
+  #        col = c("blue", "orange", "magenta"), 
+  #        pch = c(NA, 8, 8), 
+  #        lwd = c(2, NA, NA), 
+  #        bty = "n",
+  #        cex = 0.6,
+  #        inset = c(0, 0.1)) # Move the legend slightly downward
+  # 
+  # dev.off()
   
   ################################## sandbox: N ##################################
   

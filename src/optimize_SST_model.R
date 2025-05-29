@@ -1682,19 +1682,19 @@
     annotate("text", x = 22, y = 0.2, label = "ζ = 0.07", hjust = 0, family = 'Georgia', size = 3) +
     annotate("text", x = 22, y = 0.1, label = "η = 0.04", hjust = 0, family = 'Georgia', size = 3)
     
-    #max dimensions are 7.087 in. wide by 9.45 in. tall (3.35 inches preferred)
-    quartz(h = 3, w = 3.35)
-    
-    figS4
-    
-    # # Save the Quartz output directly as a PDF
-    # quartz.save(file = here("output", "figS4.pdf"), type = "pdf")
+    # #max dimensions are 7.087 in. wide by 9.45 in. tall (3.35 inches preferred)
+    # quartz(h = 3, w = 3.35)
     # 
-    # #ggplot-export to image
-    # ggsave(filename = here("output", "figS4.png"), device = "png", width = 3.35, height = 3, dpi = 1200)
-    
-    # Close the Quartz device
-    dev.off()
+    # figS4
+    # 
+    # # # Save the Quartz output directly as a PDF
+    # # quartz.save(file = here("output", "figS4.pdf"), type = "pdf")
+    # # 
+    # # #ggplot-export to image
+    # # ggsave(filename = here("output", "figS4.png"), device = "png", width = 3.35, height = 3, dpi = 1200)
+    # 
+    # # Close the Quartz device
+    # dev.off()
     
   ############################## Draft figures of SST for paper ##################################
   
