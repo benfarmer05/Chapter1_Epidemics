@@ -1023,6 +1023,31 @@
   dev.off()
   
   
+  # =============================================================================
+  # PART 1: ADD THIS TO YOUR EXISTING CODE TO SAVE PANEL E DATA
+  # =============================================================================
+  
+  # After you create your fig3 plot, add this section to extract and save panel E data
+  # Extract the data used for panel E (offshore projected single-host)
+  panel_e_data <- data_fig3 %>% 
+    filter(Site == 'Offshore', Host == "Single-host", Type == "Projected") %>%
+    select(days.model, tissue, Compartment)
+  
+  # Add a workspace identifier (change this for each run)
+  workspace_id <- "workspace_2"  # Change to "workspace_2" for second run
+  panel_e_data$workspace <- workspace_id
+  
+  # Save the data
+  saveRDS(panel_e_data, file = here("output", paste0("panel_e_data_", workspace_id, ".rds")))
+  
+  # Optional: also save the observed data points for panel E
+  obs_panel_e <- obs.total.figures %>% 
+    filter(Site == 'Offshore') %>%
+    select(days.inf.site, tissue, Compartment)
+  obs_panel_e$workspace <- workspace_id
+  
+  saveRDS(obs_panel_e, file = here("output", paste0("panel_e_obs_", workspace_id, ".rds")))
+  
   ################################## Figure S5 ##################################
   
   #figure 3, but just infections
