@@ -60,7 +60,7 @@
   # max(output.raw.nearshore$R.HS) / max(output.raw.nearshore$S.HS)
   # max(output.raw.near.to.off.multi$R.HS) / max(output.raw.near.to.off.multi$S.HS)
   # 
-  ################################## Table 1 ##################################
+  ################################## Table S1 ##################################
   
   # NOTE - the coral cover conversions done here are not ratios based on particular taxa. this could be improved by re-analyzing CPCe output,
   #         but may not be worth it for this study. the main thing it would affect is presentation of this table, and some interpretation
@@ -436,9 +436,6 @@
       plot.margin = margin(t = 5, r = 5, b = 0, l = 5)
     )
   
-
-  
-  
   # Create the inset (zoomed-in) plot
   # Note: The inset plot won't have its own legend to avoid duplication
   figS1.inset = ggplot(SA_predictions, aes(x = x, y = y)) +
@@ -474,8 +471,6 @@
     draw_plot(figS1.inset, x = 0.15, y = 0.55, width = 0.45, height = 0.40) +
     # Optional: Add a border around the inset
     draw_label("", x = 0.15, y = 0.55, hjust = 0, vjust = 0, size = 12)
-  
-  
 
   # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
   # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
@@ -1465,7 +1460,7 @@
   
   
   
-  ################################## Table X ##################################
+  ################################## Table S2 ##################################
   
   # First reshape the data to get the format you need
   reformatted_table_format <- max_prop_prev %>%
@@ -1501,22 +1496,20 @@
   #   kable_styling(bootstrap_options = c("striped", "hover"),
   #                 full_width = FALSE)
   
-  ################################## Table X2 - Freq. ##################################
+  ################################## Table 1 - Freq. ##################################
   
   # NOTE - 21 April 2025
   #   - ran the below using cover model workspace (i.e., single-host model w/ nonlinear density dependence)
   #   - the below also specifically notates objects using 'freq' to indicates frequency-dependence - but can be
   #       used to summarize output metrics from density-dependent runs too. ideally could be re-coded accordingly
-
+  
   # error_eval stuff here
   #
   table_x2 = error_metrics %>%
-    select(-NRMSE_range, -NRMSE_mean, -sMAPE) %>%
+    select(-NRMSE_mean, -sMAPE) %>%  # Keep NRMSE_range, remove others
     filter(!(type == "DHW" | wave == "Pre-heat")) %>%
     select(-wave)
-
-
-
+  
   # param stuff here
   #
   #frequency-dependent
@@ -1563,7 +1556,7 @@
   gamma.MS.nearshore.multi = gamma.nearshore.MS
   gamma.HS.nearshore.multi = gamma.nearshore.HS
   R0s.nearshore.multi = c(beta.LS.nearshore.multi, beta.MS.nearshore.multi, beta.HS.nearshore.multi) / c(gamma.LS.nearshore.multi, gamma.MS.nearshore.multi, gamma.HS.nearshore.multi)
-
+  
   # Create a new dataframe with the updated structure - now with separate Beta and Gamma columns
   reformatted_table <- data.frame(
     Simulation = character(),
@@ -1574,13 +1567,14 @@
     Effective_R0 = character(),
     R2 = numeric(),
     RMSE = numeric(),
+    NRMSE = numeric(),        # Added NRMSE column
     stringsAsFactors = FALSE
   )
-
+  
   # Map site/type/host combinations to the desired output format
   for (i in 1:nrow(table_x2)) {
     row <- table_x2[i,]
-
+    
     # Determine simulation name based on site and type
     simulation <- ""
     if (row$site == "near") {
@@ -1598,15 +1592,15 @@
         simulation <- "Near -> Off"
       }
     }
-
+    
     # Determine dependence type
     dependence <- ifelse(row$host == "Single", "Frequency", "Mixed")
-
+    
     # Initialize empty beta, gamma and R0 values (will be filled later)
     betas <- ""
     gammas <- ""
     effective_r0 <- ""
-
+    
     # Add to the new dataframe
     reformatted_table <- rbind(reformatted_table, data.frame(
       Simulation = simulation,
@@ -1616,97 +1610,97 @@
       Gammas = gammas,
       Effective_R0 = effective_r0,
       R2 = round(row$R_squared, 2),
-      RMSE = round(row$RMSE, 2)
+      RMSE = round(row$RMSE, 2),
+      NRMSE = round(row$NRMSE_range, 2)  # Added NRMSE_range as NRMSE
     ))
   }
-
+  
   # Define the order of simulations and hosts for proper sorting
   order_simulations <- c("Offshore", "Midchannel", "Nearshore", "Near -> Off", "Off -> Near")
   order_hosts <- c("Single", "Multi")
-
+  
   # Create sorting keys
   simulation_order <- match(reformatted_table$Simulation, order_simulations)
   host_order <- match(reformatted_table$Host, order_hosts)
-
+  
   # Sort the table
   reformatted_table <- reformatted_table[order(host_order, simulation_order), ]
-
+  
   # Now fill in the parameter values and R0s from the provided variable names
-
+  
   # Offshore Single Frequency
   idx <- which(reformatted_table$Simulation == "Offshore" & reformatted_table$Host == "Single")
   reformatted_table$Betas[idx] <- as.character(round(beta.offshore.single.freq, 2))
   reformatted_table$Gammas[idx] <- as.character(round(gamma.offshore.single.freq, 2))
   reformatted_table$Effective_R0[idx] <- as.character(round(R0.offshore.single.freq, 2))
-
+  
   # Midchannel Single Frequency
   idx <- which(reformatted_table$Simulation == "Midchannel" & reformatted_table$Host == "Single")
   reformatted_table$Betas[idx] <- as.character(round(beta.midchannel.single.freq, 2))
   reformatted_table$Gammas[idx] <- as.character(round(gamma.midchannel.single.freq, 2))
   reformatted_table$Effective_R0[idx] <- as.character(round(R0.midchannel.single.freq, 2))
-
+  
   # Nearshore Single Frequency
   idx <- which(reformatted_table$Simulation == "Nearshore" & reformatted_table$Host == "Single")
   reformatted_table$Betas[idx] <- as.character(round(beta.nearshore.single.freq, 2))
   reformatted_table$Gammas[idx] <- as.character(round(gamma.nearshore.single.freq, 2))
   reformatted_table$Effective_R0[idx] <- as.character(round(R0.nearshore.single.freq, 2))
-
+  
   # Near -> Off Single (uses Nearshore parameters)
   idx <- which(reformatted_table$Simulation == "Near -> Off" & reformatted_table$Host == "Single")
   reformatted_table$Betas[idx] <- as.character(round(beta.nearshore.single.freq, 2))
   reformatted_table$Gammas[idx] <- as.character(round(gamma.nearshore.single.freq, 2))
   reformatted_table$Effective_R0[idx] <- as.character(round(R0.nearshore.single.freq, 2))
-
+  
   # Off -> Near Single (uses Offshore parameters)
   idx <- which(reformatted_table$Simulation == "Off -> Near" & reformatted_table$Host == "Single")
   reformatted_table$Betas[idx] <- as.character(round(beta.offshore.single.freq, 2))
   reformatted_table$Gammas[idx] <- as.character(round(gamma.offshore.single.freq, 2))
   reformatted_table$Effective_R0[idx] <- as.character(round(R0.offshore.single.freq, 2))
-
+  
   # Offshore Multi Mixed
   idx <- which(reformatted_table$Simulation == "Offshore" & reformatted_table$Host == "Multi")
   reformatted_table$Betas[idx] <- paste(round(beta.LS.offshore.multi, 2), round(beta.MS.offshore.multi, 2), round(beta.HS.offshore.multi, 2), sep = ", ")
   reformatted_table$Gammas[idx] <- paste(round(gamma.LS.offshore.multi, 2), round(gamma.MS.offshore.multi, 2), round(gamma.HS.offshore.multi, 2), sep = ", ")
   reformatted_table$Effective_R0[idx] <- paste(round(R0s.offshore.multi, 2), collapse = ", ")
-
+  
   # Midchannel Multi Mixed
   idx <- which(reformatted_table$Simulation == "Midchannel" & reformatted_table$Host == "Multi")
   reformatted_table$Betas[idx] <- paste(round(beta.LS.midchannel.multi, 2), round(beta.MS.midchannel.multi, 2), round(beta.HS.midchannel.multi, 2), sep = ", ")
   reformatted_table$Gammas[idx] <- paste(round(gamma.LS.midchannel.multi, 2), round(gamma.MS.midchannel.multi, 2), round(gamma.HS.midchannel.multi, 2), sep = ", ")
   reformatted_table$Effective_R0[idx] <- paste(round(R0s.midchannel.multi, 2), collapse = ", ")
-
+  
   # Nearshore Multi Mixed
   idx <- which(reformatted_table$Simulation == "Nearshore" & reformatted_table$Host == "Multi")
   reformatted_table$Betas[idx] <- paste(round(beta.LS.nearshore.multi, 2), round(beta.MS.nearshore.multi, 2), round(beta.HS.nearshore.multi, 2), sep = ", ")
   reformatted_table$Gammas[idx] <- paste(round(gamma.LS.nearshore.multi, 2), round(gamma.MS.nearshore.multi, 2), round(gamma.HS.nearshore.multi, 2), sep = ", ")
   reformatted_table$Effective_R0[idx] <- paste(round(R0s.nearshore.multi, 2), collapse = ", ")
-
+  
   # Near -> Off Multi (uses Nearshore parameters)
   idx <- which(reformatted_table$Simulation == "Near -> Off" & reformatted_table$Host == "Multi")
   reformatted_table$Betas[idx] <- paste(round(beta.LS.nearshore.multi, 2), round(beta.MS.nearshore.multi, 2), round(beta.HS.nearshore.multi, 2), sep = ", ")
   reformatted_table$Gammas[idx] <- paste(round(gamma.LS.nearshore.multi, 2), round(gamma.MS.nearshore.multi, 2), round(gamma.HS.nearshore.multi, 2), sep = ", ")
   reformatted_table$Effective_R0[idx] <- paste(round(R0s.nearshore.multi, 2), collapse = ", ")
-
+  
   # Off -> Near Multi (uses Offshore parameters)
   idx <- which(reformatted_table$Simulation == "Off -> Near" & reformatted_table$Host == "Multi")
   reformatted_table$Betas[idx] <- paste(round(beta.LS.offshore.multi, 2), round(beta.MS.offshore.multi, 2), round(beta.HS.offshore.multi, 2), sep = ", ")
   reformatted_table$Gammas[idx] <- paste(round(gamma.LS.offshore.multi, 2), round(gamma.MS.offshore.multi, 2), round(gamma.HS.offshore.multi, 2), sep = ", ")
   reformatted_table$Effective_R0[idx] <- paste(round(R0s.offshore.multi, 2), collapse = ", ")
-
+  
   # Print the final table
   print(reformatted_table)
-
+  
   #write to CSV for easy dumping of data into Word table in manuscript
   output_path <- here("output", "tablex2_freqency.csv")
-
+  
   # Write the table to a CSV file without row names
   write.csv(reformatted_table, output_path, row.names = FALSE)
-
+  
   # Print the file path for confirmation
   cat("Table saved to: ", output_path, "\n")
   # Print the final table
   print(reformatted_table)
-
   
   ################################## Force of infection / R0 ##################################
   
@@ -1997,209 +1991,207 @@
   print(reformatted_table)
   
   
-  # ################################## Table X2 - Dens. ##################################
-  # 
-  # # error_eval stuff here
-  # #
-  # table_x2 = error_metrics %>%
-  #   select(-NRMSE_range, -NRMSE_mean, -sMAPE) %>%
-  #   filter(!(type == "DHW" | wave == "Pre-heat")) %>%
-  #   select(-wave)
-  # 
-  # # param stuff here
-  # #
-  # #density-dependent
-  # #basic
-  # beta.offshore.single.dens = params.basic.offshore.full[1] * ((1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.offshore.full)) / (1 - exp(-k_val))))
-  # gamma.offshore.single.dens = params.basic.offshore.full[3]
-  # R0.offshore.single.dens = beta.offshore.single.dens / gamma.offshore.single.dens
-  # #
-  # beta.midchannel.single.dens = params.basic.midchannel.full[1] * ((1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.midchannel.full)) / (1 - exp(-k_val))))
-  # gamma.midchannel.single.dens = params.basic.midchannel.full[3]
-  # R0.midchannel.single.dens = beta.midchannel.single.dens / gamma.midchannel.single.dens
-  # #
-  # beta.nearshore.single.dens = params.basic.nearshore.full[1] * ((1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.nearshore.full)) / (1 - exp(-k_val))))
-  # gamma.nearshore.single.dens = params.basic.nearshore.full[3]
-  # R0.nearshore.single.dens = beta.nearshore.single.dens / gamma.nearshore.single.dens
-  # #
-  # beta.near.to.off.single.dens = params.basic.nearshore.full[1] * ((1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.offshore.full)) / (1 - exp(-k_val))))
-  # R0.near.to.off.single.dens = beta.near.to.off.single.dens / gamma.nearshore.single.dens
-  # #
-  # beta.off.to.near.single.dens = params.basic.offshore.full[1] * ((1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.nearshore.full)) / (1 - exp(-k_val))))
-  # R0.off.to.near.single.dens = beta.off.to.near.single.dens / gamma.offshore.single.dens
-  # #
-  # #
-  # #
-  # #mixed dependency
-  # #multi
-  # beta.LS.offshore.multi = beta.offshore.LS * ((1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.offshore.LS)) / (1 - exp(-k_val))))
-  # beta.MS.offshore.multi = beta.offshore.MS * ((1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.offshore.MS)) / (1 - exp(-k_val))))
-  # beta.HS.offshore.multi = beta.offshore.HS * ((1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.offshore.HS)) / (1 - exp(-k_val))))
-  # gamma.LS.offshore.multi = gamma.offshore.LS
-  # gamma.MS.offshore.multi = gamma.offshore.MS
-  # gamma.HS.offshore.multi = gamma.offshore.HS
-  # R0s.offshore.multi = c(beta.LS.offshore.multi, beta.MS.offshore.multi, beta.HS.offshore.multi) / c(gamma.LS.offshore.multi, gamma.MS.offshore.multi, gamma.HS.offshore.multi)
-  # #
-  # beta.LS.midchannel.multi = beta.midchannel.LS * ((1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.midchannel.LS)) / (1 - exp(-k_val))))
-  # beta.MS.midchannel.multi = beta.midchannel.MS * ((1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.midchannel.MS)) / (1 - exp(-k_val))))
-  # beta.HS.midchannel.multi = beta.midchannel.HS * ((1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.midchannel.HS)) / (1 - exp(-k_val))))
-  # gamma.LS.midchannel.multi = gamma.midchannel.LS
-  # gamma.MS.midchannel.multi = gamma.midchannel.MS
-  # gamma.HS.midchannel.multi = gamma.midchannel.HS
-  # R0s.midchannel.multi = c(beta.LS.midchannel.multi, beta.MS.midchannel.multi, beta.HS.midchannel.multi) / c(gamma.LS.midchannel.multi, gamma.MS.midchannel.multi, gamma.HS.midchannel.multi)
-  # #
-  # beta.LS.nearshore.multi = beta.nearshore.LS * ((1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.nearshore.LS)) / (1 - exp(-k_val))))
-  # beta.MS.nearshore.multi = beta.nearshore.MS * ((1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.nearshore.MS)) / (1 - exp(-k_val))))
-  # beta.HS.nearshore.multi = beta.nearshore.HS * ((1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.nearshore.HS)) / (1 - exp(-k_val))))
-  # gamma.LS.nearshore.multi = gamma.nearshore.LS
-  # gamma.MS.nearshore.multi = gamma.nearshore.MS
-  # gamma.HS.nearshore.multi = gamma.nearshore.HS
-  # R0s.nearshore.multi = c(beta.LS.nearshore.multi, beta.MS.nearshore.multi, beta.HS.nearshore.multi) / c(gamma.LS.nearshore.multi, gamma.MS.nearshore.multi, gamma.HS.nearshore.multi)
-  # 
-  # # Create a new dataframe with the updated structure - now with separate Beta and Gamma columns
-  # reformatted_table <- data.frame(
-  #   Simulation = character(),
-  #   Host = character(),
-  #   Dependence = character(),
-  #   Betas = character(),      # New column for Beta values
-  #   Gammas = character(),     # New column for Gamma values
-  #   Effective_R0 = character(),
-  #   R2 = numeric(),
-  #   RMSE = numeric(),
-  #   stringsAsFactors = FALSE
-  # )
-  # 
-  # # Map site/type/host combinations to the desired output format
-  # for (i in 1:nrow(table_x2)) {
-  #   row <- table_x2[i,]
-  #   
-  #   # Determine simulation name based on site and type
-  #   simulation <- ""
-  #   if (row$site == "near") {
-  #     if (row$type == "Fitted") {
-  #       simulation <- "Nearshore"
-  #     } else {
-  #       simulation <- "Off -> Near"
-  #     }
-  #   } else if (row$site == "mid") {
-  #     simulation <- "Midchannel"
-  #   } else if (row$site == "off") {
-  #     if (row$type == "Fitted") {
-  #       simulation <- "Offshore"
-  #     } else {
-  #       simulation <- "Near -> Off"
-  #     }
-  #   }
-  #   
-  #   # Determine dependence type
-  #   dependence <- ifelse(row$host == "Single", "Density", "Mixed")
-  #   
-  #   # Initialize empty beta, gamma and R0 values (will be filled later)
-  #   betas <- ""
-  #   gammas <- ""
-  #   effective_r0 <- ""
-  #   
-  #   # Add to the new dataframe
-  #   reformatted_table <- rbind(reformatted_table, data.frame(
-  #     Simulation = simulation,
-  #     Host = row$host,
-  #     Dependence = dependence,
-  #     Betas = betas,
-  #     Gammas = gammas,
-  #     Effective_R0 = effective_r0,
-  #     R2 = round(row$R_squared, 2),
-  #     RMSE = round(row$RMSE, 2)
-  #   ))
-  # }
-  # 
-  # # Define the order of simulations and hosts for proper sorting
-  # order_simulations <- c("Offshore", "Midchannel", "Nearshore", "Near -> Off", "Off -> Near")
-  # order_hosts <- c("Single", "Multi")
-  # 
-  # # Create sorting keys
-  # simulation_order <- match(reformatted_table$Simulation, order_simulations)
-  # host_order <- match(reformatted_table$Host, order_hosts)
-  # 
-  # # Sort the table
-  # reformatted_table <- reformatted_table[order(host_order, simulation_order), ]
-  # 
-  # # Now fill in the parameter values and R0s from the provided variable names
-  # 
-  # # Offshore Single Frequency
-  # idx <- which(reformatted_table$Simulation == "Offshore" & reformatted_table$Host == "Single")
-  # reformatted_table$Betas[idx] <- as.character(round(beta.offshore.single.dens, 2))
-  # reformatted_table$Gammas[idx] <- as.character(round(gamma.offshore.single.dens, 2))
-  # reformatted_table$Effective_R0[idx] <- as.character(round(R0.offshore.single.dens, 2))
-  # 
-  # # Midchannel Single Frequency
-  # idx <- which(reformatted_table$Simulation == "Midchannel" & reformatted_table$Host == "Single")
-  # reformatted_table$Betas[idx] <- as.character(round(beta.midchannel.single.dens, 2))
-  # reformatted_table$Gammas[idx] <- as.character(round(gamma.midchannel.single.dens, 2))
-  # reformatted_table$Effective_R0[idx] <- as.character(round(R0.midchannel.single.dens, 2))
-  # 
-  # # Nearshore Single Frequency
-  # idx <- which(reformatted_table$Simulation == "Nearshore" & reformatted_table$Host == "Single")
-  # reformatted_table$Betas[idx] <- as.character(round(beta.nearshore.single.dens, 2))
-  # reformatted_table$Gammas[idx] <- as.character(round(gamma.nearshore.single.dens, 2))
-  # reformatted_table$Effective_R0[idx] <- as.character(round(R0.nearshore.single.dens, 2))
-  # 
-  # # Near -> Off Single (uses Nearshore parameters)
-  # idx <- which(reformatted_table$Simulation == "Near -> Off" & reformatted_table$Host == "Single")
-  # reformatted_table$Betas[idx] <- as.character(round(beta.near.to.off.single.dens, 2))
-  # reformatted_table$Gammas[idx] <- as.character(round(gamma.nearshore.single.dens, 2))
-  # reformatted_table$Effective_R0[idx] <- as.character(round(R0.near.to.off.single.dens, 2))
-  # 
-  # # Off -> Near Single (uses Offshore parameters)
-  # idx <- which(reformatted_table$Simulation == "Off -> Near" & reformatted_table$Host == "Single")
-  # reformatted_table$Betas[idx] <- as.character(round(beta.off.to.near.single.dens, 2))
-  # reformatted_table$Gammas[idx] <- as.character(round(gamma.offshore.single.dens, 2))
-  # reformatted_table$Effective_R0[idx] <- as.character(round(R0.off.to.near.single.dens, 2))
-  # 
-  # # Offshore Multi Mixed
-  # idx <- which(reformatted_table$Simulation == "Offshore" & reformatted_table$Host == "Multi")
-  # reformatted_table$Betas[idx] <- paste(round(beta.LS.offshore.multi, 2), round(beta.MS.offshore.multi, 2), round(beta.HS.offshore.multi, 2), sep = ", ")
-  # reformatted_table$Gammas[idx] <- paste(round(gamma.LS.offshore.multi, 2), round(gamma.MS.offshore.multi, 2), round(gamma.HS.offshore.multi, 2), sep = ", ")
-  # reformatted_table$Effective_R0[idx] <- paste(round(R0s.offshore.multi, 2), collapse = ", ")
-  # 
-  # # Midchannel Multi Mixed
-  # idx <- which(reformatted_table$Simulation == "Midchannel" & reformatted_table$Host == "Multi")
-  # reformatted_table$Betas[idx] <- paste(round(beta.LS.midchannel.multi, 2), round(beta.MS.midchannel.multi, 2), round(beta.HS.midchannel.multi, 2), sep = ", ")
-  # reformatted_table$Gammas[idx] <- paste(round(gamma.LS.midchannel.multi, 2), round(gamma.MS.midchannel.multi, 2), round(gamma.HS.midchannel.multi, 2), sep = ", ")
-  # reformatted_table$Effective_R0[idx] <- paste(round(R0s.midchannel.multi, 2), collapse = ", ")
-  # 
-  # # Nearshore Multi Mixed
-  # idx <- which(reformatted_table$Simulation == "Nearshore" & reformatted_table$Host == "Multi")
-  # reformatted_table$Betas[idx] <- paste(round(beta.LS.nearshore.multi, 2), round(beta.MS.nearshore.multi, 2), round(beta.HS.nearshore.multi, 2), sep = ", ")
-  # reformatted_table$Gammas[idx] <- paste(round(gamma.LS.nearshore.multi, 2), round(gamma.MS.nearshore.multi, 2), round(gamma.HS.nearshore.multi, 2), sep = ", ")
-  # reformatted_table$Effective_R0[idx] <- paste(round(R0s.nearshore.multi, 2), collapse = ", ")
-  # 
-  # # Near -> Off Multi (uses Nearshore parameters)
-  # idx <- which(reformatted_table$Simulation == "Near -> Off" & reformatted_table$Host == "Multi")
-  # reformatted_table$Betas[idx] <- paste(round(beta.LS.nearshore.multi, 2), round(beta.MS.nearshore.multi, 2), round(beta.HS.nearshore.multi, 2), sep = ", ")
-  # reformatted_table$Gammas[idx] <- paste(round(gamma.LS.nearshore.multi, 2), round(gamma.MS.nearshore.multi, 2), round(gamma.HS.nearshore.multi, 2), sep = ", ")
-  # reformatted_table$Effective_R0[idx] <- paste(round(R0s.nearshore.multi, 2), collapse = ", ")
-  # 
-  # # Off -> Near Multi (uses Offshore parameters)
-  # idx <- which(reformatted_table$Simulation == "Off -> Near" & reformatted_table$Host == "Multi")
-  # reformatted_table$Betas[idx] <- paste(round(beta.LS.offshore.multi, 2), round(beta.MS.offshore.multi, 2), round(beta.HS.offshore.multi, 2), sep = ", ")
-  # reformatted_table$Gammas[idx] <- paste(round(gamma.LS.offshore.multi, 2), round(gamma.MS.offshore.multi, 2), round(gamma.HS.offshore.multi, 2), sep = ", ")
-  # reformatted_table$Effective_R0[idx] <- paste(round(R0s.offshore.multi, 2), collapse = ", ")
-  # 
-  # # Print the final table
-  # print(reformatted_table)  
-  # 
-  # #write to CSV for easy dumping of data into Word table in manuscript
-  # output_path <- here("output", "tablex2_density.csv")
-  # 
-  # # Write the table to a CSV file without row names
-  # write.csv(reformatted_table, output_path, row.names = FALSE)
-  # 
-  # # Print the file path for confirmation
-  # cat("Table saved to: ", output_path, "\n")
-  # # Print the final table
-  # print(reformatted_table)
-  # 
-  # 
+  ################################## Table 1 - Dens. ##################################
+
+  # error_eval stuff here
+  #
+  table_x2 = error_metrics %>%
+    select(-NRMSE_mean, -sMAPE) %>%  # Keep NRMSE_range, remove others
+    filter(!(type == "DHW" | wave == "Pre-heat")) %>%
+    select(-wave)
+  
+  # param stuff here
+  #
+  #frequency-dependent
+  #basic
+  beta.offshore.single.dens = params.basic.offshore.full[1]
+  # min.beta.tiss.adj = min.beta.tiss * (1 / (1 + exp(-lambda.modifier * (cover.site))) + offset)
+  # beta.offshore.adj.full = params.basic.offshore.full[2]
+  gamma.offshore.single.dens = params.basic.offshore.full[3]
+  R0.offshore.single.dens = beta.offshore.single.dens / gamma.offshore.single.dens
+  #
+  beta.midchannel.single.dens = params.basic.midchannel.full[1]
+  gamma.midchannel.single.dens = params.basic.midchannel.full[3]
+  R0.midchannel.single.dens = beta.midchannel.single.dens / gamma.midchannel.single.dens
+  #
+  beta.nearshore.single.dens = params.basic.nearshore.full[1]
+  gamma.nearshore.single.dens = params.basic.nearshore.full[3]
+  R0.nearshore.single.dens = beta.nearshore.single.dens / gamma.nearshore.single.dens
+  #
+  #
+  #
+  #mixed dependency
+  #multi
+  beta.LS.offshore.multi = beta.offshore.LS
+  beta.MS.offshore.multi = beta.offshore.MS
+  beta.HS.offshore.multi = beta.offshore.HS
+  # betas.offshore.adj = c(beta.offshore.LS.adj, beta.offshore.MS.adj, beta.offshore.HS.adj)
+  gamma.LS.offshore.multi = gamma.offshore.LS
+  gamma.MS.offshore.multi = gamma.offshore.MS
+  gamma.HS.offshore.multi = gamma.offshore.HS
+  R0s.offshore.multi = c(beta.LS.offshore.multi, beta.MS.offshore.multi, beta.HS.offshore.multi) / c(gamma.LS.offshore.multi, gamma.MS.offshore.multi, gamma.HS.offshore.multi)
+  #
+  beta.LS.midchannel.multi = beta.midchannel.LS
+  beta.MS.midchannel.multi = beta.midchannel.MS
+  beta.HS.midchannel.multi = beta.midchannel.HS
+  gamma.LS.midchannel.multi = gamma.midchannel.LS
+  gamma.MS.midchannel.multi = gamma.midchannel.MS
+  gamma.HS.midchannel.multi = gamma.midchannel.HS
+  R0s.midchannel.multi = c(beta.LS.midchannel.multi, beta.MS.midchannel.multi, beta.HS.midchannel.multi) / c(gamma.LS.midchannel.multi, gamma.MS.midchannel.multi, gamma.HS.midchannel.multi)
+  #
+  beta.LS.nearshore.multi = beta.nearshore.LS
+  beta.MS.nearshore.multi = beta.nearshore.MS
+  beta.HS.nearshore.multi = beta.nearshore.HS
+  gamma.LS.nearshore.multi = gamma.nearshore.LS
+  gamma.MS.nearshore.multi = gamma.nearshore.MS
+  gamma.HS.nearshore.multi = gamma.nearshore.HS
+  R0s.nearshore.multi = c(beta.LS.nearshore.multi, beta.MS.nearshore.multi, beta.HS.nearshore.multi) / c(gamma.LS.nearshore.multi, gamma.MS.nearshore.multi, gamma.HS.nearshore.multi)
+  
+  # Create a new dataframe with the updated structure - now with separate Beta and Gamma columns
+  reformatted_table <- data.frame(
+    Simulation = character(),
+    Host = character(),
+    Dependence = character(),
+    Betas = character(),      # New column for Beta values
+    Gammas = character(),     # New column for Gamma values
+    Effective_R0 = character(),
+    R2 = numeric(),
+    RMSE = numeric(),
+    NRMSE = numeric(),        # Added NRMSE column
+    stringsAsFactors = FALSE
+  )
+  
+  # Map site/type/host combinations to the desired output format
+  for (i in 1:nrow(table_x2)) {
+    row <- table_x2[i,]
+    
+    # Determine simulation name based on site and type
+    simulation <- ""
+    if (row$site == "near") {
+      if (row$type == "Fitted") {
+        simulation <- "Nearshore"
+      } else {
+        simulation <- "Off -> Near"
+      }
+    } else if (row$site == "mid") {
+      simulation <- "Midchannel"
+    } else if (row$site == "off") {
+      if (row$type == "Fitted") {
+        simulation <- "Offshore"
+      } else {
+        simulation <- "Near -> Off"
+      }
+    }
+    
+    # Determine dependence type
+    dependence <- ifelse(row$host == "Single", "NL Dens.", "WG NL Dens.")
+    
+    # Initialize empty beta, gamma and R0 values (will be filled later)
+    betas <- ""
+    gammas <- ""
+    effective_r0 <- ""
+    
+    # Add to the new dataframe
+    reformatted_table <- rbind(reformatted_table, data.frame(
+      Simulation = simulation,
+      Host = row$host,
+      Dependence = dependence,
+      Betas = betas,
+      Gammas = gammas,
+      Effective_R0 = effective_r0,
+      R2 = round(row$R_squared, 2),
+      RMSE = round(row$RMSE, 2),
+      NRMSE = round(row$NRMSE_range, 2)  # Added NRMSE_range as NRMSE
+    ))
+  }
+  
+  # Define the order of simulations and hosts for proper sorting
+  order_simulations <- c("Offshore", "Midchannel", "Nearshore", "Near -> Off", "Off -> Near")
+  order_hosts <- c("Single", "Multi")
+  
+  # Create sorting keys
+  simulation_order <- match(reformatted_table$Simulation, order_simulations)
+  host_order <- match(reformatted_table$Host, order_hosts)
+  
+  # Sort the table
+  reformatted_table <- reformatted_table[order(host_order, simulation_order), ]
+  
+  # Now fill in the parameter values and R0s from the provided variable names
+  
+  # Offshore Single Frequency
+  idx <- which(reformatted_table$Simulation == "Offshore" & reformatted_table$Host == "Single")
+  reformatted_table$Betas[idx] <- as.character(round(beta.offshore.single.dens, 2))
+  reformatted_table$Gammas[idx] <- as.character(round(gamma.offshore.single.dens, 2))
+  reformatted_table$Effective_R0[idx] <- as.character(round(R0.offshore.single.dens, 2))
+  
+  # Midchannel Single Frequency
+  idx <- which(reformatted_table$Simulation == "Midchannel" & reformatted_table$Host == "Single")
+  reformatted_table$Betas[idx] <- as.character(round(beta.midchannel.single.dens, 2))
+  reformatted_table$Gammas[idx] <- as.character(round(gamma.midchannel.single.dens, 2))
+  reformatted_table$Effective_R0[idx] <- as.character(round(R0.midchannel.single.dens, 2))
+  
+  # Nearshore Single Frequency
+  idx <- which(reformatted_table$Simulation == "Nearshore" & reformatted_table$Host == "Single")
+  reformatted_table$Betas[idx] <- as.character(round(beta.nearshore.single.dens, 2))
+  reformatted_table$Gammas[idx] <- as.character(round(gamma.nearshore.single.dens, 2))
+  reformatted_table$Effective_R0[idx] <- as.character(round(R0.nearshore.single.dens, 2))
+  
+  # Near -> Off Single (uses Nearshore parameters)
+  idx <- which(reformatted_table$Simulation == "Near -> Off" & reformatted_table$Host == "Single")
+  reformatted_table$Betas[idx] <- as.character(round(beta.nearshore.single.dens, 2))
+  reformatted_table$Gammas[idx] <- as.character(round(gamma.nearshore.single.dens, 2))
+  reformatted_table$Effective_R0[idx] <- as.character(round(R0.nearshore.single.dens, 2))
+  
+  # Off -> Near Single (uses Offshore parameters)
+  idx <- which(reformatted_table$Simulation == "Off -> Near" & reformatted_table$Host == "Single")
+  reformatted_table$Betas[idx] <- as.character(round(beta.offshore.single.dens, 2))
+  reformatted_table$Gammas[idx] <- as.character(round(gamma.offshore.single.dens, 2))
+  reformatted_table$Effective_R0[idx] <- as.character(round(R0.offshore.single.dens, 2))
+  
+  # Offshore Multi Mixed
+  idx <- which(reformatted_table$Simulation == "Offshore" & reformatted_table$Host == "Multi")
+  reformatted_table$Betas[idx] <- paste(round(beta.LS.offshore.multi, 2), round(beta.MS.offshore.multi, 2), round(beta.HS.offshore.multi, 2), sep = ", ")
+  reformatted_table$Gammas[idx] <- paste(round(gamma.LS.offshore.multi, 2), round(gamma.MS.offshore.multi, 2), round(gamma.HS.offshore.multi, 2), sep = ", ")
+  reformatted_table$Effective_R0[idx] <- paste(round(R0s.offshore.multi, 2), collapse = ", ")
+  
+  # Midchannel Multi Mixed
+  idx <- which(reformatted_table$Simulation == "Midchannel" & reformatted_table$Host == "Multi")
+  reformatted_table$Betas[idx] <- paste(round(beta.LS.midchannel.multi, 2), round(beta.MS.midchannel.multi, 2), round(beta.HS.midchannel.multi, 2), sep = ", ")
+  reformatted_table$Gammas[idx] <- paste(round(gamma.LS.midchannel.multi, 2), round(gamma.MS.midchannel.multi, 2), round(gamma.HS.midchannel.multi, 2), sep = ", ")
+  reformatted_table$Effective_R0[idx] <- paste(round(R0s.midchannel.multi, 2), collapse = ", ")
+  
+  # Nearshore Multi Mixed
+  idx <- which(reformatted_table$Simulation == "Nearshore" & reformatted_table$Host == "Multi")
+  reformatted_table$Betas[idx] <- paste(round(beta.LS.nearshore.multi, 2), round(beta.MS.nearshore.multi, 2), round(beta.HS.nearshore.multi, 2), sep = ", ")
+  reformatted_table$Gammas[idx] <- paste(round(gamma.LS.nearshore.multi, 2), round(gamma.MS.nearshore.multi, 2), round(gamma.HS.nearshore.multi, 2), sep = ", ")
+  reformatted_table$Effective_R0[idx] <- paste(round(R0s.nearshore.multi, 2), collapse = ", ")
+  
+  # Near -> Off Multi (uses Nearshore parameters)
+  idx <- which(reformatted_table$Simulation == "Near -> Off" & reformatted_table$Host == "Multi")
+  reformatted_table$Betas[idx] <- paste(round(beta.LS.nearshore.multi, 2), round(beta.MS.nearshore.multi, 2), round(beta.HS.nearshore.multi, 2), sep = ", ")
+  reformatted_table$Gammas[idx] <- paste(round(gamma.LS.nearshore.multi, 2), round(gamma.MS.nearshore.multi, 2), round(gamma.HS.nearshore.multi, 2), sep = ", ")
+  reformatted_table$Effective_R0[idx] <- paste(round(R0s.nearshore.multi, 2), collapse = ", ")
+  
+  # Off -> Near Multi (uses Offshore parameters)
+  idx <- which(reformatted_table$Simulation == "Off -> Near" & reformatted_table$Host == "Multi")
+  reformatted_table$Betas[idx] <- paste(round(beta.LS.offshore.multi, 2), round(beta.MS.offshore.multi, 2), round(beta.HS.offshore.multi, 2), sep = ", ")
+  reformatted_table$Gammas[idx] <- paste(round(gamma.LS.offshore.multi, 2), round(gamma.MS.offshore.multi, 2), round(gamma.HS.offshore.multi, 2), sep = ", ")
+  reformatted_table$Effective_R0[idx] <- paste(round(R0s.offshore.multi, 2), collapse = ", ")
+  
+  # Print the final table
+  print(reformatted_table)
+  
+  #write to CSV for easy dumping of data into Word table in manuscript
+  output_path <- here("output", "tablex2_density.csv")
+  
+  # Write the table to a CSV file without row names
+  write.csv(reformatted_table, output_path, row.names = FALSE)
+  
+  # Print the file path for confirmation
+  cat("Table saved to: ", output_path, "\n")
+  # Print the final table
+  print(reformatted_table)
+
   ################################## Save output ##################################
   
   # #pass workspace to downstream script

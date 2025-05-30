@@ -217,9 +217,14 @@
       # dI.dt = b * S * I / N * transmission_modifier - g * I
       # dR.dt = g * I
       
+      # #density-dependent with NL dens contact rate
+      # dS.dt = -b * S * I * transmission_modifier
+      # dI.dt = b * S * I * transmission_modifier - g * I
+      # dR.dt = g * I
+      
       #density-dependent
-      dS.dt = -b * S * I * transmission_modifier
-      dI.dt = b * S * I * transmission_modifier - g * I
+      dS.dt = -b * S * I
+      dI.dt = b * S * I - g * I
       dR.dt = g * I
       
       return(list(c(dS.dt, dI.dt, dR.dt)))
