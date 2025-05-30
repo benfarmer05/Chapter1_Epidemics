@@ -472,23 +472,23 @@
     # Optional: Add a border around the inset
     draw_label("", x = 0.15, y = 0.55, hjust = 0, vjust = 0, size = 12)
 
-  # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
-  # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
-  quartz(h = 3, w = 3.35)
-  # quartz(h = 5, w = 7.087)
-  # quartz(h = 6, w = 5)
-  
-  figS1
-  
+  # # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
+  # # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
+  # quartz(h = 3, w = 3.35)
+  # # quartz(h = 5, w = 7.087)
+  # # quartz(h = 6, w = 5)
+  # 
+  # figS1
+  # 
   # # Save the Quartz output directly as a PDF
   # quartz.save(file = here("output", "figS1.pdf"), type = "pdf")
   # 
   # #ggplot-export to image
   # ggsave(filename = here("output", "figS1.png"), device = "png", width = 3.35, height = 3, dpi = 1200)
+  # 
+  # dev.off()
   
-  dev.off()
-  
-  ################################## Figure 2  ##################################
+  ################################## Figure S3  ##################################
   
   #version where "Total" is its own thing, not part of the legend
   obs.total.figures <- obs.total %>%
@@ -498,10 +498,10 @@
     mutate(Compartment = factor(Compartment, levels = c("Susceptible", "Infected", "Recovered")))
   
   obs.multi.figures <- obs.multi %>%
-   mutate(Susceptibility = factor(Susceptibility, levels = c("Low", "Moderate", "High"))) %>%
-   mutate(Site = factor(Site, levels = c("Offshore", "Midchannel", "Nearshore"))) %>%
-   mutate(Compartment = case_when(Compartment == "Dead" ~ "Recovered", TRUE ~ Compartment)) %>%
-   mutate(Compartment = factor(Compartment, levels = c("Susceptible", "Infected", "Recovered")))
+    mutate(Susceptibility = factor(Susceptibility, levels = c("Low", "Moderate", "High"))) %>%
+    mutate(Site = factor(Site, levels = c("Offshore", "Midchannel", "Nearshore"))) %>%
+    mutate(Compartment = case_when(Compartment == "Dead" ~ "Recovered", TRUE ~ Compartment)) %>%
+    mutate(Compartment = factor(Compartment, levels = c("Susceptible", "Infected", "Recovered")))
   
   #calculate proportion of tissue in each SIR stage by timepoint
   site_mapping <- data.frame(
@@ -548,24 +548,50 @@
   
   # Find the first date after the initial epidemic wave where SST exceeds threshold set during modeling
   target_date <- DHW.CRW %>%
-   filter(date > as.Date(date_threshold) & SST.90th_HS > SST_threshold_value) %>%
-   slice(1) %>%
-   pull(date)
+    filter(date > as.Date(date_threshold) & SST.90th_HS > SST_threshold_value) %>%
+    slice(1) %>%
+    pull(date)
   
   target_days <- obs.total.figures %>%
-   filter(date == target_date) %>%
-   select(Site, days.inf.site)
+    filter(date == target_date) %>%
+    select(Site, days.inf.site)
   
-  # Define max days across all sites
-  #   - important for creating tidy, comparable time-based plots when necessary
-  max_days_all_sites <- max(obs.total.figures$days.inf.site, na.rm = TRUE)
+  # Find the maximum day value for each site and exclude the final timepoint from each
+  obs_total_with_n_filtered <- obs_total_with_n %>%
+    group_by(Site) %>%
+    filter(days.inf.site < max(days.inf.site, na.rm = TRUE)) %>%
+    ungroup()
   
-  # Absolute Values Plot (Free Scales)
+  obs_with_n_filtered <- obs_with_n %>%
+    group_by(Site) %>%
+    filter(days.inf.site < max(days.inf.site, na.rm = TRUE)) %>%
+    ungroup()
+  
+  obs.total.figures_filtered <- obs.total.figures %>%
+    group_by(Site) %>%
+    filter(days.inf.site < max(days.inf.site, na.rm = TRUE)) %>%
+    ungroup()
+  
+  obs.multi.figures_filtered <- obs.multi.figures %>%
+    group_by(Site) %>%
+    filter(days.inf.site < max(days.inf.site, na.rm = TRUE)) %>%
+    ungroup()
+  
+  # Define max days across all sites AFTER filtering
+  # This will be the maximum day value that's actually plotted
+  max_days_plotted <- max(c(
+    max(obs_total_with_n_filtered$days.inf.site, na.rm = TRUE),
+    max(obs_with_n_filtered$days.inf.site, na.rm = TRUE),
+    max(obs.total.figures_filtered$days.inf.site, na.rm = TRUE),
+    max(obs.multi.figures_filtered$days.inf.site, na.rm = TRUE)
+  ), na.rm = TRUE)
+  
+  # Absolute Values Plot (Free Scales) - using filtered data
   proportion_plot <- ggplot() +
-    geom_ribbon(data = obs_total_with_n %>% filter(Compartment == "Infected"),
+    geom_ribbon(data = obs_total_with_n_filtered %>% filter(Compartment == "Infected"),
                 aes(x = days.inf.site, ymin = 0, ymax = tissue_normalized), 
                 fill = "gray80", alpha = 0.8) +
-    geom_line(data = obs_with_n %>% filter(Compartment == "Infected"),
+    geom_line(data = obs_with_n_filtered %>% filter(Compartment == "Infected"),
               aes(x = days.inf.site, y = tissue_normalized, color = Susceptibility),
               linewidth = 1) + #0.6
     scale_color_manual(values = c("Low" = "#1E90FF",   # Blue
@@ -575,7 +601,7 @@
     # scale_x_continuous(expand = c(0, 0)) +
     xlab("Day of outbreak") +
     ylab("% tissue infected") +
-    scale_x_continuous(limits = c(0, max_days_all_sites)) +
+    scale_x_continuous(limits = c(0, max_days_plotted)) +
     scale_y_continuous(labels = scales::label_number(accuracy = 0.01)) +
     scale_linetype_manual(values = c("dotdash", "longdash", "solid")) +
     theme_classic(base_family = "Georgia") +
@@ -591,42 +617,42 @@
           legend.title = element_text(size = 9),
           legend.key.height = unit(0, "cm"))
   
-  # Relative Values Plot (Fixed Scales)
-  max_value.fig2.row2 <- max(obs.total.figures %>% filter(Compartment == "Infected") %>% pull(tissue), na.rm = TRUE)
+  # Relative Values Plot (Fixed Scales) - using filtered data
+  max_value.figS3.row2 <- max(obs.total.figures_filtered %>% filter(Compartment == "Infected") %>% pull(tissue), na.rm = TRUE)
   
   relative_plot <- ggplot() +
-   geom_ribbon(data = obs.total.figures %>% filter(Compartment == "Infected"),
-               aes(x = days.inf.site, ymin = 0, ymax = tissue), 
-               fill = "gray80", alpha = 0.8) +
-   geom_line(data = obs.multi.figures %>% filter(Compartment == "Infected"),
-             aes(x = days.inf.site, y = tissue, color = Susceptibility),
-             linewidth = 1) + #0.6
-   scale_color_manual(values = c("Low" = "#1E90FF",   # Blue
-                                 "Moderate" = "#FFD700", # Yellow
-                                 "High" = "#FF1493")) +  # Deep Pink
-   # facet_wrap(~ Site, scales = "free_x") +  # Fixed scales
-   facet_wrap(~ Site, scales = "free") +  # Fixed scales
-   xlab("Day of outbreak") +
-   ylab("SA infected (m²)") +
-   scale_x_continuous(limits = c(0, max_days_all_sites)) +  # Apply global max
-   scale_y_continuous(limits = c(0, max_value.fig2.row2), labels = scales::label_number(accuracy = 0.1)) +
-   scale_linetype_manual(values = c("dotdash", "longdash", "solid")) +
-   theme_classic(base_family = "Georgia") +
-   theme(legend.position = "bottom",
-         axis.title = element_text(size = 9),
-         axis.text = element_text(size = 7),
-         # strip.text = element_text(size = 8),
-         strip.text = element_blank(),
-         legend.text = element_text(size = 7),
-         legend.title = element_text(size = 9),
-         legend.key.height = unit(0, "cm"))
-  
-  fig2 <- (proportion_plot / relative_plot) +
-   plot_layout(guides = "collect") &
-   # plot_layout(guides = "collect", axes = "collect") &
+    geom_ribbon(data = obs.total.figures_filtered %>% filter(Compartment == "Infected"),
+                aes(x = days.inf.site, ymin = 0, ymax = tissue), 
+                fill = "gray80", alpha = 0.8) +
+    geom_line(data = obs.multi.figures_filtered %>% filter(Compartment == "Infected"),
+              aes(x = days.inf.site, y = tissue, color = Susceptibility),
+              linewidth = 1) + #0.6
+    scale_color_manual(values = c("Low" = "#1E90FF",   # Blue
+                                  "Moderate" = "#FFD700", # Yellow
+                                  "High" = "#FF1493")) +  # Deep Pink
+    # facet_wrap(~ Site, scales = "free_x") +  # Fixed scales
+    facet_wrap(~ Site, scales = "free") +  # Fixed scales
+    xlab("Day of outbreak") +
+    ylab("SA infected (m²)") +
+    scale_x_continuous(limits = c(0, max_days_plotted)) +  # Use the new filtered max
+    scale_y_continuous(limits = c(0, max_value.figS3.row2), labels = scales::label_number(accuracy = 0.1)) +
+    scale_linetype_manual(values = c("dotdash", "longdash", "solid")) +
+    theme_classic(base_family = "Georgia") +
     theme(legend.position = "bottom",
-         legend.box.spacing = unit(0, "cm"),
-         plot.margin = margin(t = 5, r = 5, b = 0, l = 5))
+          axis.title = element_text(size = 9),
+          axis.text = element_text(size = 7),
+          # strip.text = element_text(size = 8),
+          strip.text = element_blank(),
+          legend.text = element_text(size = 7),
+          legend.title = element_text(size = 9),
+          legend.key.height = unit(0, "cm"))
+  
+  figS3 <- (proportion_plot / relative_plot) +
+    plot_layout(guides = "collect") &
+    # plot_layout(guides = "collect", axes = "collect") &
+    theme(legend.position = "bottom",
+          legend.box.spacing = unit(0, "cm"),
+          plot.margin = margin(t = 5, r = 5, b = 0, l = 5))
   # legend.margin = margin(t = -5, r = 0, b = -5, l = 0)
   # theme(legend.position = "bottom", strip.placement = "outside", strip.text = element_text(size = 15))   # Set legend position
   
@@ -639,21 +665,16 @@
   quartz(h = 3.5, w = 7.087)
   # quartz(h = 3, w = 5)
   
-  fig2
+  figS3
   
-  # # Save the Quartz output directly as a PDF
-  # quartz.save(file = here("output", "fig2.pdf"), type = "pdf")
-  # 
-  # #ggplot-export to image
-  # ggsave(filename = here("output", "fig2.png"), device = "png", width = 7.087, height = 3, dpi = 1200)
+  # Save the Quartz output directly as a PDF
+  quartz.save(file = here("output", "figS3.pdf"), type = "pdf")
+  
+  #ggplot-export to image
+  ggsave(filename = here("output", "figS3.png"), device = "png", width = 7.087, height = 3, dpi = 1200)
   
   # Close the Quartz device
   dev.off()
-  
-  # # Save the plot with specified width and height, using here for the file path
-  # # ggsave(here("output", "fig2.pdf"), plot = fig2)
-  # ggsave(here("output", "fig2.pdf"), plot = fig2, width = 5, height = 3, units = "in")   #18 inches max width
-  # ggsave(here("output", "fig2.png"), plot = fig2, width = 5, height = 3, units = "in")   #18 inches max width
   
   ################################## Figure 3 ##################################
   
@@ -976,15 +997,15 @@
           plot.margin = margin(t = 5, r = 5, b = 0, l = 5)
     )
   
-  p1 = p.fit.nearshore.single.figures
-  p2 = p.fit.nearshore.multi.figures
-  p3 = p.fit.offshore.single.figures
-  p4 = p.fit.offshore.multi.figures
-  p5 = p.fit.near.to.off.single.figures
-  p6 = p.fit.near.to.off.multi.figures
+  p1.fig3 = p.fit.nearshore.single.figures
+  p2.fig3 = p.fit.nearshore.multi.figures
+  p3.fig3 = p.fit.offshore.single.figures
+  p4.fig3 = p.fit.offshore.multi.figures
+  p5.fig3 = p.fit.near.to.off.single.figures
+  p6.fig3 = p.fit.near.to.off.multi.figures
   
   fig3 =
-  p1 + p2 + p3 + p4 + p5 + p6 +
+  p1.fig3 + p2.fig3 + p3.fig3 + p4.fig3 + p5.fig3 + p6.fig3 +
     plot_layout(axis_titles = "collect",
                 guide = 'collect',
                 design = "AB\nCD\nEF") &
@@ -1005,28 +1026,25 @@
   fig3 <- fig3 + plot_annotation(tag_levels = "A") & 
     theme(plot.tag.position = c(1, 1))  # Move labels to top right
   
-  # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
-  # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
-  # quartz(h = 5, w = 3.35)
-  quartz(h = 5, w = 7.087)
-  # quartz(h = 6, w = 5)
+  # # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
+  # # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
+  # # quartz(h = 5, w = 3.35)
+  # quartz(h = 5, w = 7.087)
+  # # quartz(h = 6, w = 5)
+  # 
+  # fig3
+  # 
+  # # Save the Quartz output directly as a PDF
+  # quartz.save(file = here("output", "fig3.pdf"), type = "pdf")
+  # 
+  # #ggplot-export to image
+  # ggsave(filename = here("output", "fig3.png"), device = "png", width = 7.087, height = 5, dpi = 1200)
+  # 
+  # # Close the Quartz device
+  # dev.off()
   
-  fig3
-  
-  # Save the Quartz output directly as a PDF
-  quartz.save(file = here("output", "fig3.pdf"), type = "pdf")
+  ################################## Fig3e export ##################################
 
-  #ggplot-export to image
-  ggsave(filename = here("output", "fig3.png"), device = "png", width = 7.087, height = 5, dpi = 1200)
-
-  # Close the Quartz device
-  dev.off()
-  
-  
-  # =============================================================================
-  # PART 1: ADD THIS TO YOUR EXISTING CODE TO SAVE PANEL E DATA
-  # =============================================================================
-  
   # After you create your fig3 plot, add this section to extract and save panel E data
   # Extract the data used for panel E (offshore projected single-host)
   panel_e_data <- data_fig3 %>% 
@@ -1034,7 +1052,7 @@
     select(days.model, tissue, Compartment)
   
   # Add a workspace identifier (change this for each run)
-  workspace_id <- "workspace_2"  # Change to "workspace_2" for second run
+  workspace_id <- "workspace_1"  # Change to "workspace_2" for second run
   panel_e_data$workspace <- workspace_id
   
   # Save the data
@@ -1048,7 +1066,7 @@
   
   saveRDS(obs_panel_e, file = here("output", paste0("panel_e_obs_", workspace_id, ".rds")))
   
-  ################################## Figure S5 ##################################
+  ################################## Figure S4 ##################################
   
   #figure 3, but just infections
   
@@ -1131,7 +1149,7 @@
           legend.title = element_text(size = titlesize),
           legend.key.height = unit(0, "cm"))
   
-  figS5_col1 = (p.fit.nearshore.inf.single.figures / p.fit.offshore.inf.single.figures / p.fit.near.to.off.single.figures) + 
+  figS4_col1 = (p.fit.nearshore.inf.single.figures / p.fit.offshore.inf.single.figures / p.fit.near.to.off.single.figures) + 
     plot_layout(guides = "collect", axis_titles = 'collect') &
     theme(legend.position = "bottom",
           legend.box.spacing = unit(0, "cm"),
@@ -1210,7 +1228,7 @@
           legend.title = element_text(size = titlesize),
           legend.key.height = unit(0, "cm"))
   
-  figS5_col2 = (p.fit.nearshore.inf.multi.figures / p.fit.offshore.inf.multi.figures / p.fit.near.to.off.multi.figures) + 
+  figS4_col2 = (p.fit.nearshore.inf.multi.figures / p.fit.offshore.inf.multi.figures / p.fit.near.to.off.multi.figures) + 
     plot_layout(axis_titles = 'collect', guides = "collect") &
     theme(legend.position = "bottom",
           legend.box = "vertical",  # Stack legends vertically
@@ -1222,15 +1240,15 @@
           plot.margin = margin(t = 5, r = 5, b = 0, l = 5)
     )
   
-  p1 = p.fit.nearshore.inf.single.figures
-  p2 = p.fit.nearshore.inf.multi.figures
-  p3 = p.fit.offshore.inf.single.figures
-  p4 = p.fit.offshore.inf.multi.figures
-  p5 = p.fit.near.to.off.single.figures
-  p6 = p.fit.near.to.off.multi.figures
+  p1.figS4 = p.fit.nearshore.inf.single.figures
+  p2.figS4 = p.fit.nearshore.inf.multi.figures
+  p3.figS4 = p.fit.offshore.inf.single.figures
+  p4.figS4 = p.fit.offshore.inf.multi.figures
+  p5.figS4 = p.fit.near.to.off.single.figures
+  p6.figS4 = p.fit.near.to.off.multi.figures
   
-  figS5 =
-    p1 + p2 + p3 + p4 + p5 + p6 +
+  figS4 =
+    p1.figS4 + p2.figS4 + p3.figS4 + p4.figS4 + p5.figS4 + p6.figS4 +
     plot_layout(axis_titles = "collect",
                 guide = 'collect',
                 design = "AB\nCD\nEF") &
@@ -1245,28 +1263,28 @@
     )
   
   # add annotation separately (must be done to avoid breaking axes collect)
-  figS5 <- figS5 + plot_annotation(tag_levels = "A") & 
+  figS4 <- figS4 + plot_annotation(tag_levels = "A") & 
     theme(plot.tag.position = c(1, 1))  # Move labels to top right
   
-  # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
-  # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
-  # quartz(h = 5, w = 3.35)
-  quartz(h = 5, w = 7.087)
-  # quartz(h = 6, w = 5)
+  # # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
+  # # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
+  # # quartz(h = 5, w = 3.35)
+  # quartz(h = 5, w = 7.087)
+  # # quartz(h = 6, w = 5)
+  # 
+  # figS4
+  # 
+  # # Save the Quartz output directly as a PDF
+  # quartz.save(file = here("output", "figS4.pdf"), type = "pdf")
+  # 
+  # #ggplot-export to image
+  # ggsave(filename = here("output", "figS4.png"), device = "png", width = 7.087, height = 5, dpi = 1200)
+  # 
+  # # Close the Quartz device
+  # dev.off()
   
-  figS5
   
-  # Save the Quartz output directly as a PDF
-  quartz.save(file = here("output", "figS5.pdf"), type = "pdf")
-  
-  #ggplot-export to image
-  ggsave(filename = here("output", "figS5.png"), device = "png", width = 7.087, height = 5, dpi = 1200)
-  
-  # Close the Quartz device
-  dev.off()
-  
-  
-  ################################## Figure S6 ##################################
+  ################################## Figure S5 ##################################
   
   #figure 3, but just removal
   
@@ -1349,7 +1367,7 @@
           legend.title = element_text(size = titlesize),
           legend.key.height = unit(0, "cm"))
   
-  figS6_col1 = (p.fit.nearshore.rem.single.figures / p.fit.offshore.rem.single.figures / p.fit.near.to.off.single.figures) + 
+  figS5_col1 = (p.fit.nearshore.rem.single.figures / p.fit.offshore.rem.single.figures / p.fit.near.to.off.single.figures) + 
     plot_layout(guides = "collect", axis_titles = 'collect') &
     theme(legend.position = "bottom",
           legend.box.spacing = unit(0, "cm"),
@@ -1428,7 +1446,7 @@
           legend.title = element_text(size = titlesize),
           legend.key.height = unit(0, "cm"))
   
-  figS6_col2 = (p.fit.nearshore.rem.multi.figures / p.fit.offshore.rem.multi.figures / p.fit.near.to.off.multi.figures) + 
+  figS5_col2 = (p.fit.nearshore.rem.multi.figures / p.fit.offshore.rem.multi.figures / p.fit.near.to.off.multi.figures) + 
     plot_layout(axis_titles = 'collect', guides = "collect") &
     theme(legend.position = "bottom",
           legend.box = "vertical",  # Stack legends vertically
@@ -1440,15 +1458,15 @@
           plot.margin = margin(t = 5, r = 5, b = 0, l = 5)
     )
   
-  p1 = p.fit.nearshore.rem.single.figures
-  p2 = p.fit.nearshore.rem.multi.figures
-  p3 = p.fit.offshore.rem.single.figures
-  p4 = p.fit.offshore.rem.multi.figures
-  p5 = p.fit.near.to.off.single.figures
-  p6 = p.fit.near.to.off.multi.figures
+  p1.figS5 = p.fit.nearshore.rem.single.figures
+  p2.figS5 = p.fit.nearshore.rem.multi.figures
+  p3.figS5 = p.fit.offshore.rem.single.figures
+  p4.figS5 = p.fit.offshore.rem.multi.figures
+  p5.figS5 = p.fit.near.to.off.single.figures
+  p6.figS5 = p.fit.near.to.off.multi.figures
   
-  figS6 =
-    p1 + p2 + p3 + p4 + p5 + p6 +
+  figS5 =
+    p1.figS5 + p2.figS5 + p3.figS5 + p4.figS5 + p5.figS5 + p6.figS5 +
     plot_layout(axis_titles = "collect",
                 guide = 'collect',
                 design = "AB\nCD\nEF") &
@@ -1463,26 +1481,49 @@
     )
   
   # add annotation separately (must be done to avoid breaking axes collect)
-  figS6 <- figS6 + plot_annotation(tag_levels = "A") & 
+  figS5 <- figS5 + plot_annotation(tag_levels = "A") & 
     theme(plot.tag.position = c(1, 1))  # Move labels to top right
   
-  # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
-  # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
-  # quartz(h = 5, w = 3.35)
-  quartz(h = 5, w = 7.087)
-  # quartz(h = 6, w = 5)
+  # # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
+  # # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
+  # # quartz(h = 5, w = 3.35)
+  # quartz(h = 5, w = 7.087)
+  # # quartz(h = 6, w = 5)
+  # 
+  # figS5
+  # 
+  # # Save the Quartz output directly as a PDF
+  # quartz.save(file = here("output", "figS5.pdf"), type = "pdf")
+  # 
+  # #ggplot-export to image
+  # ggsave(filename = here("output", "figS5.png"), device = "png", width = 7.087, height = 5, dpi = 1200)
+  # 
+  # # Close the Quartz device
+  # dev.off()
   
-  figS6
   
-  # Save the Quartz output directly as a PDF
-  quartz.save(file = here("output", "figS6.pdf"), type = "pdf")
+  ################################## FigS5/S6 export ##################################
   
-  #ggplot-export to image
-  ggsave(filename = here("output", "figS6.png"), device = "png", width = 7.087, height = 5, dpi = 1200)
-  
-  # Close the Quartz device
-  dev.off()
-  
+  # # After you create your fig3 plot, add this section to extract and save panel E data
+  # # Extract the data used for panel E (offshore projected single-host)
+  # panel_e_data <- data_fig3 %>% 
+  #   filter(Site == 'Offshore', Host == "Single-host", Type == "Projected", Compartment == 'Infected') %>%
+  #   select(days.model, tissue, Compartment)
+  # 
+  # # Add a workspace identifier (change this for each run)
+  # workspace_id <- "workspace_1"  # Change to "workspace_2" for second run
+  # panel_e_data$workspace <- workspace_id
+  # 
+  # # Save the data
+  # saveRDS(panel_e_data, file = here("output", paste0("panel_e_data_", workspace_id, ".rds")))
+  # 
+  # # Optional: also save the observed data points for panel E
+  # obs_panel_e <- obs.total.figures %>% 
+  #   filter(Site == 'Offshore') %>%
+  #   select(days.inf.site, tissue, Compartment)
+  # obs_panel_e$workspace <- workspace_id
+  # 
+  # saveRDS(obs_panel_e, file = here("output", paste0("panel_e_obs_", workspace_id, ".rds")))
   
   
   ################################## Table S2 ##################################
