@@ -371,21 +371,21 @@
     draw_label("", x = 0.15, y = 0.55, hjust = 0, vjust = 0, size = 12)
   
   
-  # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
-  # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
-  quartz(h = 3, w = 3.35)
-  # quartz(h = 5, w = 7.087)
-  # quartz(h = 6, w = 5)
-  
-  figS1
-  
-  # Save the Quartz output directly as a PDF
-  quartz.save(file = here("output", "figS1.pdf"), type = "pdf")
-  
-  #ggplot-export to image
-  ggsave(filename = here("output", "figS1.png"), device = "png", width = 3.35, height = 3, dpi = 1200)
-  
-  dev.off()
+  # # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
+  # # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
+  # quartz(h = 3, w = 3.35)
+  # # quartz(h = 5, w = 7.087)
+  # # quartz(h = 6, w = 5)
+  # 
+  # figS1
+  # 
+  # # Save the Quartz output directly as a PDF
+  # quartz.save(file = here("output", "figS1.pdf"), type = "pdf")
+  # 
+  # #ggplot-export to image
+  # ggsave(filename = here("output", "figS1.png"), device = "png", width = 3.35, height = 3, dpi = 1200)
+  # 
+  # dev.off()
   
   
   ################################## Figure S2 ##################################
@@ -535,21 +535,21 @@
     draw_label("", x = 0.15, y = 0.55, hjust = 0, vjust = 0, size = 12)
   
   
-  # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
-  # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
-  quartz(h = 3, w = 3.35)
-  # quartz(h = 5, w = 7.087)
-  # quartz(h = 6, w = 5)
-  
-  figS2
-  
-  # Save the Quartz output directly as a PDF
-  quartz.save(file = here("output", "figS2.pdf"), type = "pdf")
-  
-  #ggplot-export to image
-  ggsave(filename = here("output", "figS2.png"), device = "png", width = 3.35, height = 3, dpi = 1200)
-  
-  dev.off()
+  # # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
+  # # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
+  # quartz(h = 3, w = 3.35)
+  # # quartz(h = 5, w = 7.087)
+  # # quartz(h = 6, w = 5)
+  # 
+  # figS2
+  # 
+  # # Save the Quartz output directly as a PDF
+  # quartz.save(file = here("output", "figS2.pdf"), type = "pdf")
+  # 
+  # #ggplot-export to image
+  # ggsave(filename = here("output", "figS2.png"), device = "png", width = 3.35, height = 3, dpi = 1200)
+  # 
+  # dev.off()
   
   
   ################################## Integrate surface area ##################################
@@ -625,10 +625,6 @@
     ) %>%
     select(Plot, Sps, Max_width, Coral_ID, percOM) %>%
     rename(spp = Sps)
-  
-  # STOPPING POINT - 13 SEP 2024
-  #   - go down below and consider whether this summing of mortality from 08-17-2018 should be reconsidered!! it might 
-  #     conflict with how I am backtracking infections!
   
   #label the rows which match plots later monitored for SCTLD
   old_mortality = old_mortality %>%
