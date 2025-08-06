@@ -69,14 +69,12 @@
     
     # Axes
     scale_x_continuous(name = "Coral cover (%)", 
-                       limits = c(0, 100),
-                       expand = c(0, 0)) +
-    scale_y_continuous(name = "Scalar",
+                       expand = c(0, 0),
+                       limits = c(0, 100)) +
+    scale_y_continuous(name = "Contact rate scalar",
                        limits = c(0, 1),
                        expand = c(0, 0),
                        breaks = seq(0, 1, 0.2)) +
-    
-    
     
     # Theme
     theme_classic(base_family = 'Georgia') +
@@ -89,7 +87,7 @@
       plot.margin = margin(t = 8, r = 15, b = 8, l = 8),
       # Position legends inside the plot
       legend.position = "inside",
-      legend.position.inside = c(0.85, 0.75), # moved to upper right
+      legend.position.inside = c(0.85, 0.65), # moved to upper right
       legend.box = "vertical",
       legend.margin = margin(5, 5, 5, 5),
       legend.background = element_rect(fill = "white", color = NA, linewidth = 0.3)
@@ -110,103 +108,47 @@
   # Create a custom legend using annotations
   fig2a <- p + 
     # Add manual legend box (moved to middle right area)
-    annotate("rect", xmin = 70, xmax = 95, ymin = 0.25, ymax = 0.45, 
+    annotate("rect", xmin = 70, xmax = 95, ymin = 0.15, ymax = 0.35, 
              fill = "white", color = NA, linewidth = 0.3) +
     
     # Alpha = 0.13 line sample and label
-    annotate("segment", x = 72, xend = 76, y = 0.41, yend = 0.41,
+      annotate("segment", x = 72, xend = 76, y = 0.31, yend = 0.31,
              color = "blue", linewidth = 1) + # ,linetype = 'dashed'
-    annotate("text", x = 77, y = 0.41, 
+    annotate("text", x = 77, y = 0.31, 
              label = expression(alpha == 0.13), 
              hjust = 0, size = 3, family = "Georgia") +
     
     # Nearshore point and label
-    annotate("point", x = 74, y = 0.36, 
+    annotate("point", x = 74, y = 0.26, 
              shape = 23, fill = "orange", color = "black", size = 2, stroke = 1) +
-    annotate("text", x = 77, y = 0.36, 
+    annotate("text", x = 77, y = 0.26, 
              label = "Nearshore", 
              hjust = 0, size = 3, family = "Georgia") +
     
     # Offshore point and label  
-    annotate("point", x = 74, y = 0.31, 
+    annotate("point", x = 74, y = 0.21, 
              shape = 23, fill = "magenta", color = "black", size = 2, stroke = 1) +
-    annotate("text", x = 77, y = 0.31, 
+    annotate("text", x = 77, y = 0.21, 
              label = "Offshore", 
              hjust = 0, size = 3, family = "Georgia")
   
-  #max dimensions are 7.087 in. wide by 9.45 in. tall (3.35 inches preferred)
-  quartz(h = 3, w = 3.35)
+  ################################## export Figure 2a ##################################
   
-  fig2a
-  
-  # Save the Quartz output directly as a PDF
-  quartz.save(file = here("output", "fig2a.pdf"), type = "pdf")
-  
-  #ggplot-export to image
-  ggsave(filename = here("output", "fig2a.png"), device = "png", width = 3.35, height = 3, dpi = 1200)
-  
-  # Close the Quartz device
-  dev.off()
-  
-  
-  # # IN BASE R
+  # #max dimensions are 7.087 in. wide by 9.45 in. tall (3.35 inches preferred)
+  # quartz(h = 3, w = 3.35)
   # 
-  # # COVER-BASED VERSION
+  # fig2a
   # 
-  # CC = seq(0.001,1,.001)
-  # # a = seq(0,1,0.01) #alpha (weight of coral cover)
-  # a = seq(0,1,0.05) #alpha (weight of coral cover)
-  # a = sort(c(a, 0.13))  # add 0.13 and sort the sequence (if 0.13 or other value of interest is already there, can comment this out)
-  # k = 3 #shape of curve?
+  # # Save the Quartz output directly as a PDF
+  # quartz.save(file = here("output", "fig2a.pdf"), type = "pdf")
   # 
-  # dpi = 1200
-  # png(here("output/transmission_plot.png"), width = 3.35 * dpi, height = 3 * dpi, res = dpi)
-  # # pdf(here("output/transmission_plot.pdf"), width = 3.35, height = 3, family = 'Georgia')
+  # #ggplot-export to image
+  # ggsave(filename = here("output", "fig2a.png"), device = "png", width = 3.35, height = 3, dpi = 1200)
   # 
-  # par(family = "Georgia")
-  # # par(mar = c(4.5, 4.5, 1, 1)) #adjust margins (bottom, left, top, right)
-  # par(mar = c(3, 3, 1, 1)) #adjust margins (bottom, left, top, right)
-  # par(mgp = c(1.5, 0.5, 0))  # Reduce space between axis labels and titles
-  # 
-  # plot(NA, NA, 
-  #      xlim = c(0, 100), 
-  #      ylim = c(0, 1),
-  #      xlab = "Coral cover (%)", 
-  #      ylab = "Scalar",
-  #      cex.lab = 0.75,
-  #      cex.axis = 0.6
-  # )
-  # 
-  # for (i in 1:length(a)) {
-  #   mods.1 <- (1 - a[i]) + a[i] * ((1 - exp(-3 * CC)) / (1 - exp(-3)))
-  #   
-  #   col_choice <- ifelse(a[i] == 0.13, 'blue', adjustcolor('red', alpha.f = 1))  
-  #   lwd_choice <- ifelse(a[i] == 0.13, 2, 1)  # Thicker for α = 0.13
-  #   
-  #   #plot in terms of 0 to 100 coral cover
-  #   lines(CC * 100, mods.1, col = col_choice, lwd = lwd_choice)
-  #   
-  #   if (a[i] == 0.13) {
-  #     points(0.247 * 100, (1 - a[i]) + a[i] * ((1 - exp(-3 * 0.247)) / (1 - exp(-3))), 
-  #            pch = 8, col = "orange", cex = 0.75, lwd = 2)  # Nearshore (orange)
-  #     
-  #     points(0.0215 * 100, (1 - a[i]) + a[i] * ((1 - exp(-3 * 0.0215)) / (1 - exp(-3))), 
-  #            pch = 8, col = "magenta", cex = 0.75, lwd = 2)  # Offshore (magenta)
-  #   }
-  #   
-  # }
-  # 
-  # # Add legend slightly lower than the top right
-  # legend("topright", 
-  #        legend = c(expression(alpha == 0.13), "Nearshore", "Offshore"), 
-  #        col = c("blue", "orange", "magenta"), 
-  #        pch = c(NA, 8, 8), 
-  #        lwd = c(2, NA, NA), 
-  #        bty = "n",
-  #        cex = 0.6,
-  #        inset = c(0, 0.1)) # Move the legend slightly downward
-  # 
+  # # Close the Quartz device
   # dev.off()
+  
+  saveRDS(fig2a, file = here("output", "fig2a.rds"))
   
   ################################## sandbox: N ##################################
   

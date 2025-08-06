@@ -690,7 +690,7 @@
   textsize = 9
   
   max_days_all_sites <- data_fig3 %>%
-    filter(Compartment == "Recovered",
+    filter(Compartment == "Dead",
            Site == "Offshore", 
            Host == "Single-host",
            Type == "Fitted") %>%
@@ -700,13 +700,21 @@
   # COLUMN 1
   data_fig3 = data_fig3 %>%
     mutate(Compartment = case_when(
-      Compartment == "Dead" ~ "Recovered",
+      Compartment == "Dead" ~ "Removed",
       TRUE ~ Compartment) 
     )
   
   max_value.fig3 <- max(data_fig3 %>% 
                      select(tissue) %>%
                      pull(tissue), na.rm = TRUE)
+  
+  #refactor 'Recovered' to 'Removed'
+  obs.total.figures$Compartment <- as.character(obs.total.figures$Compartment)
+  obs.total.figures$Compartment <- ifelse(obs.total.figures$Compartment == "Recovered", "Removed", obs.total.figures$Compartment)
+  obs.total.figures$Compartment <- factor(obs.total.figures$Compartment, levels = c("Susceptible", "Infected", "Removed"))
+  obs.multi.figures$Compartment <- as.character(obs.multi.figures$Compartment)
+  obs.multi.figures$Compartment <- ifelse(obs.multi.figures$Compartment == "Recovered", "Removed", obs.multi.figures$Compartment)
+  obs.multi.figures$Compartment <- factor(obs.multi.figures$Compartment, levels = c("Susceptible", "Infected", "Removed"))
   
   site.loop = 'Nearshore'
   p.fit.nearshore.single.figures =
@@ -719,7 +727,7 @@
    scale_x_continuous(limits = c(0, max_days_all_sites)) +
    scale_shape_manual(values = c("Susceptible" = 16,
                                  "Infected" = 17,
-                                 "Recovered" = 15),
+                                 "Removed" = 15),
                       name = "") + # Removes "Compartment" from the legend title
     theme_classic(base_family = "Georgia") +
     theme(legend.position = "bottom",
@@ -776,7 +784,7 @@
     scale_x_continuous(limits = c(0, max_days_all_sites)) +
     scale_shape_manual(values = c("Susceptible" = 16,
                                   "Infected" = 17,
-                                  "Recovered" = 15),
+                                  "Removed" = 15),
                        name = "") + # Removes "Compartment" from the legend title
     theme_classic(base_family = "Georgia") +
     theme(legend.position = "bottom",
@@ -790,7 +798,7 @@
           legend.text = element_text(size = textsize),
           legend.title = element_text(size = titlesize),
           legend.key.height = unit(0, "cm"))
-  
+    
     site.loop = 'Offshore'
     p.fit.near.to.off.single.figures =
     ggplot(data = data_fig3 %>% filter(Site == site.loop, Host == "Single-host", Type == "Projected"), aes(x = days.model, y = tissue, group = Compartment)) +
@@ -802,7 +810,7 @@
      # scale_y_continuous(limits = c(0, max_value.fig3)) +
      scale_shape_manual(values = c("Susceptible" = 16,
                                    "Infected" = 17,
-                                   "Recovered" = 15),
+                                   "Removed" = 15),
                         name = "") + # Removes "Compartment" from the legend title
       theme_classic(base_family = "Georgia") +
       theme(legend.position = "bottom",
@@ -868,7 +876,7 @@
     scale_x_continuous(limits = c(0, max_days_all_sites)) +
     scale_shape_manual(values = c("Susceptible" = 16,
                                   "Infected" = 17,
-                                  "Recovered" = 15),
+                                  "Removed" = 15),
                        name = "") + # Removes "Compartment" from the legend title
     theme_classic(base_family = "Georgia") +
     theme(legend.position = "bottom",
@@ -896,7 +904,7 @@
     scale_x_continuous(limits = c(0, max_days_all_sites)) +
     scale_shape_manual(values = c("Susceptible" = 16,
                                   "Infected" = 17,
-                                  "Recovered" = 15),
+                                  "Removed" = 15),
                        name = "") + # Removes "Compartment" from the legend title
     theme_classic(base_family = "Georgia") +
     theme(legend.position = "bottom",
@@ -931,7 +939,7 @@
     scale_x_continuous(limits = c(0, max_days_all_sites)) +
     scale_shape_manual(values = c("Susceptible" = 16,
                                   "Infected" = 17,
-                                  "Recovered" = 15),
+                                  "Removed" = 15),
                        name = "") + # Removes "Compartment" from the legend title
     theme_classic(base_family = "Georgia") +
     theme(legend.position = "bottom",
@@ -1060,7 +1068,7 @@
     select(days.model, tissue, Compartment)
   
   # Add a workspace identifier (change this for each run)
-  workspace_id <- "workspace_1"  # Change to "workspace_2" for second run
+  workspace_id <- "workspace_2"  # Change to "workspace_2" for second run (NL dens.)
   panel_e_data$workspace <- workspace_id
   
   # Save the data

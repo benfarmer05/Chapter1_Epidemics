@@ -20,6 +20,15 @@
   # Load observed data (assuming it's the same for both)
   obs_e_ws1 <- readRDS(here("output", "panel_e_obs_workspace_1.rds"))
   
+  # # Change "Recovered" to "Removed" in all datasets
+  # panel_e_ws1$Compartment <- ifelse(panel_e_ws1$Compartment == "Recovered", "Removed", panel_e_ws1$Compartment)
+  # panel_e_ws2$Compartment <- ifelse(panel_e_ws2$Compartment == "Recovered", "Removed", panel_e_ws2$Compartment)
+  # 
+  # # Handle factor conversion for obs_e_ws1
+  # obs_e_ws1$Compartment <- as.character(obs_e_ws1$Compartment)
+  # obs_e_ws1$Compartment <- ifelse(obs_e_ws1$Compartment == "Recovered", "Removed", obs_e_ws1$Compartment)
+  # obs_e_ws1$Compartment <- factor(obs_e_ws1$Compartment, levels = c("Susceptible", "Infected", "Removed"))
+  
   # Filter out 'Infected' compartment from workspace_2 (NL Dens.)
   panel_e_ws2_filtered <- panel_e_ws2 %>%
     filter(Compartment != "Infected")
@@ -54,12 +63,12 @@
                color = "black", size = 1.3, inherit.aes = FALSE) +
     scale_x_continuous(limits = c(0, max(combined_panel_e$days.model, na.rm = TRUE))) +
     scale_y_continuous(limits = c(0, max_offshore)) +  # Set consistent y-axis for offshore panels
-    scale_shape_manual(values = c("Susceptible" = 16, "Infected" = 17, "Recovered" = 15),
+    scale_shape_manual(values = c("Susceptible" = 16, "Infected" = 17, "Removed" = 15),
                        name = "") +  # Remove "Compartment" title to match your other plots
     scale_color_manual(values = c("Freq." = "black", "NL Dens." = "#228B22"),  # Black and forest green
                        name = "Model",
                        breaks = c("NL Dens.")) +  # Only show NL Dens. in legend
-    scale_linetype_manual(values = c("Freq." = "solid", "NL Dens." = "solid"),
+    scale_linetype_manual(values = c("Freq." = "solid", "NL Dens." = "dashed"),
                           guide = "none") +  # Hide linetype legend since both are solid
     xlab("Day of outbreak") +
     ylab("Surface area of tissue (m²)") +

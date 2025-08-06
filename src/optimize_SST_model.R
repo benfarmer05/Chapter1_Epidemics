@@ -13,7 +13,7 @@
   library(ggnewscale)
   library(extrafont)
   library(scales)
-  
+
   ################################## Set-up ##################################
   
   #import workspace from upstream script
@@ -1587,24 +1587,6 @@
   
   ############################## Plots of sandbox ##################################
   
-  # beta.sand.SST.midchannel
-  # gamma.sand.SST.midchannel
-  # zeta.sand.SST.midchannel
-  # eta.sand.SST.midchannel
-  # 
-  # p.fit.sand.SST.midchannel
-  # p.I.fit.sand.SST.midchannel
-  # p.D.fit.sand.SST.midchannel
-  # 
-  # p.fit.sand.SST.offshore
-  # p.I.fit.sand.SST.offshore
-  # p.D.fit.sand.SST.offshore
-  # 
-  # p.fit.sand.SST.nearshore
-  # p.I.fit.sand.SST.nearshore
-  # p.D.fit.sand.SST.nearshore
-  
-  
   plot_data_decreasing <- data.frame()
   
   # zeta_values <- seq(0, 1, length.out = 50)
@@ -1640,7 +1622,7 @@
   plot_data_decreasing_select <- rbind(plot_data_decreasing_select, temp)
   
   # Plot 3: Classic sigmoid decreasing model
-  figS4 = ggplot(plot_data_decreasing_select, aes(x = Temperature, y = Modifier, color = Zeta, group = Zeta)) +
+  fig2b = ggplot(plot_data_decreasing_select, aes(x = Temperature, y = Modifier, color = Zeta, group = Zeta)) +
     geom_line(data = plot_data_decreasing, size = 0.6, show.legend = TRUE) +
     geom_line(
       data = subset(plot_data_decreasing_select, Zeta == zeta.sand.SST.midchannel),
@@ -1654,14 +1636,14 @@
     ) +
     labs(
       x = "Temperature (°C)",
-      y = "Scalar"
+      y = "Temperature scalar"
     ) +
     theme_classic(base_family = 'Georgia') +
     theme(
       # legend.position = "right",
       # legend.position = "bottom",
       legend.position = "inside",
-      legend.position.inside = c(0.9, 0.8),
+      legend.position.inside = c(0.95, 0.8),
       legend.key.size = unit(0.5, "lines"),  # smaller boxes
       axis.title = element_text(size = 9),
       axis.text = element_text(size = 7, color = 'black'),
@@ -1672,448 +1654,509 @@
     ) +
     # scale_color_viridis_c(name = expression(zeta~"or"~eta), option = "inferno") + #option - 'D'
     scale_color_viridis_c(name = expression("ζ or η"), option = "inferno") + #option - 'D'
-    scale_y_continuous(, limits = c(0, 1), breaks = seq(0, 1, 0.2)) +
-    scale_x_continuous(labels = label_number(accuracy = 0.1), breaks = seq(T_min, T_max, 2)) +
-    geom_vline(xintercept = 30.5, color = 'grey40', linetype = 'dashed', size = 0.6) +
-    annotate("segment", x = 24.2, xend = 26, y = 0.2, yend = 0.2, 
-             color = "darkorange2", linetype = "dashed", size = 1) +
-    annotate("segment", x = 24.2, xend = 26, y = 0.1, yend = 0.1, 
-             color = "orange", linetype = "dashed", size = 1) +
-    annotate("text", x = 22, y = 0.2, label = "ζ = 0.07", hjust = 0, family = 'Georgia', size = 3) +
-    annotate("text", x = 22, y = 0.1, label = "η = 0.04", hjust = 0, family = 'Georgia', size = 3)
     
-    # #max dimensions are 7.087 in. wide by 9.45 in. tall (3.35 inches preferred)
-    # quartz(h = 3, w = 3.35)
-    # 
-    # figS4
-    # 
-    # # # Save the Quartz output directly as a PDF
-    # # quartz.save(file = here("output", "figS4.pdf"), type = "pdf")
-    # # 
-    # # #ggplot-export to image
-    # # ggsave(filename = here("output", "figS4.png"), device = "png", width = 3.35, height = 3, dpi = 1200)
-    # 
-    # # Close the Quartz device
-    # dev.off()
+    scale_y_continuous(, limits = c(0, 1),
+                       expand = c(0, 0),
+                       breaks = seq(0, 1, 0.2)) +
     
-  ############################## Draft figures of SST for paper ##################################
+    scale_x_continuous(labels = label_number(accuracy = 0.1),
+                       expand = c(0, 0),
+                       breaks = seq(T_min, T_max, 2)) +
+    
+    # geom_vline(xintercept = 30.5, color = 'grey40', linetype = 'dashed', size = 0.6) +
+    # annotate("segment", x = 24.2, xend = 26, y = 0.2, yend = 0.2, 
+    #          color = "darkorange2", linetype = "dashed", size = 1) +
+    # annotate("segment", x = 24.2, xend = 26, y = 0.1, yend = 0.1, 
+    #          color = "orange", linetype = "dashed", size = 1) +
+    # annotate("text", x = 22, y = 0.2, label = "ζ = 0.07", hjust = 0, family = 'Georgia', size = 3) +
+    # annotate("text", x = 22, y = 0.1, label = "η = 0.04", hjust = 0, family = 'Georgia', size = 3)
   
-  #removed
+  geom_vline(xintercept = 30.5, color = 'grey40', linetype = 'dashed', size = 0.6) +
+    annotate("segment", x = 25.2, xend = 27, y = 0.25, yend = 0.25, 
+             color = "darkorange2", linetype = "dashed", size = 1) +
+    annotate("segment", x = 25.2, xend = 27, y = 0.15, yend = 0.15, 
+             color = "orange", linetype = "dashed", size = 1) +
+    annotate("text", x = 23, y = 0.25, label = "ζ = 0.07", hjust = 0, family = 'Georgia', size = 3) +
+    annotate("text", x = 23, y = 0.15, label = "η = 0.04", hjust = 0, family = 'Georgia', size = 3)
+  
+  
+  ################################## export Figure 2b ##################################
+  
+  # #max dimensions are 7.087 in. wide by 9.45 in. tall (3.35 inches preferred)
+  # quartz(h = 3, w = 3.35)
+  # 
+  # fig2b
+  # 
+  # # # Save the Quartz output directly as a PDF
+  # # quartz.save(file = here("output", "fig2b.pdf"), type = "pdf")
+  # #
+  # # #ggplot-export to image
+  # # ggsave(filename = here("output", "fig2b.png"), device = "png", width = 3.35, height = 3, dpi = 1200)
+  # 
+  # # Close the Quartz device
+  # dev.off()
+  # 
+  # saveRDS(fig2b, file = here("output", "fig2b.rds"))
+  
+  ############################## Draft figures of SST for paper ##################################
+
+  # Define styling parameters
+  linewidths = 0.75 #0.4 #0.75 is roughly 1 pt. ggplot measures these in mm, not points
+  symbsizes = 1.3
+  titlesize = 10 #9  #text sizes in ggplot are actually in units of points, when specified using element_text
+  textsize = 9
+  
+  # Data preparation for DEAD tissue plot
   output.basic.sand.SST.midchannel.SST <- output.basic.sand.SST.midchannel %>%
     mutate(date = as.Date("2018-11-09") + days.model)
   
-  # Removed tissue
-  # Sample data preparation
-  compartment = "Dead"
+  compartment_dead = "Dead"
   
-  # Filter and prepare the data
+  # Filter and prepare the data for dead tissue
   SST_data <- DHW.CRW.full
-  output.basic.sand.SST.midchannel.SST.scaled <- output.basic.sand.SST.midchannel.SST %>%
-    filter(Compartment == compartment) %>%
+  output.basic.sand.SST.midchannel.SST.scaled.dead <- output.basic.sand.SST.midchannel.SST %>%
+    filter(Compartment == compartment_dead) %>%
     mutate(date = as.Date(date), tissue_scaled = tissue)
-  
-  # Add extra space on the right for the secondary y-axis label
-  par(mar = c(5, 5, 4, 6))  # bottom, left, top, right
-  
-  # Plot the SST data
-  plot(SST_data$date, SST_data$SST.90th_HS, type = "l", col = "#E69F00", 
-       xlim = c(as.Date("2018-01-01"), as.Date("2020-12-30")), 
-       ylim = c(23, 32), xlab = "Date", ylab = "SST (°C)", 
-       lwd = 3, 
-       cex.lab = 1.5, cex.axis = 1.3, cex.main = 1.6,
-       family = 'Georgia')  # Increased font size
-  
-  # Add vertical dashed line
-  abline(v = as.Date(c("2019-12-06")), col = "grey40", lty = 2, lwd = 2.5)
-  
-  # Add horizontal dashed line for SST threshold
-  abline(h = SST_threshold, col = "red", lty = 2, lwd = 2.5)
-  
-  # Overlay tissue data
-  par(new = TRUE)
-  plot(output.basic.sand.SST.midchannel.SST.scaled$date, 
-       output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled, 
-       type = "l", col = "black", lty = 1, lwd = 3,  # Solid black line
-       xlim = c(as.Date("2018-01-01"), as.Date("2020-12-30")), 
-       ylim = c(0, max(output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled)), 
-       xlab = "", ylab = "", axes = FALSE,
-       family = 'Georgia')  # No y-axis, to avoid double labeling
   
   dead_data <- obs.total[obs.total$Site == 'Midchannel' & obs.total$Compartment == "Dead", ]
   dead_dates <- as.Date(dead_data$date)
   
-  # Add points to the existing plot
-  points(dead_dates, dead_data$tissue, 
-         pch = 16,  # Solid circle
-         col = "black",  # Red color for visibility
-         cex = 1.2)  # Size of points
+  # Calculate scaling factor for secondary y-axis (dead)
+  tissue_max_dead <- max(output.basic.sand.SST.midchannel.SST.scaled.dead$tissue_scaled)
+  sst_min <- 23
+  sst_max <- 32.5
+  scale_factor_dead <- (sst_max - sst_min) / tissue_max_dead
   
-  # Add the secondary y-axis (right axis) with two decimal places
-  axis(side = 4, at = pretty(output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled), 
-       labels = formatC(pretty(output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled), 
-                        format = "f", digits = 2), cex.axis = 1.3,
-       family = 'Georgia')  # Increased axis font size
+  # Data preparation for INFECTED tissue plot
+  compartment_infected = "Infected"
   
-  mtext("Removed tissue (m²)", side = 4, line = 3, cex = 1.5, family = "Georgia")
-  
-  # Set font to Georgia before drawing legend
-  par(family = "Georgia")
-  
-  # Add a legend inside a white box
-  legend("bottomright", legend = c("SST (°C)", "Removed tissue (m²)"),
-         col = c("#E69F00", "black"), lwd = 2, lty = c(1, 1),
-         cex = 1.3, bty = "o",
-         bg = rgb(1, 1, 1, alpha = 0.9)
-  )
-  
-  #reset global font
-  par(family = "")
-  
-  #method for exporting both image and vector (PDF) plots when using base R
-  save_plot <- function(filename, width = 5, height = 3, dpi = 1200) {
-    # Save as PDF
-    pdf(file = here("output", paste0(filename, ".pdf")), 
-        width = width, height = height)
-    # Call your plotting code here
-    plot_SST_tissue()  # This would be the entire plotting code
-    dev.off()
-    
-    # Save as PNG
-    png(file = here("output", paste0(filename, ".png")), 
-        width = width * dpi, height = height * dpi, res = dpi)
-    plot_SST_tissue()  # Repeat the same plotting code
-    dev.off()
-  }
-  
-  # save_plot("fig4", width = 8, height = 5, dpi = 1200)
-  # dev.off()
-  
-  
-  
-  
-  #infected
-  output.basic.sand.SST.midchannel.SST <- output.basic.sand.SST.midchannel %>%
-    mutate(date = as.Date("2018-11-09") + days.model)
-  
-  # Infected tissue
-  # Sample data preparation
-  compartment = "Infected"
-  
-  # Filter and prepare the data
-  SST_data <- DHW.CRW.full
-  output.basic.sand.SST.midchannel.SST.scaled <- output.basic.sand.SST.midchannel.SST %>%
-    filter(Compartment == compartment) %>%
+  # Filter and prepare the data for infected tissue
+  output.basic.sand.SST.midchannel.SST.scaled.infected <- output.basic.sand.SST.midchannel.SST %>%
+    filter(Compartment == compartment_infected) %>%
     mutate(date = as.Date(date), tissue_scaled = tissue)
   
-  # Add extra space on the right for the secondary y-axis label
-  par(mar = c(5, 5, 4, 6))  # bottom, left, top, right
+  infected_data <- obs.total[obs.total$Site == 'Midchannel' & obs.total$Compartment == "Infected", ]
+  infected_dates <- as.Date(infected_data$date)
   
-  # Plot the SST data
-  plot(SST_data$date, SST_data$SST.90th_HS, type = "l", col = "#E69F00", 
-       xlim = c(as.Date("2018-01-01"), as.Date("2020-12-30")), 
-       ylim = c(23, 32), xlab = "Date", ylab = "SST (°C)", 
-       lwd = 3, 
-       cex.lab = 1.5, cex.axis = 1.3, cex.main = 1.6,
-       family = 'Georgia')  # Increased font size
+  # Calculate scaling factor for secondary y-axis (infected)
+  tissue_max_infected <- max(output.basic.sand.SST.midchannel.SST.scaled.infected$tissue_scaled)
+  scale_factor_infected <- (sst_max - sst_min) / tissue_max_infected
   
-  # Add vertical dashed line
-  abline(v = as.Date(c("2019-12-06")), col = "grey40", lty = 2, lwd = 2.5)
+  # Create the INFECTED tissue plot (Panel A)
+  plot_A <- ggplot() +
+    # SST line
+    geom_line(data = SST_data, 
+              aes(x = date, y = SST.90th_HS), 
+              color = "#E69F00", 
+              linewidth = linewidths) +
+    
+    # Tissue line (scaled to primary y-axis)
+    geom_line(data = output.basic.sand.SST.midchannel.SST.scaled.infected,
+              aes(x = date, y = sst_min + tissue_scaled * scale_factor_infected),
+              color = "black",
+              linewidth = linewidths) +
+    
+    # Infected tissue points (scaled to primary y-axis)
+    geom_point(data = data.frame(date = infected_dates, tissue = infected_data$tissue),
+               aes(x = date, y = sst_min + tissue * scale_factor_infected),
+               color = "black",
+               shape = 17,  # Triangle
+               size = symbsizes) +
+    
+    # Vertical dashed line
+    geom_vline(xintercept = as.Date("2019-12-06"), 
+               color = "grey40", 
+               linetype = "dashed", 
+               linewidth = 1) +
+    
+    # Horizontal dashed line for SST threshold
+    geom_hline(yintercept = SST_threshold, 
+               color = "red", 
+               linetype = "dashed", 
+               linewidth = 1) +
+    
+    # Set scales
+    scale_x_date(limits = c(as.Date("2018-01-01"), as.Date("2020-12-30")),
+                 date_labels = "%Y",
+                 date_breaks = "1 year") +
+    
+    scale_y_continuous(
+      name = "SST (°C)",
+      limits = c(23, 32.5),
+      breaks = seq(24, 32, by = 2),
+      # Secondary y-axis for infected tissue
+      sec.axis = sec_axis(trans = ~ (. - sst_min) / scale_factor_infected,
+                          name = "Infected tissue (m²)",
+                          labels = function(x) formatC(x, format = "f", digits = 3))
+    ) +
+    
+    # Labels and theme
+    labs(x = "Year") +
+    
+    theme_classic(base_size = 14, base_family = "Georgia") +
+    
+    theme(
+      axis.title = element_text(size = titlesize),
+      axis.text = element_text(size = textsize, color = 'black'),
+      axis.title.y.right = element_text(angle = 90),
+      legend.text = element_text(size = textsize),
+      legend.title = element_text(size = titlesize),
+      legend.key.size = unit(0.5, "lines"),
+      plot.margin = margin(t = 8, r = 15, b = 8, l = 8),
+      # Position legends inside the plot
+      legend.position = "inside",
+      legend.position.inside = c(0.85, 0.65),
+      legend.box = "vertical",
+      legend.margin = margin(5, 5, 5, 5),
+      legend.background = element_rect(fill = "white", color = NA, linewidth = 0.3)
+    ) +
+    
+    # Create proper legend in top left (move left and make much wider)
+    annotation_custom(
+      grob = grid::rectGrob(gp = grid::gpar(fill = alpha("white", 0.8), col = "black")),
+      xmin = as.Date("2017-12-01"), xmax = as.Date("2019-04-15"),
+      ymin = 30.8, ymax = 32.5
+    ) +
+    
+    # Legend text and lines (fixed segment positioning)
+    annotate("segment", x = as.Date("2018-01-01"), xend = as.Date("2018-03-01"), 
+             y = 32.1, yend = 32.1, color = "#E69F00", linewidth = linewidths) +
+    annotate("text", x = as.Date("2018-03-15"), y = 32.1, 
+             label = "SST (°C)", color = "black", size = textsize/ggplot2::.pt, family = "Georgia", hjust = 0) +
+    
+    annotate("segment", x = as.Date("2018-01-01"), xend = as.Date("2018-03-01"), 
+             y = 31.3, yend = 31.3, color = "black", linewidth = linewidths) +
+    annotate("text", x = as.Date("2018-03-15"), y = 31.3, 
+             label = "Tissue (m²)", color = "black", size = textsize/ggplot2::.pt, family = "Georgia", hjust = 0)
   
-  # Add horizontal dashed line for SST threshold
-  abline(h = SST_threshold, col = "red", lty = 2, lwd = 2.5)
+  # Create the DEAD tissue plot (Panel B)
+  plot_B <- ggplot() +
+    # SST line
+    geom_line(data = SST_data, 
+              aes(x = date, y = SST.90th_HS), 
+              color = "#E69F00", 
+              linewidth = linewidths) +
+    
+    # Tissue line (scaled to primary y-axis)
+    geom_line(data = output.basic.sand.SST.midchannel.SST.scaled.dead,
+              aes(x = date, y = sst_min + tissue_scaled * scale_factor_dead),
+              color = "black",
+              linewidth = linewidths) +
+    
+    # Tissue points (scaled to primary y-axis)
+    geom_point(data = data.frame(date = dead_dates, tissue = dead_data$tissue),
+               aes(x = date, y = sst_min + tissue * scale_factor_dead),
+               color = "black",
+               shape = 15,  # Square
+               size = symbsizes) +
+    
+    # Vertical dashed line
+    geom_vline(xintercept = as.Date("2019-12-06"), 
+               color = "grey40", 
+               linetype = "dashed", 
+               linewidth = 1) +
+    
+    # Horizontal dashed line for SST threshold
+    geom_hline(yintercept = SST_threshold, 
+               color = "red", 
+               linetype = "dashed", 
+               linewidth = 1) +
+    
+    # Set scales
+    scale_x_date(limits = c(as.Date("2018-01-01"), as.Date("2020-12-30")),
+                 date_labels = "%Y",
+                 date_breaks = "1 year") +
+    
+    scale_y_continuous(
+      name = "SST (°C)",
+      limits = c(23, 32.5),
+      breaks = seq(24, 32, by = 2),
+      # Secondary y-axis for dead tissue
+      sec.axis = sec_axis(trans = ~ (. - sst_min) / scale_factor_dead,
+                          name = "Removed tissue (m²)",
+                          labels = function(x) formatC(x, format = "f", digits = 2))
+    ) +
+    
+    # Labels and theme
+    labs(x = "Year") +
+    
+    theme_classic(base_size = 14, base_family = "Georgia") +
+    
+    theme(
+      axis.title = element_text(size = titlesize),
+      axis.text = element_text(size = textsize, color = 'black'),
+      axis.title.y.right = element_text(angle = 90),
+      legend.text = element_text(size = textsize),
+      legend.title = element_text(size = titlesize),
+      legend.key.size = unit(0.5, "lines"),
+      plot.margin = margin(t = 8, r = 15, b = 8, l = 8),
+      # Position legends inside the plot
+      legend.position = "inside",
+      legend.position.inside = c(0.85, 0.65),
+      legend.box = "vertical",
+      legend.margin = margin(5, 5, 5, 5),
+      legend.background = element_rect(fill = "white", color = NA, linewidth = 0.3)
+    ) +
+    
+    # Create proper legend in top left (move left and make much wider)
+    annotation_custom(
+      grob = grid::rectGrob(gp = grid::gpar(fill = alpha("white", 0.8), col = "black")),
+      xmin = as.Date("2017-12-01"), xmax = as.Date("2019-04-15"),
+      ymin = 30.8, ymax = 32.5
+    ) +
+    
+    # Legend text and lines (fixed segment positioning)
+    annotate("segment", x = as.Date("2018-01-01"), xend = as.Date("2018-03-01"), 
+             y = 32.1, yend = 32.1, color = "#E69F00", linewidth = linewidths) +
+    annotate("text", x = as.Date("2018-03-15"), y = 32.1, 
+             label = "SST (°C)", color = "black", size = textsize/ggplot2::.pt, family = "Georgia", hjust = 0) +
+    
+    annotate("segment", x = as.Date("2018-01-01"), xend = as.Date("2018-03-01"), 
+             y = 31.3, yend = 31.3, color = "black", linewidth = linewidths) +
+    annotate("text", x = as.Date("2018-03-15"), y = 31.3, 
+             label = "Tissue (m²)", color = "black", size = textsize/ggplot2::.pt, family = "Georgia", hjust = 0)
   
-  # Overlay tissue data
-  par(new = TRUE)
+    # # Version where the panel B legend box is bottom right
+    # # Create proper legend in bottom right (move right and center text better)
+    # annotation_custom(
+    #   grob = grid::rectGrob(gp = grid::gpar(fill = alpha("white", 0.8), col = "black")),
+    #   xmin = as.Date("2019-09-01"), xmax = as.Date("2021-01-15"),
+    #   ymin = 22.9, ymax = 24.6 #22.9
+    # ) +
+    # 
+    # # Legend text and lines (better centered in box)
+    # annotate("segment", x = as.Date("2019-10-01"), xend = as.Date("2019-12-01"),
+    #          y = 24.15, yend = 24.15, color = "#E69F00", linewidth = linewidths) +
+    # annotate("text", x = as.Date("2019-12-15"), y = 24.15,
+    #          label = "SST (°C)", color = "black", size = textsize/ggplot2::.pt, family = "Georgia", hjust = 0) +
+    # 
+    # annotate("segment", x = as.Date("2019-10-01"), xend = as.Date("2019-12-01"),
+    #          y = 23.35, yend = 23.35, color = "black", linewidth = linewidths) +
+    # annotate("text", x = as.Date("2019-12-15"), y = 23.35,
+    #          label = "Tissue (m²)", color = "black", size = textsize/ggplot2::.pt, family = "Georgia", hjust = 0)
   
-  # Plot the tissue data with a solid black line
-  plot(output.basic.sand.SST.midchannel.SST.scaled$date, 
-       output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled, 
-       type = "l", col = "black", lty = 1, lwd = 3,  # Solid black line
-       xlim = c(as.Date("2018-01-01"), as.Date("2020-12-30")), 
-       ylim = c(0, max(output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled)), 
-       xlab = "", ylab = "", axes = FALSE,
-       family = 'Georgia')  # No y-axis, to avoid double labeling
+  # Combine plots using patchwork (Infected first, then Dead)
+  combined_plot_fig4 <- plot_A + plot_B + plot_annotation(tag_levels = 'A')
   
-  # Add the secondary y-axis (right axis) with two decimal places
-  axis(side = 4, at = pretty(output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled), 
-       labels = formatC(pretty(output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled), 
-                        format = "f", digits = 3), cex.axis = 1.3,
-       family = 'Georgia')  # Increased axis font size
   
-  mtext("Infected tissue (m²)", side = 4, line = 3, cex = 1.5, family = "Georgia")
   
-  # Set font to Georgia before drawing legend
-  par(family = "Georgia")
   
-  # Add a legend inside a white box
-  legend("topright", legend = c("SST (°C)", "Infected tissue (m²)"),
-         col = c("#E69F00", "black"), lwd = 2, lty = c(1, 1),
-         cex = 1.3, bty = "o",
-         bg = rgb(1, 1, 1, alpha = 0.9)
-  )
+  load(here("output/tables_figures_workspace.RData"))
   
-  #reset global font
-  par(family = "")
+  # Prepare the fitted data with proper date conversion
+  data_fig3_midchannel <- data_fig3 %>%
+    filter(Site == "Midchannel", Host == "Single-host", Type == "Fitted") %>%
+    mutate(date = as.Date("2018-11-09") + days.model)
   
-  # save_plot("fig4inf", width = 8, height = 5, dpi = 1200)
-  # dev.off()
+  # Create Panel A with proper layer order (fitted lines behind points)
+  plot_A_with_fitted <- ggplot() +
+    # SST line
+    geom_line(data = SST_data, 
+              aes(x = date, y = SST.90th_HS), 
+              color = "#E69F00", 
+              linewidth = linewidths) +
+    
+    # Tissue line (scaled to primary y-axis)
+    geom_line(data = output.basic.sand.SST.midchannel.SST.scaled.infected,
+              aes(x = date, y = sst_min + tissue_scaled * scale_factor_infected),
+              color = "black",
+              linewidth = linewidths) +
+    
+    # Add gray fitted line for Infected compartment (BEHIND points)
+    geom_line(data = data_fig3_midchannel %>% filter(Compartment == "Infected"),
+              aes(x = date, y = sst_min + tissue * scale_factor_infected),
+              color = "gray40", linewidth = linewidths) +
+    
+    # Infected tissue points (ABOVE fitted lines)
+    geom_point(data = data.frame(date = infected_dates, tissue = infected_data$tissue),
+               aes(x = date, y = sst_min + tissue * scale_factor_infected),
+               color = "black",
+               shape = 17,  # Triangle
+               size = symbsizes) +
+    
+    # Vertical dashed line
+    geom_vline(xintercept = as.Date("2019-12-06"), 
+               color = "grey40", 
+               linetype = "dashed", 
+               linewidth = 1) +
+    
+    # Horizontal dashed line for SST threshold
+    geom_hline(yintercept = SST_threshold, 
+               color = "red", 
+               linetype = "dashed", 
+               linewidth = 1) +
+    
+    # Set scales
+    scale_x_date(limits = c(as.Date("2018-01-01"), as.Date("2020-12-30")),
+                 date_labels = "%Y",
+                 date_breaks = "1 year") +
+    
+    scale_y_continuous(
+      name = "SST (°C)",
+      limits = c(23, 32.5),
+      breaks = seq(24, 32, by = 2),
+      # Secondary y-axis for infected tissue
+      sec.axis = sec_axis(trans = ~ (. - sst_min) / scale_factor_infected,
+                          name = "Infected tissue (m²)",
+                          labels = function(x) formatC(x, format = "f", digits = 3))
+    ) +
+    
+    # Labels and theme
+    labs(x = "Year") +
+    
+    theme_classic(base_size = 14, base_family = "Georgia") +
+    
+    theme(
+      axis.title = element_text(size = titlesize),
+      axis.text = element_text(size = textsize, color = 'black'),
+      axis.title.y.right = element_text(angle = 90),
+      legend.text = element_text(size = textsize),
+      legend.title = element_text(size = titlesize),
+      legend.key.size = unit(0.5, "lines"),
+      plot.margin = margin(t = 8, r = 15, b = 8, l = 8),
+      # Position legends inside the plot
+      legend.position = "inside",
+      legend.position.inside = c(0.85, 0.65),
+      legend.box = "vertical",
+      legend.margin = margin(5, 5, 5, 5),
+      legend.background = element_rect(fill = "white", color = NA, linewidth = 0.3)
+    ) +
+    
+    # Create proper legend in top left (your updated positioning)
+    annotation_custom(
+      grob = grid::rectGrob(gp = grid::gpar(fill = alpha("white", 0.8), col = "black")),
+      xmin = as.Date("2017-12-01"), xmax = as.Date("2019-04-15"),
+      ymin = 30.8, ymax = 32.5
+    ) +
+    
+    # Legend text and lines (your updated positioning)
+    annotate("segment", x = as.Date("2018-01-01"), xend = as.Date("2018-03-01"), 
+             y = 32.1, yend = 32.1, color = "#E69F00", linewidth = linewidths) +
+    annotate("text", x = as.Date("2018-03-15"), y = 32.1, 
+             label = "SST (°C)", color = "black", size = textsize/ggplot2::.pt, family = "Georgia", hjust = 0) +
+    
+    annotate("segment", x = as.Date("2018-01-01"), xend = as.Date("2018-03-01"), 
+             y = 31.3, yend = 31.3, color = "black", linewidth = linewidths) +
+    annotate("text", x = as.Date("2018-03-15"), y = 31.3, 
+             label = "Tissue (m²)", color = "black", size = textsize/ggplot2::.pt, family = "Georgia", hjust = 0)
   
+  # Create Panel B with proper layer order (fitted lines behind points)
+  plot_B_with_fitted <- ggplot() +
+    # SST line
+    geom_line(data = SST_data, 
+              aes(x = date, y = SST.90th_HS), 
+              color = "#E69F00", 
+              linewidth = linewidths) +
+    
+    # Tissue line (scaled to primary y-axis)
+    geom_line(data = output.basic.sand.SST.midchannel.SST.scaled.dead,
+              aes(x = date, y = sst_min + tissue_scaled * scale_factor_dead),
+              color = "black",
+              linewidth = linewidths) +
+    
+    # Add gray fitted line for Removed compartment (BEHIND points)
+    geom_line(data = data_fig3_midchannel %>% filter(Compartment == "Removed"),
+              aes(x = date, y = sst_min + tissue * scale_factor_dead),
+              color = "gray40", linewidth = linewidths) +
+    
+    # Tissue points (ABOVE fitted lines)
+    geom_point(data = data.frame(date = dead_dates, tissue = dead_data$tissue),
+               aes(x = date, y = sst_min + tissue * scale_factor_dead),
+               color = "black",
+               shape = 15,  # Square
+               size = symbsizes) +
+    
+    # Vertical dashed line
+    geom_vline(xintercept = as.Date("2019-12-06"), 
+               color = "grey40", 
+               linetype = "dashed", 
+               linewidth = 1) +
+    
+    # Horizontal dashed line for SST threshold
+    geom_hline(yintercept = SST_threshold, 
+               color = "red", 
+               linetype = "dashed", 
+               linewidth = 1) +
+    
+    # Set scales
+    scale_x_date(limits = c(as.Date("2018-01-01"), as.Date("2020-12-30")),
+                 date_labels = "%Y",
+                 date_breaks = "1 year") +
+    
+    scale_y_continuous(
+      name = "SST (°C)",
+      limits = c(23, 32.5),
+      breaks = seq(24, 32, by = 2),
+      # Secondary y-axis for dead tissue
+      sec.axis = sec_axis(trans = ~ (. - sst_min) / scale_factor_dead,
+                          name = "Removed tissue (m²)",
+                          labels = function(x) formatC(x, format = "f", digits = 2))
+    ) +
+    
+    # Labels and theme
+    labs(x = "Year") +
+    
+    theme_classic(base_size = 14, base_family = "Georgia") +
+    
+    theme(
+      axis.title = element_text(size = titlesize),
+      axis.text = element_text(size = textsize, color = 'black'),
+      axis.title.y.right = element_text(angle = 90),
+      legend.text = element_text(size = textsize),
+      legend.title = element_text(size = titlesize),
+      legend.key.size = unit(0.5, "lines"),
+      plot.margin = margin(t = 8, r = 15, b = 8, l = 8),
+      # Position legends inside the plot
+      legend.position = "inside",
+      legend.position.inside = c(0.85, 0.65),
+      legend.box = "vertical",
+      legend.margin = margin(5, 5, 5, 5),
+      legend.background = element_rect(fill = "white", color = NA, linewidth = 0.3)
+    ) +
+    
+    # Create proper legend in top left (matching Panel A)
+    annotation_custom(
+      grob = grid::rectGrob(gp = grid::gpar(fill = alpha("white", 0.8), col = "black")),
+      xmin = as.Date("2017-12-01"), xmax = as.Date("2019-04-15"),
+      ymin = 30.8, ymax = 32.5
+    ) +
+    
+    # Legend text and lines (matching Panel A)
+    annotate("segment", x = as.Date("2018-01-01"), xend = as.Date("2018-03-01"), 
+             y = 32.1, yend = 32.1, color = "#E69F00", linewidth = linewidths) +
+    annotate("text", x = as.Date("2018-03-15"), y = 32.1, 
+             label = "SST (°C)", color = "black", size = textsize/ggplot2::.pt, family = "Georgia", hjust = 0) +
+    
+    annotate("segment", x = as.Date("2018-01-01"), xend = as.Date("2018-03-01"), 
+             y = 31.3, yend = 31.3, color = "black", linewidth = linewidths) +
+    annotate("text", x = as.Date("2018-03-15"), y = 31.3, 
+             label = "Tissue (m²)", color = "black", size = textsize/ggplot2::.pt, family = "Georgia", hjust = 0)
+  
+  # Update the combined plot with fitted lines
+  combined_plot_fig4_final <- plot_A_with_fitted + plot_B_with_fitted + plot_annotation(tag_levels = 'A')
+  
+  # Display the updated plot
+  print(combined_plot_fig4_final)  
+  
+  ############################## Export Figure 4 ##################################
+  
+  #max dimensions are 7.087 in. wide by 9.45 in. tall (3.35 inches preferred)
+  quartz(h = 3, w = 7.087)
+  
+  # combined_plot
+  combined_plot_fig4_final
 
-  
-  ############################## Export PNG / PDFs ##################################
-  
-  #default font size in base R is 12 usually (can find with par('ps'))
-  linewidths = 1 * 2.14 #default (1) is usually 0.75 mm ... but hard to know? 1-pt width is 0.35 mm (~2.14:1 ratio)
-  symbsize = 10 / par('ps') #1 * 2.14
-  titlesize = 10 / par('ps')
-  textsize = 8 / par('ps')
-  
-  plot_SST_rem <- function(for_pdf = FALSE) {
-    
-    #removed
-    output.basic.sand.SST.midchannel.SST <- output.basic.sand.SST.midchannel %>%
-      mutate(date = as.Date("2018-11-09") + days.model)
-    
-    # Removed tissue
-    # Sample data preparation
-    compartment = "Dead"
-    
-    # Filter and prepare the data
-    SST_data <- DHW.CRW.full
-    output.basic.sand.SST.midchannel.SST.scaled <- output.basic.sand.SST.midchannel.SST %>%
-      filter(Compartment == compartment) %>%
-      mutate(date = as.Date(date), tissue_scaled = tissue)
-    
-    # Add extra space on the right for the secondary y-axis label
-    par(mar = c(3, 3, 1, 3))  # bottom, left, top, right
-    
-    #control additional space between tick marks and axis text/labels
-    par(mgp = c(1.6, 0.5, 0))  #title, text, tick marks. default is usually c(3, 1, 0)
-    
-    # Plot the SST data
-    plot(SST_data$date, SST_data$SST.90th_HS, type = "l", col = "#E69F00", 
-         xlim = c(as.Date("2018-01-01"), as.Date("2020-12-30")), 
-         ylim = c(23, 32), xlab = "Date", ylab = "SST (°C)", 
-         # lwd = 3, 
-         # cex.lab = 1.5, cex.axis = 1.3, cex.main = 1.6,
-         lwd = linewidths, 
-         cex.lab = titlesize, cex.axis = textsize,
-         family = 'Georgia')  # Increased font size
-    
-    # Add vertical dashed line
-    abline(v = as.Date(c("2019-12-06")), col = "grey40", lty = 2, lwd = linewidths)
-    
-    # Add horizontal dashed line for SST threshold
-    abline(h = SST_threshold, col = "red", lty = 2, lwd = linewidths)
-    
-    # Overlay tissue data
-    par(new = TRUE)
-    plot(output.basic.sand.SST.midchannel.SST.scaled$date, 
-         output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled, 
-         type = "l", col = "black", lty = 1, lwd = linewidths,  # Solid black line
-         xlim = c(as.Date("2018-01-01"), as.Date("2020-12-30")), 
-         ylim = c(0, max(output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled)), 
-         xlab = "", ylab = "", axes = FALSE,
-         family = 'Georgia')  # No y-axis, to avoid double labeling
-    
-    #add observations from first infection wave
-    dead_data <- obs.total[obs.total$Site == 'Midchannel' & obs.total$Compartment == "Dead", ]
-    dead_dates <- as.Date(dead_data$date)
-    points(dead_dates, dead_data$tissue, 
-           pch = 15,  # Solid square
-           col = "black",  # Red color for visibility
-           # cex = 1.2)  # Size of points
-           cex = symbsize)  # Size of points
-  
-    # Add the secondary y-axis (right axis) with two decimal places
-    axis(side = 4, at = pretty(output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled), 
-         labels = formatC(pretty(output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled), 
-                          format = "f", digits = 2), cex.axis = textsize,
-         family = 'Georgia')  # Increased axis font size
-    
-    # mtext("Removed tissue (m²)", side = 4, line = 3, cex = 1.5, family = "Georgia")
-    mtext("Removed tissue (m²)", side = 4, line = 1.7, cex = titlesize, family = "Georgia")
-    
-    # Set font to Georgia before drawing legend
-    par(family = "Georgia")
-    
-    # Add a legend inside a white box
-    legend("bottomright", legend = c("SST (°C)", "Tissue (m²)"),
-           # col = c("#E69F00", "black"), lwd = 2, lty = c(1, 1),
-           # cex = 1.3, bty = "o",
-           col = c("#E69F00", "black"), lwd = linewidths, lty = c(1, 1),
-           cex = textsize, bty = "o",
-           x.intersp = 0.5, #spacing between text and edges
-           y.intersp = 0.85, #spacing between lines
-           inset = 0.02, #moves legend away from side of plot
-           bg = rgb(1, 1, 1, alpha = 0.7)
-    )
-    
-    #reset global font
-    par(family = "")
-    
-  }
-  save_plot_rem <- function(filename, width = 5, height = 3, dpi = 1200) {
-    # Save as PDF
-    pdf(file = here("output", paste0(filename, ".pdf")), 
-        width = width, height = height)
-    # Call your plotting code here
-    plot_SST_rem()  # This would be the entire plotting code
-    dev.off()
-    
-    # Save as PNG
-    png(file = here("output", paste0(filename, ".png")), 
-        width = width * dpi, height = height * dpi, res = dpi)
-    plot_SST_rem()  # Repeat the same plotting code
-    dev.off()
-    
-  }
-  
-  save_plot_rem("fig4rem", width = 3.35, height = 3, dpi = 1200)
+  # Save the Quartz output directly as a PDF
+  quartz.save(file = here("output", "fig4.pdf"), type = "pdf")
 
-  # dev.off()
+  #ggplot-export to image
+  ggsave(filename = here("output", "fig4.png"), device = "png", width = 7.087, height = 3, dpi = 1200)
+
+  # Close the Quartz device
+  dev.off()
   
-  plot_SST_inf <- function(for_pdf = FALSE) {
-    
-    #infected
-    output.basic.sand.SST.midchannel.SST <- output.basic.sand.SST.midchannel %>%
-      mutate(date = as.Date("2018-11-09") + days.model)
-    
-    # Infected tissue
-    # Sample data preparation
-    compartment = "Infected"
-    
-    # Filter and prepare the data
-    SST_data <- DHW.CRW.full
-    output.basic.sand.SST.midchannel.SST.scaled <- output.basic.sand.SST.midchannel.SST %>%
-      filter(Compartment == compartment) %>%
-      mutate(date = as.Date(date), tissue_scaled = tissue)
-    
-    # Add extra space on the right for the secondary y-axis label
-    par(mar = c(3, 3, 1, 3))  # bottom, left, top, right
-    
-    #control additional space between tick marks and axis text/labels
-    par(mgp = c(1.6, 0.5, 0))  #title, text, tick marks. default is usually c(3, 1, 0)
-    
-    # Plot the SST data
-    plot(SST_data$date, SST_data$SST.90th_HS, type = "l", col = "#E69F00", 
-         xlim = c(as.Date("2018-01-01"), as.Date("2020-12-30")), 
-         ylim = c(23, 32), xlab = "Date", ylab = "SST (°C)", 
-         # lwd = 3, 
-         # cex.lab = 1.5, cex.axis = 1.3, cex.main = 1.6,
-         lwd = linewidths, 
-         cex.lab = titlesize, cex.axis = textsize,
-         family = 'Georgia')  # Increased font size
-    
-    # Add vertical dashed line
-    abline(v = as.Date(c("2019-12-06")), col = "grey40", lty = 2, lwd = linewidths)
-    
-    # Add horizontal dashed line for SST threshold
-    abline(h = SST_threshold, col = "red", lty = 2, lwd = linewidths)
-    
-    # Overlay tissue data
-    par(new = TRUE)
-    plot(output.basic.sand.SST.midchannel.SST.scaled$date, 
-         output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled, 
-         type = "l", col = "black", lty = 1, lwd = linewidths,  # Solid black line
-         xlim = c(as.Date("2018-01-01"), as.Date("2020-12-30")), 
-         ylim = c(0, max(output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled)), 
-         xlab = "", ylab = "", axes = FALSE,
-         family = 'Georgia')  # No y-axis, to avoid double labeling
-    
-    #add observations from first infection wave
-    inf_data <- obs.total[obs.total$Site == 'Midchannel' & obs.total$Compartment == "Infected", ]
-    inf_data = inf_data %>%
-      filter(date != max(date, na.rm = TRUE)) #remove the final "observation", as this was not really an observation (is always zero because cannot backtrack)
-    inf_dates <- as.Date(inf_data$date)
-    points(inf_dates, inf_data$tissue, 
-           pch = 17,  # Solid triangle
-           col = "black",  # Red color for visibility
-           cex = symbsize)  # Size of points
-    
-    # Add the secondary y-axis (right axis) with two decimal places
-    axis(side = 4, at = pretty(output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled), 
-         labels = formatC(pretty(output.basic.sand.SST.midchannel.SST.scaled$tissue_scaled), 
-                          format = "f", digits = 2), cex.axis = textsize,
-         family = 'Georgia')  # Increased axis font size
-    
-    mtext("Infected tissue (m²)", side = 4, line = 1.7, cex = titlesize, family = "Georgia")
-    
-    # Set font to Georgia before drawing legend
-    par(family = "Georgia")
-    
-    # Add a legend inside a white box
-    legend("topleft", legend = c("SST (°C)", "Tissue (m²)"),
-           # col = c("#E69F00", "black"), lwd = 2, lty = c(1, 1),
-           # cex = 1.3, bty = "o",
-           col = c("#E69F00", "black"), lwd = linewidths, lty = c(1, 1),
-           cex = textsize, bty = "o",
-           x.intersp = 0.5, #spacing between text and edges
-           y.intersp = 0.85, #spacing between lines
-           # inset = 0.015, #moves legend away from side of plot
-           bg = rgb(1, 1, 1, alpha = 0.7)
-    )
-    
-    #reset global font
-    par(family = "")
-    
-  }
-  save_plot_inf <- function(filename, width = 5, height = 3, dpi = 1200) {
-    # Save as PDF
-    pdf(file = here("output", paste0(filename, ".pdf")), 
-        width = width, height = height)
-    # Call your plotting code here
-    plot_SST_inf()  # This would be the entire plotting code
-    dev.off()
-    
-    # Save as PNG
-    png(file = here("output", paste0(filename, ".png")), 
-        width = width * dpi, height = height * dpi, res = dpi)
-    plot_SST_inf()  # Repeat the same plotting code
-    dev.off()
-  }
+  # saveRDS(combined_plot_fig4, file = here("output", "fig4.rds"))
   
-  save_plot_inf("fig4inf", width = 3.35, height = 3, dpi = 1200)
-  # dev.off()
-  
-  # ############################# Abandoned code for creating the above using ggplot ##################################
-  # 
-  # # Ensure the required libraries are loaded
-  # library(ggplot2)
-  # library(dplyr)
-  # library(gridExtra)
-  # library(ggthemes)
-  # 
-  # # Sample data preparation for Removed tissue
-  # rescaler = 1.5
-  # compartment = "Dead"
-  # 
-  # output.basic.sand.SST.midchannel.SST.scaled <- output.basic.sand.SST.midchannel.SST %>%
-  #   filter(Compartment == compartment) %>%
-  #   mutate(date = as.Date(date), tissue_scaled = tissue * rescaler)
-  # 
-  # # Plot the SST data for Removed tissue (p1)
-  # p1 <- ggplot(SST_data, aes(x = date, y = SST.90th_HS)) +
-  #   geom_line(color = "#E69F00", size = 1.5) +
-  #   geom_vline(xintercept = as.Date("2019-12-06"), color = "grey40", linetype = "dashed", size = 1.5) +
-  #   geom_hline(yintercept = SST_threshold, color = "red", linetype = "dashed", size = 1.5) +
-  #   labs(x = "Date", y = "SST (°C)") +
-  #   theme_minimal(base_family = "Georgia") +
-  #   theme(
-  #     text = element_text(family = "Georgia"),
-  #     axis.title = element_text(size = 14),
-  #     axis.text = element_text(size = 12),
-  #     plot.title = element_text(size = 16, hjust = 0.5)
-  #   ) +
-  #   theme(legend.position = "bottomright") +
-  #   scale_x_date(limits = c(as.Date("2018-01-01"), as.Date("2020-12-30"))) +
-  #   scale_y_continuous(limits = c(23, 32)) +
-  #   theme(legend.title = element_blank()) +
-  #   theme(legend.background = element_rect(fill = alpha("white", 0.9))) +
-  #   geom_line(aes(x = date, y = tissue_scaled), 
-  #             data = output.basic.sand.SST.midchannel.SST.scaled, color = "black", size = 1.5) +
-  #   scale_y_continuous(sec.axis = sec_axis(~ . / rescaler, name = "Removed tissue (m²)"))
-  # 
   ################################## Save output ##################################
   
   # #pass workspace to downstream script
