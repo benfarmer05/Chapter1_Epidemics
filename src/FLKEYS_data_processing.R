@@ -14,7 +14,7 @@
   cover = read.csv(here("data", "cover_long.csv"))
   prograte = read.csv(here("data", "SWG_SCTLDprogrates.csv"))
   cover = read.csv(here("data/cover_long.csv"))
-    
+  
   #   LOW SUSCEPTIBILITY (LS)
   #         - Slow onset/slow tissue loss [SSID] -> high cover
   #         - moderate onset/slow tissue loss [SINT, PCLI] -> high cover

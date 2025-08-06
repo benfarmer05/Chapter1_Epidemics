@@ -689,6 +689,14 @@
   titlesize = 10 #9  #text sizes in ggplot are actually in units of points, when specified using element_text
   textsize = 9
   
+  max_days_all_sites <- data_fig3 %>%
+    filter(Compartment == "Recovered",
+           Site == "Offshore", 
+           Host == "Single-host",
+           Type == "Fitted") %>%
+    summarise(max_days = max(days.model, na.rm = TRUE)) %>%
+    pull(max_days)
+  
   # COLUMN 1
   data_fig3 = data_fig3 %>%
     mutate(Compartment = case_when(
