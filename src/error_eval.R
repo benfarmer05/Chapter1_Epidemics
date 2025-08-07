@@ -8,7 +8,7 @@
   
   #import workspace from upstream script
   load(here("output/plots_multi_workspace.RData"))
-
+  
   ################################## Set-up ##################################
   
   # Function to calculate R-squared, RMSE, NRMSE, and sMAPE
@@ -86,8 +86,12 @@
     list(output = output.basic.offshore.transfer, site = "off", host = "Single", type = "Projected", wave = "Full"),
     list(output = output.near.to.off.multi, site = "off", host = "Multi", type = "Projected", wave = "Full"),
     list(output = output.basic.nearshore.transfer, site = "near", host = "Single", type = "Projected", wave = "Full"),
-    list(output = output.off.to.near.multi, site = "near", host = "Multi", type = "Projected", wave = "Full")
+    list(output = output.off.to.near.multi, site = "near", host = "Multi", type = "Projected", wave = "Full"),
     
+    #ADDING
+    list(output = output.basic.midchannel.transfer, site = "mid", host = "Single", type = "Projected", wave = "Full"),
+    list(output = output.near.to.mid.multi, site = "mid", host = "Multi", type = "Projected", wave = "Full")
+
   )
   
   # Apply function to all models and combine results
@@ -114,3 +118,4 @@
   
   # #pass workspace to downstream script
   # save.image(file = here("output", "error_eval_workspace.RData"))
+  

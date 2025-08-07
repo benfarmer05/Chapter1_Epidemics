@@ -21,6 +21,12 @@
   
   ################################## sandbox: cover ##################################
   
+  # Define styling parameters
+  linewidths = 0.75 #0.4 #0.75 is roughly 1 pt. ggplot measures these in mm, not points
+  symbsizes = 1.8
+  titlesize = 10 #9  #text sizes in ggplot are actually in units of points, when specified using element_text
+  textsize = 9
+  
   CC = seq(0.001, 1, .001)
   a = seq(0, 1, 0.05) #alpha (weight of coral cover)
   a = sort(c(a, 0.13))  # add 0.13 and sort the sequence
@@ -49,17 +55,17 @@
     # Add gradient lines (excluding the special alpha = 0.13)
     geom_line(data = filter(plot_data, !is_special), 
               aes(x = coral_cover_pct, y = mods, color = alpha, group = alpha),
-              linewidth = 0.6) +
+              linewidth = linewidths) +
     
     # Add special alpha = 0.13 line in blue
     geom_line(data = filter(plot_data, is_special),
               aes(x = coral_cover_pct, y = mods),
-              color = "blue", linewidth = 0.6) + #linetype = 'dashed'
+              color = "blue", linewidth = linewidths) + #linetype = 'dashed'
     
     # Add special points (using fill aesthetic to avoid conflict)
     geom_point(data = special_points,
                aes(x = coral_cover_pct, y = mods, fill = point_type),
-               shape = 23, size = 2, stroke = 1, color = "black") +
+               shape = 23, size = symbsizes, stroke = 1, color = "black") +
     
     # Scales and colors
     scale_color_viridis_c(name = expression(alpha), option = "inferno") +
@@ -79,10 +85,10 @@
     # Theme
     theme_classic(base_family = 'Georgia') +
     theme(
-      axis.title = element_text(size = 9),
-      axis.text = element_text(size = 7, color = 'black'),
-      legend.text = element_text(size = 7),
-      legend.title = element_text(size = 9),
+      axis.title = element_text(size = titlesize),
+      axis.text = element_text(size = textsize, color = 'black'),
+      legend.text = element_text(size = textsize),
+      legend.title = element_text(size = titlesize),
       legend.key.size = unit(0.5, "lines"),
       plot.margin = margin(t = 8, r = 15, b = 8, l = 8),
       # Position legends inside the plot
@@ -113,22 +119,22 @@
     
     # Alpha = 0.13 line sample and label
       annotate("segment", x = 72, xend = 76, y = 0.31, yend = 0.31,
-             color = "blue", linewidth = 1) + # ,linetype = 'dashed'
+             color = "blue", linewidth = linewidths) + # ,linetype = 'dashed'
     annotate("text", x = 77, y = 0.31, 
              label = expression(alpha == 0.13), 
              hjust = 0, size = 3, family = "Georgia") +
     
     # Nearshore point and label
-    annotate("point", x = 74, y = 0.26, 
-             shape = 23, fill = "orange", color = "black", size = 2, stroke = 1) +
-    annotate("text", x = 77, y = 0.26, 
+    annotate("point", x = 74, y = 0.25, 
+             shape = 23, fill = "orange", color = "black", size = symbsizes, stroke = 1) +
+    annotate("text", x = 77, y = 0.25, 
              label = "Nearshore", 
              hjust = 0, size = 3, family = "Georgia") +
     
     # Offshore point and label  
-    annotate("point", x = 74, y = 0.21, 
-             shape = 23, fill = "magenta", color = "black", size = 2, stroke = 1) +
-    annotate("text", x = 77, y = 0.21, 
+    annotate("point", x = 74, y = 0.18, 
+             shape = 23, fill = "magenta", color = "black", size = symbsizes, stroke = 1) +
+    annotate("text", x = 77, y = 0.18, 
              label = "Offshore", 
              hjust = 0, size = 3, family = "Georgia")
   

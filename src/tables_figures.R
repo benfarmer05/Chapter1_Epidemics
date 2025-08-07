@@ -359,7 +359,7 @@
     output.offshore = output.offshore,
     output.nearshore = output.nearshore,
     output.near.to.off.multi = output.near.to.off.multi,
-    output.near.to.mid.multi = output.near.to.off.multi
+    output.near.to.mid.multi = output.near.to.mid.multi
   )
   
   # Function to extract metadata from names
@@ -676,12 +676,12 @@
   # Close the Quartz device
   dev.off()
   
-  ################################## Figure 3 ##################################
+  ################################## Figure 3, S6 ##################################
   
   #this is a 6-panel figure
   #    left column is nearshore-fitted, offshore-fitted, and offshore-projected for single-host model
   #    right column is the same as the leftmost, but for the multi-host model
-
+  
   # NOTE - could choose to panel columns / rows with facet_wrap; would provide some flexibility on a fixed y-axis. then consider inserts with higher detail ?
   
   linewidths =  0.75 #0.4 #0.75 is roughly 1 pt. ggplot measures these in mm, not points
@@ -716,6 +716,17 @@
   obs.multi.figures$Compartment <- ifelse(obs.multi.figures$Compartment == "Recovered", "Removed", obs.multi.figures$Compartment)
   obs.multi.figures$Compartment <- factor(obs.multi.figures$Compartment, levels = c("Susceptible", "Infected", "Removed"))
   
+  #cut off final infected timepoint since it is not "real"
+  obs.total.figures <- obs.total.figures %>%
+    group_by(Site) %>%
+    filter(!(Compartment == "Infected" & days.inf.site == max(days.inf.site[Compartment == "Infected"], na.rm = TRUE))) %>%
+    ungroup()
+  
+  obs.multi.figures <- obs.multi.figures %>%
+    group_by(Site) %>%
+    filter(!(Compartment == "Infected" & days.inf.site == max(days.inf.site[Compartment == "Infected"], na.rm = TRUE))) %>%
+    ungroup()
+  
   site.loop = 'Nearshore'
   p.fit.nearshore.single.figures =
   ggplot(data = data_fig3 %>% filter(Site == site.loop, Host == "Single-host", Type == "Fitted"),
@@ -741,38 +752,59 @@
           legend.text = element_text(size = textsize),
           legend.title = element_text(size = titlesize),
           legend.key.height = unit(0, "cm"))
-    
-    # site.loop = 'Midchannel'
-    # p.fit.midchannel.single.figures =
-    #   ggplot(data = data_fig3 %>% filter(Site == site.loop, Host == "Single-host", Type == "Fitted"), aes(x = days.model, y = tissue, group = Compartment)) +
-    #   xlab("Day of outbreak") +
-    #   ylab("SA of tissue (m2)") +
-    #   # ggtitle(paste0(site.loop, " - Fitted")) +
-    #   geom_line(aes(group = Compartment), color = "black", linewidth = linewidths) +
-    #   geom_point(data = obs.total.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment), color = "black", size = symbsizes) +
-    #   scale_x_continuous(limits = c(0, max_days_all_sites)) +
-    #   # scale_y_continuous(limits = c(0, max_value.fig3)) +
-    #   scale_shape_manual(values = c("Susceptible" = 16,
-    #                                 "Infected" = 17,
-    #                                 "Recovered" = 15),
-    #                      name = "") + # Removes "Compartment" from the legend title
-    #   theme_classic(base_family = 'Georgia')
-    # 
-    # p.fit.near.to.mid.single.figures =
-    #   ggplot(data = data_fig3 %>% filter(Site == site.loop, Host == "Single-host", Type == "Projected"), aes(x = days.model, y = tissue, group = Compartment)) +
-    #   xlab("Day of outbreak") +
-    #   ylab("Surface area of tissue (m2)") +
-    #   # ggtitle(paste0(site.loop, " - Projected")) +
-    #   geom_line(aes(group = Compartment), color = "black", linewidth = linewidths) +
-    #   geom_point(data = obs.total.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment), color = "black", size = symbsizes) +
-    #   scale_x_continuous(limits = c(0, max_days_all_sites)) +
-    #   # scale_y_continuous(limits = c(0, max_value.fig3)) +
-    #   scale_shape_manual(values = c("Susceptible" = 16,
-    #                                 "Infected" = 17,
-    #                                 "Recovered" = 15),
-    #                      name = "") + # Removes "Compartment" from the legend title
-    #   theme_classic(base_family = 'Georgia')
-    
+  
+  site.loop = 'Midchannel'
+  p.fit.midchannel.single.figures =
+    ggplot(data = data_fig3 %>% filter(Site == site.loop, Host == "Single-host", Type == "Fitted"),
+           aes(x = days.model, y = tissue, group = Compartment)) +
+    xlab("Day of outbreak") +
+    ylab("Surface area of tissue (m²)") +
+    geom_line(aes(group = Compartment), color = "black", linewidth = linewidths) +
+    geom_point(data = obs.total.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment), color = "black", size = symbsizes) +
+    scale_x_continuous(limits = c(0, max_days_all_sites)) +
+    scale_shape_manual(values = c("Susceptible" = 16,
+                                  "Infected" = 17,
+                                  "Removed" = 15),
+                       name = "") + # Removes "Compartment" from the legend title
+    theme_classic(base_family = "Georgia") +
+    theme(legend.position = "bottom",
+          axis.title = element_text(size = titlesize),
+          axis.text = element_text(size = textsize),
+          # axis.text.x = element_blank(), #remove x-axis text but keep the line
+          # axis.ticks.x = element_blank(), #remove the tick marks
+          # axis.title.x = element_blank(),
+          # axis.title.y = element_blank(),
+          strip.text = element_text(size = 8),
+          legend.text = element_text(size = textsize),
+          legend.title = element_text(size = titlesize),
+          legend.key.height = unit(0, "cm"))
+  
+  site.loop = 'Midchannel'
+  p.fit.near.to.mid.single.figures =
+    ggplot(data = data_fig3 %>% filter(Site == site.loop, Host == "Single-host", Type == "Projected"), aes(x = days.model, y = tissue, group = Compartment)) +
+    xlab("Day of outbreak") +
+    ylab("Surface area of tissue (m²)") +
+    geom_line(aes(group = Compartment), color = "black", linewidth = linewidths) +
+    geom_point(data = obs.total.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment), color = "black", size = symbsizes) +
+    scale_x_continuous(limits = c(0, max_days_all_sites)) +
+    # scale_y_continuous(limits = c(0, max_value.fig3)) +
+    scale_shape_manual(values = c("Susceptible" = 16,
+                                  "Infected" = 17,
+                                  "Removed" = 15),
+                       name = "") + # Removes "Compartment" from the legend title
+    theme_classic(base_family = "Georgia") +
+    theme(legend.position = "bottom",
+          axis.title = element_text(size = titlesize),
+          axis.text = element_text(size = textsize),
+          # axis.text.x = element_blank(), #remove x-axis text but keep the line
+          # axis.ticks.x = element_blank(), #remove the tick marks
+          # axis.title.x = element_blank(),
+          # axis.title.y = element_blank(),
+          strip.text = element_text(size = 8),
+          legend.text = element_text(size = textsize),
+          legend.title = element_text(size = titlesize),
+          legend.key.height = unit(0, "cm"))
+
   site.loop = 'Offshore'
   p.fit.offshore.single.figures =
     ggplot(data = data_fig3 %>% filter(Site == site.loop, Host == "Single-host", Type == "Fitted"),
@@ -835,7 +867,18 @@
             # legend.spacing.y = unit(0, "cm"),    # Reduce space between legend items (doesn't work)
             plot.margin = margin(t = 5, r = 5, b = 0, l = 5)) &
       labs(x = "Day of outbreak")  # Apply x-axis label at the composite level
-
+    
+    figS6_col1 = (p.fit.nearshore.single.figures / p.fit.midchannel.single.figures / p.fit.near.to.mid.single.figures) + 
+      plot_layout(guides = "collect", axis_titles = 'collect') &
+      theme(legend.position = "bottom",
+            legend.box.spacing = unit(0, "cm"),
+            legend.key.size = unit(0.3, "cm"),  # Shrink legend key size (symbols)
+            legend.text = element_text(size = 8),  # Reduce legend text size
+            # axis.title.x = element_blank(),  # Remove x-axis label
+            # legend.spacing.y = unit(0, "cm"),    # Reduce space between legend items (doesn't work)
+            plot.margin = margin(t = 5, r = 5, b = 0, l = 5)) &
+      labs(x = "Day of outbreak")  # Apply x-axis label at the composite level
+    
   # # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
   # # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
   # # quartz(h = 5, w = 3.35)
@@ -873,6 +916,69 @@
                                   "Moderate" = "#FFD700", # Yellow
                                   "High" = "#FF1493")) +  # Deep Pink
     geom_point(data = obs.multi.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment, fill = Susceptibility), size = symbsizes) +
+    scale_x_continuous(limits = c(0, max_days_all_sites)) +
+    scale_shape_manual(values = c("Susceptible" = 16,
+                                  "Infected" = 17,
+                                  "Removed" = 15),
+                       name = "") + # Removes "Compartment" from the legend title
+    theme_classic(base_family = "Georgia") +
+    theme(legend.position = "bottom",
+          axis.title = element_text(size = titlesize),
+          axis.text = element_text(size = textsize),
+          # axis.text.x = element_blank(), #remove x-axis text but keep the line
+          # axis.ticks.x = element_blank(), #remove the tick marks
+          # axis.title.x = element_blank(),
+          # axis.title.y = element_blank(),
+          strip.text = element_text(size = 8),
+          legend.text = element_text(size = textsize),
+          legend.title = element_text(size = titlesize),
+          legend.key.height = unit(0, "cm"))
+  
+  site.loop = 'Midchannel'
+  p.fit.midchannel.multi.figures =
+    ggplot(data = data_fig3 %>% filter(Site == site.loop, Host == "Multi-host", Type == "Fitted"), aes(x = days.model, y = tissue, color = Susceptibility, shape = Compartment)) +
+    xlab("Day of outbreak") +
+    ylab("Surface area of tissue (m²)") +
+    geom_line(linewidth = linewidths) +
+    scale_color_manual(values = c("Low" = "#1E90FF",   # Blue
+                                  "Moderate" = "#FFD700", # Yellow
+                                  "High" = "#FF1493")) +  # Deep Pink
+    geom_point(data = obs.multi.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment, fill = Susceptibility), size = symbsizes) +
+    scale_x_continuous(limits = c(0, max_days_all_sites)) +
+    scale_shape_manual(values = c("Susceptible" = 16,
+                                  "Infected" = 17,
+                                  "Removed" = 15),
+                       name = "") + # Removes "Compartment" from the legend title
+    theme_classic(base_family = "Georgia") +
+    theme(legend.position = "bottom",
+          axis.title = element_text(size = titlesize),
+          axis.text = element_text(size = textsize),
+          # axis.text.x = element_blank(), #remove x-axis text but keep the line
+          # axis.ticks.x = element_blank(), #remove the tick marks
+          # axis.title.x = element_blank(),
+          # axis.title.y = element_blank(),
+          strip.text = element_text(size = 8),
+          legend.text = element_text(size = textsize),
+          legend.title = element_text(size = titlesize),
+          legend.key.height = unit(0, "cm"))
+  
+  site.loop = 'Midchannel'
+  p.fit.near.to.mid.multi.figures =
+    ggplot(data = data_fig3 %>%
+             # filter(Site == site.loop, Host == "Multi-host", Type == "Projected"),
+             # aes(x = days.model, y = tissue, color = Susceptibility, shape = Compartment)) +
+             filter(Site == site.loop, Host == "Multi-host", Type == "Projected") %>%
+             group_by(days.model, Compartment) %>%
+             summarize(tissue = sum(tissue), .groups = "drop"),
+           aes(x = days.model, y = tissue, shape = Compartment)) +
+    xlab("Day of outbreak") +
+    ylab("Surface area of tissue (m²)") +
+    geom_line(linewidth = linewidths) +
+    scale_color_manual(values = c("Low" = "#1E90FF",   # Blue
+                                  "Moderate" = "#FFD700", # Yellow
+                                  "High" = "#FF1493")) +  # Deep Pink
+    # geom_point(data = obs.multi.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment, fill = Susceptibility), size = symbsizes) +
+    geom_point(data = obs.total.figures %>% filter(Site == site.loop), aes(x = days.inf.site, y = tissue, shape = Compartment), color = "black", size = symbsizes) +
     scale_x_continuous(limits = c(0, max_days_all_sites)) +
     scale_shape_manual(values = c("Susceptible" = 16,
                                   "Infected" = 17,
@@ -977,6 +1083,30 @@
         plot.margin = margin(t = 5, r = 5, b = 0, l = 5)
   )
   
+  figS6_col2 = (p.fit.nearshore.multi.figures / p.fit.midchannel.multi.figures / p.fit.near.to.mid.multi.figures) + 
+    plot_layout(axis_titles = 'collect', guides = "collect") &
+    # plot_layout(guides = "collect", axes = "collect") &  # Collect the legends
+    # theme(legend.position = "bottom",
+    #       legend.box.spacing = unit(0, "cm"),
+    #       legend.key.size = unit(0.3, "cm"),  # Shrink legend key size (symbols)
+    #       legend.text = element_text(size = 8),  # Reduce legend text size
+    #       # axis.title.y = element_blank(),  # Remove y-axis label
+    #       # axis.title.x = element_blank(),  # Remove x-axis label
+    #       # legend.spacing.y = unit(0, "cm"),    # Reduce space between legend items (doesn't work)
+    #       legend.title = element_blank(),  # Add this line to remove legend titles
+    #       plot.margin = margin(t = 5, r = 5, b = 0, l = 5)#, line = element_line(linewidth = 1)  # Change the universal linewidth
+    # )
+    theme(legend.position = "bottom",
+          legend.box = "vertical",  # Stack legends vertically
+          legend.box.spacing = unit(0, "cm"),
+          legend.key.size = unit(0.3, "cm"),
+          legend.text = element_text(size = 8),
+          legend.title = element_blank(),
+          legend.margin = margin(5, 0, 0, 0),  # Reduce margin around each legend
+          plot.margin = margin(t = 5, r = 5, b = 0, l = 5)
+    )
+  
+  
   # # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
   # # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
   # # quartz(h = 5, w = 3.35)
@@ -1013,6 +1143,22 @@
           plot.margin = margin(t = 5, r = 5, b = 0, l = 5)
     )
   
+  figS6 = (figS6_col1 | figS6_col2) +
+    plot_layout(guides = "collect", axis_titles = "collect")  &
+    ylab("Surface area of tissue (m²)") &
+    xlab("Day of outbreak") &
+    theme(legend.position = "bottom",
+          axis.title = element_text(size = titlesize),
+          axis.text = element_text(size = textsize),
+          legend.box = "vertical",  # Stack legends vertically
+          legend.box.spacing = unit(0, "cm"),
+          legend.key.size = unit(0.3, "cm"),
+          legend.text = element_text(size = 8),
+          legend.title = element_blank(),
+          legend.margin = margin(5, 0, 0, 0),  # Reduce margin around each legend
+          plot.margin = margin(t = 5, r = 5, b = 0, l = 5)
+    )
+  
   p1.fig3 = p.fit.nearshore.single.figures
   p2.fig3 = p.fit.nearshore.multi.figures
   p3.fig3 = p.fit.offshore.single.figures
@@ -1020,8 +1166,33 @@
   p5.fig3 = p.fit.near.to.off.single.figures
   p6.fig3 = p.fit.near.to.off.multi.figures
   
+  p1.figS6 = p.fit.nearshore.single.figures
+  p2.figS6 = p.fit.nearshore.multi.figures
+  p3.figS6 = p.fit.midchannel.single.figures
+  p4.figS6 = p.fit.midchannel.multi.figures
+  p5.figS6 = p.fit.near.to.mid.single.figures
+  p6.figS6 = p.fit.near.to.mid.multi.figures
+  
   fig3 =
   p1.fig3 + p2.fig3 + p3.fig3 + p4.fig3 + p5.fig3 + p6.fig3 +
+    plot_layout(axis_titles = "collect",
+                guide = 'collect',
+                design = "AB\nCD\nEF") &
+    theme(legend.position = "bottom",
+          axis.title = element_text(size = titlesize, color = 'black'),
+          axis.text = element_text(size = textsize, color = 'black'),
+          # legend.box = "vertical",  # Stack legends vertically
+          legend.box.spacing = unit(0, "cm"),
+          legend.key.size = unit(0.3, "cm"),
+          legend.text = element_text(size = 8),
+          legend.title = element_blank(),
+          axis.ticks = element_line(color = "black")
+          # legend.margin = margin(5, 0, 0, 0),  # Reduce margin around each legend
+          # plot.margin = margin(t = 5, r = 5, b = 0, l = 5)
+    )
+  
+  figS6 =
+    p1.figS6 + p2.figS6 + p3.figS6 + p4.figS6 + p5.figS6 + p6.figS6 +
     plot_layout(axis_titles = "collect",
                 guide = 'collect',
                 design = "AB\nCD\nEF") &
@@ -1042,6 +1213,10 @@
   fig3 <- fig3 + plot_annotation(tag_levels = "A") & 
     theme(plot.tag.position = c(1, 1))  # Move labels to top right
   
+  # add annotation separately (must be done to avoid breaking axes collect)
+  figS6 <- figS6 + plot_annotation(tag_levels = "A") & 
+    theme(plot.tag.position = c(1, 1))  # Move labels to top right
+  
   # # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
   # # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
   # # quartz(h = 5, w = 3.35)
@@ -1060,19 +1235,24 @@
   # dev.off()
   
   ################################## Fig3e export ##################################
-
+  
   # After you create your fig3 plot, add this section to extract and save panel E data
   # Extract the data used for panel E (offshore projected single-host)
   panel_e_data <- data_fig3 %>% 
     filter(Site == 'Offshore', Host == "Single-host", Type == "Projected") %>%
     select(days.model, tissue, Compartment)
+  panel_e_data_mid <- data_fig3 %>% 
+    filter(Site == 'Midchannel', Host == "Single-host", Type == "Projected") %>%
+    select(days.model, tissue, Compartment)
   
   # Add a workspace identifier (change this for each run)
   workspace_id <- "workspace_2"  # Change to "workspace_2" for second run (NL dens.)
   panel_e_data$workspace <- workspace_id
+  panel_e_data_mid$workspace <- workspace_id
   
   # Save the data
   saveRDS(panel_e_data, file = here("output", paste0("panel_e_data_", workspace_id, ".rds")))
+  saveRDS(panel_e_data_mid, file = here("output", paste0("panel_e_data_mid_", workspace_id, ".rds")))
   
   # Optional: also save the observed data points for panel E
   obs_panel_e <- obs.total.figures %>% 
@@ -1080,7 +1260,13 @@
     select(days.inf.site, tissue, Compartment)
   obs_panel_e$workspace <- workspace_id
   
+  obs_panel_e_mid <- obs.total.figures %>% 
+    filter(Site == 'Midchannel') %>%
+    select(days.inf.site, tissue, Compartment)
+  obs_panel_e_mid$workspace <- workspace_id
+  
   saveRDS(obs_panel_e, file = here("output", paste0("panel_e_obs_", workspace_id, ".rds")))
+  saveRDS(obs_panel_e_mid, file = here("output", paste0("panel_e_obs_mid_", workspace_id, ".rds")))
   
   ################################## Figure S4 ##################################
   
@@ -1299,6 +1485,130 @@
   # # Close the Quartz device
   # dev.off()
   
+  ################################## Figure S7 ##################################
+  
+  # MIDCHANNEL PLOTS FOR FIGURE S5
+  
+  site.loop = 'Midchannel'
+  p.fit.midchannel.inf.single.figures =
+    ggplot(data = data_fig3 %>% filter(Site == site.loop, Compartment == 'Infected', Host == "Single-host", Type == "Fitted"),
+           aes(x = days.model, y = tissue)) +
+    xlab("Day of outbreak") +
+    ylab("Surface area of tissue (m²)") +
+    geom_line(color = "black", linewidth = linewidths) +
+    geom_point(data = obs.total.figures %>% filter(Site == site.loop, Compartment == 'Infected'), aes(x = days.inf.site, y = tissue),
+               shape = 17, color = "black", size = symbsizes) +
+    scale_x_continuous(limits = c(0, max_days_all_sites)) +
+    scale_shape_manual(values = c("Susceptible" = 16,
+                                  "Infected" = 17,
+                                  "Recovered" = 15),
+                       name = "") + # Removes "Compartment" from the legend title
+    theme_classic(base_family = "Georgia") +
+    ylim(0, 0.2) +
+    theme(legend.position = "bottom",
+          axis.title = element_text(size = titlesize),
+          axis.text = element_text(size = textsize),
+          strip.text = element_text(size = 8),
+          legend.text = element_text(size = textsize),
+          legend.title = element_text(size = titlesize),
+          legend.key.height = unit(0, "cm"))
+  
+  site.loop = 'Midchannel'
+  p.fit.near.to.mid.single.figures =
+    ggplot(data = data_fig3 %>% filter(Site == site.loop, Compartment == 'Infected', Host == "Single-host", Type == "Projected"), aes(x = days.model, y = tissue)) +
+    xlab("Day of outbreak") +
+    ylab("Surface area of tissue (m²)") +
+    geom_line(color = "black", linewidth = linewidths) +
+    geom_point(data = obs.total.figures %>% filter(Site == site.loop, Compartment == 'Infected'), aes(x = days.inf.site, y = tissue),
+               shape = 17, color = "black", size = symbsizes) +
+    scale_x_continuous(limits = c(0, max_days_all_sites)) +
+    scale_shape_manual(values = c("Susceptible" = 16,
+                                  "Infected" = 17,
+                                  "Recovered" = 15),
+                       name = "") + # Removes "Compartment" from the legend title
+    theme_classic(base_family = "Georgia") +
+    ylim(0, 0.2) +
+    theme(legend.position = "bottom",
+          axis.title = element_text(size = titlesize),
+          axis.text = element_text(size = textsize),
+          strip.text = element_text(size = 8),
+          legend.text = element_text(size = textsize),
+          legend.title = element_text(size = titlesize),
+          legend.key.height = unit(0, "cm"))
+  
+  site.loop = 'Midchannel'
+  p.fit.midchannel.inf.multi.figures =
+    ggplot(data = data_fig3 %>% filter(Site == site.loop, Compartment == 'Infected', Host == "Multi-host", Type == "Fitted"), aes(x = days.model, y = tissue, color = Susceptibility)) +
+    xlab("Day of outbreak") +
+    ylab("Surface area of tissue (m²)") +
+    geom_line(linewidth = linewidths) +
+    scale_color_manual(values = c("Low" = "#1E90FF",   # Blue
+                                  "Moderate" = "#FFD700", # Yellow
+                                  "High" = "#FF1493")) +  # Deep Pink
+    geom_point(data = obs.multi.figures %>% filter(Site == site.loop, Compartment == 'Infected'), aes(x = days.inf.site, y = tissue, shape = Compartment, fill = Susceptibility),
+               shape = 17, size = symbsizes) +
+    scale_x_continuous(limits = c(0, max_days_all_sites)) +
+    theme_classic(base_family = "Georgia") +
+    theme(legend.position = "bottom",
+          axis.title = element_text(size = titlesize),
+          axis.text = element_text(size = textsize),
+          strip.text = element_text(size = 8),
+          legend.text = element_text(size = textsize),
+          legend.title = element_text(size = titlesize),
+          legend.key.height = unit(0, "cm"))
+  
+  site.loop = 'Midchannel'
+  p.fit.near.to.mid.multi.figures =
+    ggplot(data = data_fig3 %>%
+             filter(Site == site.loop, Compartment == 'Infected', Host == "Multi-host", Type == "Projected") %>%
+             group_by(days.model, Compartment) %>%
+             summarize(tissue = sum(tissue), .groups = "drop"),
+           aes(x = days.model, y = tissue)) +
+    xlab("Day of outbreak") +
+    ylab("Surface area of tissue (m²)") +
+    geom_line(linewidth = linewidths) +
+    geom_point(data = obs.total.figures %>% filter(Site == site.loop, Compartment == 'Infected'), aes(x = days.inf.site, y = tissue),
+               shape = 17, color = "black", size = symbsizes) +
+    scale_x_continuous(limits = c(0, max_days_all_sites)) +
+    scale_shape_manual(values = c("Susceptible" = 16,
+                                  "Infected" = 17,
+                                  "Recovered" = 15),
+                       name = "") + # Removes "Compartment" from the legend title
+    theme_classic(base_family = "Georgia") +
+    ylim(0, 0.2) +
+    theme(legend.position = "bottom",
+          axis.title = element_text(size = titlesize),
+          axis.text = element_text(size = textsize),
+          strip.text = element_text(size = 8),
+          legend.text = element_text(size = textsize),
+          legend.title = element_text(size = titlesize),
+          legend.key.height = unit(0, "cm"))
+  
+  p1.figS7 = p.fit.nearshore.inf.single.figures
+  p2.figS7 = p.fit.nearshore.inf.multi.figures
+  p3.figS7 = p.fit.midchannel.inf.single.figures
+  p4.figS7 = p.fit.midchannel.inf.multi.figures
+  p5.figS7 = p.fit.near.to.mid.single.figures
+  p6.figS7 = p.fit.near.to.mid.multi.figures
+  
+  figS7 =
+    p1.figS7 + p2.figS7 + p3.figS7 + p4.figS7 + p5.figS7 + p6.figS7 +
+    plot_layout(axis_titles = "collect",
+                guide = 'collect',
+                design = "AB\nCD\nEF") &
+    theme(legend.position = "bottom",
+          axis.title = element_text(size = titlesize, color = 'black'),
+          axis.text = element_text(size = textsize, color = 'black'),
+          legend.box.spacing = unit(0, "cm"),
+          legend.key.size = unit(0.3, "cm"),
+          legend.text = element_text(size = 8),
+          legend.title = element_blank(),
+          axis.ticks = element_line(color = "black")
+    )
+  
+  # add annotation separately (must be done to avoid breaking axes collect)
+  figS7 <- figS7 + plot_annotation(tag_levels = "A") & 
+    theme(plot.tag.position = c(1, 1))  # Move labels to top right  
   
   ################################## Figure S5 ##################################
   
@@ -1313,17 +1623,17 @@
   
   site.loop = 'Nearshore'
   p.fit.nearshore.rem.single.figures =
-    ggplot(data = data_fig3 %>% filter(Site == site.loop, Compartment == 'Recovered', Host == "Single-host", Type == "Fitted"),
+    ggplot(data = data_fig3 %>% filter(Site == site.loop, Compartment == 'Removed', Host == "Single-host", Type == "Fitted"),
            aes(x = days.model, y = tissue)) +
     xlab("Day of outbreak") +
     ylab("Surface area of tissue (m²)") +
     geom_line(color = "black", linewidth = linewidths) +
-    geom_point(data = obs.total.figures %>% filter(Site == site.loop, Compartment == 'Recovered'), aes(x = days.inf.site, y = tissue),
+    geom_point(data = obs.total.figures %>% filter(Site == site.loop, Compartment == 'Removed'), aes(x = days.inf.site, y = tissue),
                shape = 15, color = "black", size = symbsizes) +
     scale_x_continuous(limits = c(0, max_days_all_sites)) +
     scale_shape_manual(values = c("Susceptible" = 16,
                                   "Infected" = 17,
-                                  "Recovered" = 15),
+                                  "Removed" = 15),
                        name = "") + # Removes "Compartment" from the legend title
     theme_classic(base_family = "Georgia") +
     theme(legend.position = "bottom",
@@ -1336,12 +1646,12 @@
   
   site.loop = 'Offshore'
   p.fit.offshore.rem.single.figures =
-    ggplot(data = data_fig3 %>% filter(Site == site.loop, Compartment == 'Recovered', Host == "Single-host", Type == "Fitted"),
+    ggplot(data = data_fig3 %>% filter(Site == site.loop, Compartment == 'Removed', Host == "Single-host", Type == "Fitted"),
            aes(x = days.model, y = tissue)) +
     xlab("Day of outbreak") +
     ylab("Surface area of tissue (m²)") +
     geom_line(color = "black", linewidth = linewidths) +
-    geom_point(data = obs.total.figures %>% filter(Site == site.loop, Compartment == 'Recovered'), aes(x = days.inf.site, y = tissue),
+    geom_point(data = obs.total.figures %>% filter(Site == site.loop, Compartment == 'Removed'), aes(x = days.inf.site, y = tissue),
                shape = 15, color = "black", size = symbsizes) +
     scale_x_continuous(limits = c(0, max_days_all_sites)) +
     scale_shape_manual(values = c("Susceptible" = 16,
@@ -1361,16 +1671,16 @@
   
   site.loop = 'Offshore'
   p.fit.near.to.off.single.figures =
-    ggplot(data = data_fig3 %>% filter(Site == site.loop, Compartment == 'Recovered', Host == "Single-host", Type == "Projected"), aes(x = days.model, y = tissue)) +
+    ggplot(data = data_fig3 %>% filter(Site == site.loop, Compartment == 'Removed', Host == "Single-host", Type == "Projected"), aes(x = days.model, y = tissue)) +
     xlab("Day of outbreak") +
     ylab("Surface area of tissue (m²)") +
     geom_line(color = "black", linewidth = linewidths) +
-    geom_point(data = obs.total.figures %>% filter(Site == site.loop, Compartment == 'Recovered'), aes(x = days.inf.site, y = tissue),
+    geom_point(data = obs.total.figures %>% filter(Site == site.loop, Compartment == 'Removed'), aes(x = days.inf.site, y = tissue),
                shape = 15, color = "black", size = symbsizes) +
     scale_x_continuous(limits = c(0, max_days_all_sites)) +
     scale_shape_manual(values = c("Susceptible" = 16,
                                   "Infected" = 17,
-                                  "Recovered" = 15),
+                                  "Removed" = 15),
                        name = "") + # Removes "Compartment" from the legend title
     theme_classic(base_family = "Georgia") +
     # ylim(0, 1.5) +
@@ -1394,14 +1704,14 @@
   
   site.loop = 'Nearshore'
   p.fit.nearshore.rem.multi.figures =
-    ggplot(data = data_fig3 %>% filter(Site == site.loop, Compartment == 'Recovered', Host == "Multi-host", Type == "Fitted"), aes(x = days.model, y = tissue, color = Susceptibility)) +
+    ggplot(data = data_fig3 %>% filter(Site == site.loop, Compartment == 'Removed', Host == "Multi-host", Type == "Fitted"), aes(x = days.model, y = tissue, color = Susceptibility)) +
     xlab("Day of outbreak") +
     ylab("Surface area of tissue (m²)") +
     geom_line(linewidth = linewidths) +
     scale_color_manual(values = c("Low" = "#1E90FF",   # Blue
                                   "Moderate" = "#FFD700", # Yellow
                                   "High" = "#FF1493")) +  # Deep Pink
-    geom_point(data = obs.multi.figures %>% filter(Site == site.loop, Compartment == 'Recovered'), aes(x = days.inf.site, y = tissue, shape = Compartment, fill = Susceptibility),
+    geom_point(data = obs.multi.figures %>% filter(Site == site.loop, Compartment == 'Removed'), aes(x = days.inf.site, y = tissue, shape = Compartment, fill = Susceptibility),
                shape = 15, size = symbsizes) +
     scale_x_continuous(limits = c(0, max_days_all_sites)) +
     theme_classic(base_family = "Georgia") +
@@ -1415,14 +1725,14 @@
   
   site.loop = 'Offshore'
   p.fit.offshore.rem.multi.figures =
-    ggplot(data = data_fig3 %>% filter(Site == site.loop, Compartment == 'Recovered', Host == "Multi-host", Type == "Fitted"), aes(x = days.model, y = tissue, color = Susceptibility)) +
+    ggplot(data = data_fig3 %>% filter(Site == site.loop, Compartment == 'Removed', Host == "Multi-host", Type == "Fitted"), aes(x = days.model, y = tissue, color = Susceptibility)) +
     xlab("Day of outbreak") +
     ylab("Surface area of tissue (m²)") +
     geom_line(linewidth = linewidths) +
     scale_color_manual(values = c("Low" = "#1E90FF",   # Blue
                                   "Moderate" = "#FFD700", # Yellow
                                   "High" = "#FF1493")) +  # Deep Pink
-    geom_point(data = obs.multi.figures %>% filter(Site == site.loop, Compartment == 'Recovered'), aes(x = days.inf.site, y = tissue, shape = Compartment, fill = Susceptibility),
+    geom_point(data = obs.multi.figures %>% filter(Site == site.loop, Compartment == 'Removed'), aes(x = days.inf.site, y = tissue, shape = Compartment, fill = Susceptibility),
                shape = 15, size = symbsizes) +
     scale_x_continuous(limits = c(0, max_days_all_sites)) +
     theme_classic(base_family = "Georgia") +
@@ -1437,19 +1747,19 @@
   site.loop = 'Offshore'
   p.fit.near.to.off.multi.figures =
     ggplot(data = data_fig3 %>%
-             filter(Site == site.loop, Compartment == 'Recovered', Host == "Multi-host", Type == "Projected") %>%
+             filter(Site == site.loop, Compartment == 'Removed', Host == "Multi-host", Type == "Projected") %>%
              group_by(days.model, Compartment) %>%
              summarize(tissue = sum(tissue), .groups = "drop"),
            aes(x = days.model, y = tissue)) +
     xlab("Day of outbreak") +
     ylab("Surface area of tissue (m²)") +
     geom_line(linewidth = linewidths) +
-    geom_point(data = obs.total.figures %>% filter(Site == site.loop, Compartment == 'Recovered'), aes(x = days.inf.site, y = tissue),
+    geom_point(data = obs.total.figures %>% filter(Site == site.loop, Compartment == 'Removed'), aes(x = days.inf.site, y = tissue),
                shape = 15, color = "black", size = symbsizes) +
     scale_x_continuous(limits = c(0, max_days_all_sites)) +
     scale_shape_manual(values = c("Susceptible" = 16,
                                   "Infected" = 17,
-                                  "Recovered" = 15),
+                                  "Removed" = 15),
                        name = "") + # Removes "Compartment" from the legend title
     theme_classic(base_family = "Georgia") +
     # ylim(0, 1.5) +
@@ -1517,30 +1827,159 @@
   # # Close the Quartz device
   # dev.off()
   
+  ################################## Figure S8 ##################################
   
-  ################################## FigS5/S6 export ##################################
+  #figure 3, but just removal
   
-  # # After you create your fig3 plot, add this section to extract and save panel E data
-  # # Extract the data used for panel E (offshore projected single-host)
-  # panel_e_data <- data_fig3 %>% 
-  #   filter(Site == 'Offshore', Host == "Single-host", Type == "Projected", Compartment == 'Infected') %>%
-  #   select(days.model, tissue, Compartment)
-  # 
-  # # Add a workspace identifier (change this for each run)
-  # workspace_id <- "workspace_1"  # Change to "workspace_2" for second run
-  # panel_e_data$workspace <- workspace_id
-  # 
-  # # Save the data
-  # saveRDS(panel_e_data, file = here("output", paste0("panel_e_data_", workspace_id, ".rds")))
-  # 
-  # # Optional: also save the observed data points for panel E
-  # obs_panel_e <- obs.total.figures %>% 
-  #   filter(Site == 'Offshore') %>%
-  #   select(days.inf.site, tissue, Compartment)
-  # obs_panel_e$workspace <- workspace_id
-  # 
-  # saveRDS(obs_panel_e, file = here("output", paste0("panel_e_obs_", workspace_id, ".rds")))
+  linewidths =  0.75 #0.4 #0.75 is roughly 1 pt. ggplot measures these in mm, not points
+  symbsizes = 1.3
+  titlesize = 10 #9  #text sizes in ggplot are actually in units of points, when specified using element_text
+  textsize = 9
   
+  site.loop = 'Midchannel'
+  p.fit.midchannel.rem.single.figures =
+    ggplot(data = data_fig3 %>% filter(Site == site.loop, Compartment == 'Removed', Host == "Single-host", Type == "Fitted"),
+           aes(x = days.model, y = tissue)) +
+    xlab("Day of outbreak") +
+    ylab("Surface area of tissue (m²)") +
+    geom_line(color = "black", linewidth = linewidths) +
+    geom_point(data = obs.total.figures %>% filter(Site == site.loop, Compartment == 'Removed'), aes(x = days.inf.site, y = tissue),
+               shape = 15, color = "black", size = symbsizes) +
+    scale_x_continuous(limits = c(0, max_days_all_sites)) +
+    scale_shape_manual(values = c("Susceptible" = 16,
+                                  "Infected" = 17,
+                                  "Recovered" = 15),
+                       name = "") + # Removes "Compartment" from the legend title
+    theme_classic(base_family = "Georgia") +
+    # ylim(0, 1.5) +
+    ylim(0, 3.5) +
+    theme(legend.position = "bottom",
+          axis.title = element_text(size = titlesize),
+          axis.text = element_text(size = textsize),
+          strip.text = element_text(size = 8),
+          legend.text = element_text(size = textsize),
+          legend.title = element_text(size = titlesize),
+          legend.key.height = unit(0, "cm"))
+  
+  site.loop = 'Midchannel'
+  p.fit.near.to.mid.single.figures =
+    ggplot(data = data_fig3 %>% filter(Site == site.loop, Compartment == 'Removed', Host == "Single-host", Type == "Projected"), aes(x = days.model, y = tissue)) +
+    xlab("Day of outbreak") +
+    ylab("Surface area of tissue (m²)") +
+    geom_line(color = "black", linewidth = linewidths) +
+    geom_point(data = obs.total.figures %>% filter(Site == site.loop, Compartment == 'Removed'), aes(x = days.inf.site, y = tissue),
+               shape = 15, color = "black", size = symbsizes) +
+    scale_x_continuous(limits = c(0, max_days_all_sites)) +
+    scale_shape_manual(values = c("Susceptible" = 16,
+                                  "Infected" = 17,
+                                  "Removed" = 15),
+                       name = "") + # Removes "Compartment" from the legend title
+    theme_classic(base_family = "Georgia") +
+    # ylim(0, 1.5) +
+    ylim(0, 3.5) +
+    theme(legend.position = "bottom",
+          axis.title = element_text(size = titlesize),
+          axis.text = element_text(size = textsize),
+          strip.text = element_text(size = 8),
+          legend.text = element_text(size = textsize),
+          legend.title = element_text(size = titlesize),
+          legend.key.height = unit(0, "cm"))
+  
+  figS8_col1 = (p.fit.nearshore.rem.single.figures / p.fit.midchannel.rem.single.figures / p.fit.near.to.mid.single.figures) + 
+    plot_layout(guides = "collect", axis_titles = 'collect') &
+    theme(legend.position = "bottom",
+          legend.box.spacing = unit(0, "cm"),
+          legend.key.size = unit(0.3, "cm"),  # Shrink legend key size (symbols)
+          legend.text = element_text(size = 8),  # Reduce legend text size
+          plot.margin = margin(t = 5, r = 5, b = 0, l = 5)) &
+    labs(x = "Day of outbreak")  # Apply x-axis label at the composite level
+  
+  site.loop = 'Midchannel'
+  p.fit.midchannel.rem.multi.figures =
+    ggplot(data = data_fig3 %>% filter(Site == site.loop, Compartment == 'Removed', Host == "Multi-host", Type == "Fitted"), aes(x = days.model, y = tissue, color = Susceptibility)) +
+    xlab("Day of outbreak") +
+    ylab("Surface area of tissue (m²)") +
+    geom_line(linewidth = linewidths) +
+    scale_color_manual(values = c("Low" = "#1E90FF",   # Blue
+                                  "Moderate" = "#FFD700", # Yellow
+                                  "High" = "#FF1493")) +  # Deep Pink
+    geom_point(data = obs.multi.figures %>% filter(Site == site.loop, Compartment == 'Removed'), aes(x = days.inf.site, y = tissue, shape = Compartment, fill = Susceptibility),
+               shape = 15, size = symbsizes) +
+    scale_x_continuous(limits = c(0, max_days_all_sites)) +
+    theme_classic(base_family = "Georgia") +
+    theme(legend.position = "bottom",
+          axis.title = element_text(size = titlesize),
+          axis.text = element_text(size = textsize),
+          strip.text = element_text(size = 8),
+          legend.text = element_text(size = textsize),
+          legend.title = element_text(size = titlesize),
+          legend.key.height = unit(0, "cm"))
+  
+  site.loop = 'Midchannel'
+  p.fit.near.to.mid.multi.figures =
+    ggplot(data = data_fig3 %>%
+             filter(Site == site.loop, Compartment == 'Removed', Host == "Multi-host", Type == "Projected") %>%
+             group_by(days.model, Compartment) %>%
+             summarize(tissue = sum(tissue), .groups = "drop"),
+           aes(x = days.model, y = tissue)) +
+    xlab("Day of outbreak") +
+    ylab("Surface area of tissue (m²)") +
+    geom_line(linewidth = linewidths) +
+    geom_point(data = obs.total.figures %>% filter(Site == site.loop, Compartment == 'Removed'), aes(x = days.inf.site, y = tissue),
+               shape = 15, color = "black", size = symbsizes) +
+    scale_x_continuous(limits = c(0, max_days_all_sites)) +
+    scale_shape_manual(values = c("Susceptible" = 16,
+                                  "Infected" = 17,
+                                  "Removed" = 15),
+                       name = "") + # Removes "Compartment" from the legend title
+    theme_classic(base_family = "Georgia") +
+    # ylim(0, 1.5) +
+    ylim(0, 3.5) +
+    theme(legend.position = "bottom",
+          axis.title = element_text(size = titlesize),
+          axis.text = element_text(size = textsize),
+          strip.text = element_text(size = 8),
+          legend.text = element_text(size = textsize),
+          legend.title = element_text(size = titlesize),
+          legend.key.height = unit(0, "cm"))
+  
+  figS8_col2 = (p.fit.nearshore.rem.multi.figures / p.fit.midchannel.rem.multi.figures / p.fit.near.to.mid.multi.figures) + 
+    plot_layout(axis_titles = 'collect', guides = "collect") &
+    theme(legend.position = "bottom",
+          legend.box = "vertical",  # Stack legends vertically
+          legend.box.spacing = unit(0, "cm"),
+          legend.key.size = unit(0.3, "cm"),
+          legend.text = element_text(size = 8),
+          legend.title = element_blank(),
+          legend.margin = margin(5, 0, 0, 0),  # Reduce margin around each legend
+          plot.margin = margin(t = 5, r = 5, b = 0, l = 5)
+    )
+  
+  p1.figS8 = p.fit.nearshore.rem.single.figures
+  p2.figS8 = p.fit.nearshore.rem.multi.figures
+  p3.figS8 = p.fit.midchannel.rem.single.figures
+  p4.figS8 = p.fit.midchannel.rem.multi.figures
+  p5.figS8 = p.fit.near.to.mid.single.figures
+  p6.figS8 = p.fit.near.to.mid.multi.figures
+  
+  figS8 =
+    p1.figS8 + p2.figS8 + p3.figS8 + p4.figS8 + p5.figS8 + p6.figS8 +
+    plot_layout(axis_titles = "collect",
+                guide = 'collect',
+                design = "AB\nCD\nEF") &
+    theme(legend.position = "bottom",
+          axis.title = element_text(size = titlesize, color = 'black'),
+          axis.text = element_text(size = textsize, color = 'black'),
+          legend.box.spacing = unit(0, "cm"),
+          legend.key.size = unit(0.3, "cm"),
+          legend.text = element_text(size = 8),
+          legend.title = element_blank(),
+          axis.ticks = element_line(color = "black")
+    )
+  
+  # add annotation separately (must be done to avoid breaking axes collect)
+  figS8 <- figS8 + plot_annotation(tag_levels = "A") & 
+    theme(plot.tag.position = c(1, 1))  # Move labels to top right
   
   ################################## Table S2 ##################################
   
@@ -1653,6 +2092,16 @@
     stringsAsFactors = FALSE
   )
   
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   # Map site/type/host combinations to the desired output format
   for (i in 1:nrow(table_x2)) {
     row <- table_x2[i,]
@@ -1666,7 +2115,11 @@
         simulation <- "Off -> Near"
       }
     } else if (row$site == "mid") {
-      simulation <- "Midchannel"
+      if (row$type == "Fitted") {
+        simulation <- "Midchannel"
+      } else {
+        simulation <- "Near -> Mid"
+      }
     } else if (row$site == "off") {
       if (row$type == "Fitted") {
         simulation <- "Offshore"
@@ -1698,7 +2151,7 @@
   }
   
   # Define the order of simulations and hosts for proper sorting
-  order_simulations <- c("Offshore", "Midchannel", "Nearshore", "Near -> Off", "Off -> Near")
+  order_simulations <- c("Offshore", "Midchannel", "Nearshore", "Near -> Off", "Near -> Mid", "Off -> Near")
   order_hosts <- c("Single", "Multi")
   
   # Create sorting keys
@@ -1734,6 +2187,12 @@
   reformatted_table$Gammas[idx] <- as.character(round(gamma.nearshore.single.freq, 2))
   reformatted_table$Effective_R0[idx] <- as.character(round(R0.nearshore.single.freq, 2))
   
+  # Near -> Mid Single (uses Nearshore parameters)
+  idx <- which(reformatted_table$Simulation == "Near -> Mid" & reformatted_table$Host == "Single")
+  reformatted_table$Betas[idx] <- as.character(round(beta.nearshore.single.freq, 2))
+  reformatted_table$Gammas[idx] <- as.character(round(gamma.nearshore.single.freq, 2))
+  reformatted_table$Effective_R0[idx] <- as.character(round(R0.nearshore.single.freq, 2))
+  
   # Off -> Near Single (uses Offshore parameters)
   idx <- which(reformatted_table$Simulation == "Off -> Near" & reformatted_table$Host == "Single")
   reformatted_table$Betas[idx] <- as.character(round(beta.offshore.single.freq, 2))
@@ -1764,6 +2223,12 @@
   reformatted_table$Gammas[idx] <- paste(round(gamma.LS.nearshore.multi, 2), round(gamma.MS.nearshore.multi, 2), round(gamma.HS.nearshore.multi, 2), sep = ", ")
   reformatted_table$Effective_R0[idx] <- paste(round(R0s.nearshore.multi, 2), collapse = ", ")
   
+  # Near -> Mid Multi (uses Nearshore parameters)
+  idx <- which(reformatted_table$Simulation == "Near -> Mid" & reformatted_table$Host == "Multi")
+  reformatted_table$Betas[idx] <- paste(round(beta.LS.nearshore.multi, 2), round(beta.MS.nearshore.multi, 2), round(beta.HS.nearshore.multi, 2), sep = ", ")
+  reformatted_table$Gammas[idx] <- paste(round(gamma.LS.nearshore.multi, 2), round(gamma.MS.nearshore.multi, 2), round(gamma.HS.nearshore.multi, 2), sep = ", ")
+  reformatted_table$Effective_R0[idx] <- paste(round(R0s.nearshore.multi, 2), collapse = ", ")
+  
   # Off -> Near Multi (uses Offshore parameters)
   idx <- which(reformatted_table$Simulation == "Off -> Near" & reformatted_table$Host == "Multi")
   reformatted_table$Betas[idx] <- paste(round(beta.LS.offshore.multi, 2), round(beta.MS.offshore.multi, 2), round(beta.HS.offshore.multi, 2), sep = ", ")
@@ -1783,6 +2248,21 @@
   cat("Table saved to: ", output_path, "\n")
   # Print the final table
   print(reformatted_table)
+  
+  ##################################  adj. betas & R0s ##################################
+  
+  # NOTE - this is just a way to quickly re-calculate beta (and R0) in the NL dens. simulations (because for these,
+  #         contact rate is affected by coral cover at the projected-to site, which in turn affects beta and R0!)
+  #      - ideally this would be integrated properly into the table code above and/or below to output
+  #         adjusted beta in a more reproducible way!
+  
+  beta.offshore.adj.REAL = beta.nearshore.full * (1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.offshore.full)) / (1 - exp(-k_val)))
+  beta.midchannel.adj.REAL = beta.nearshore.full * (1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.midchannel.full)) / (1 - exp(-k_val)))
+  beta.nearshore.adj.REAL = beta.offshore.full * (1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.nearshore.full)) / (1 - exp(-k_val)))
+  
+  R0.offshore.adj.REAL = beta.offshore.adj.REAL / gamma.nearshore.full
+  R0.midchannel.adj.REAL = beta.midchannel.adj.REAL / gamma.nearshore.full
+  R0.nearshore.adj.REAL = beta.nearshore.adj.REAL / gamma.offshore.full
   
   ################################## Force of infection / R0 ##################################
   
@@ -2276,6 +2756,6 @@
 
   ################################## Save output ##################################
   
-  # #pass workspace to downstream script
-  # save.image(file = here("output", "tables_figures_workspace.RData"))
+  #pass workspace to downstream script
+  save.image(file = here("output", "tables_figures_workspace.RData"))
   

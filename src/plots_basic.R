@@ -1108,7 +1108,7 @@
     theme_classic(base_family = 'Georgia')
   
   beta.offshore.transfer = beta.nearshore.full * (1 / (1 + exp(-lambda.modifier * (cover.offshore.full))) + offset)
-  
+
   # #NOTE - test! 6 dec 2024
   # gamma.offshore.transfer = gamma.nearshore * (1 / (1 + exp(-lambda.modifier * (cover.offshore))) + offset)
   # 
@@ -1121,7 +1121,7 @@
   R0.offshore.transfer = beta.offshore.transfer / gamma.nearshore.full
   tab.offshore.transfer = tibble(round(beta.nearshore.full, 2), round(beta.offshore.transfer, 2), round(gamma.nearshore.full, 2), round(R0.offshore.transfer, 2), round(cover.offshore.full*100, 2))
   names(tab.offshore.transfer) = c('beta', 'Adj. beta', 'gamma', 'Adj. R0', 'Cover (%)')
-
+  
   p.fit.near.to.off.basic = p.fit.near.to.off.basic +
     annotate(geom = "table", x = min(p.fit.near.to.off.basic$data$days.model), y = min(p.fit.near.to.off.basic$data$tissue)*0.7, label = list(tab.offshore.transfer),
              vjust = val.vjust, hjust = val.hjust, family = 'Georgia')
