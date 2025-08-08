@@ -280,25 +280,25 @@
     # Sort so that "Total" and "Grand Total" are at the bottom of each 'susc' group
     arrange(susc, species_name == "Total", species_name == "Grand Total", species_name)
   
-  # #option to remove comma separation
-  # final_table_output2 <- final_table_output %>%
-  #   mutate(
-  #     cover = gsub(", ", "\t", cover)  # Replace commas with tabs
-  #   )
-  
-  # final_table_output3 = final_table_output %>%
-  #   select(cover)
-  
-  # Use the "here" package to specify the file path
-  output_path <- here("output", "formatted_table.csv")
-  
-  # Write the table to a CSV file without row names
-  write.csv(final_table_output, output_path, row.names = FALSE)
-
-  # Print the file path for confirmation
-  cat("Table saved to: ", output_path, "\n")
-  # Print the final table
-  print(final_table_output)
+  # # #option to remove comma separation
+  # # final_table_output2 <- final_table_output %>%
+  # #   mutate(
+  # #     cover = gsub(", ", "\t", cover)  # Replace commas with tabs
+  # #   )
+  # 
+  # # final_table_output3 = final_table_output %>%
+  # #   select(cover)
+  # 
+  # # Use the "here" package to specify the file path
+  # output_path <- here("output", "formatted_table.csv")
+  # 
+  # # Write the table to a CSV file without row names
+  # write.csv(final_table_output, output_path, row.names = FALSE)
+  # 
+  # # Print the file path for confirmation
+  # cat("Table saved to: ", output_path, "\n")
+  # # Print the final table
+  # print(final_table_output)
   
   ################################## Figure prep ##################################
   # # List of all data frames
@@ -659,22 +659,22 @@
   #plot_layout(heights = c(1, 1.2))
   
   
-  # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
-  # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
-  # quartz(h = 2, w = 3.35)
-  quartz(h = 3.5, w = 7.087)
-  # quartz(h = 3, w = 5)
-  
-  figS3
-  
-  # Save the Quartz output directly as a PDF
-  quartz.save(file = here("output", "figS3.pdf"), type = "pdf")
-  
-  #ggplot-export to image
-  ggsave(filename = here("output", "figS3.png"), device = "png", width = 7.087, height = 3, dpi = 1200)
-  
-  # Close the Quartz device
-  dev.off()
+  # # Set a standard plot size. max is 7.087 inch wide by 9.45 inch tall
+  # # NOTE - can try windows() or x11() instead of Quartz in Windows and Linux, respectively. with appropriate downstream modifications as needed
+  # # quartz(h = 2, w = 3.35)
+  # quartz(h = 3.5, w = 7.087)
+  # # quartz(h = 3, w = 5)
+  # 
+  # figS3
+  # 
+  # # Save the Quartz output directly as a PDF
+  # quartz.save(file = here("output", "figS3.pdf"), type = "pdf")
+  # 
+  # #ggplot-export to image
+  # ggsave(filename = here("output", "figS3.png"), device = "png", width = 7.087, height = 3, dpi = 1200)
+  # 
+  # # Close the Quartz device
+  # dev.off()
   
   ################################## Figure 3, S6 ##################################
   
@@ -1265,8 +1265,8 @@
     select(days.inf.site, tissue, Compartment)
   obs_panel_e_mid$workspace <- workspace_id
   
-  saveRDS(obs_panel_e, file = here("output", paste0("panel_e_obs_", workspace_id, ".rds")))
-  saveRDS(obs_panel_e_mid, file = here("output", paste0("panel_e_obs_mid_", workspace_id, ".rds")))
+  # saveRDS(obs_panel_e, file = here("output", paste0("panel_e_obs_", workspace_id, ".rds")))
+  # saveRDS(obs_panel_e_mid, file = here("output", paste0("panel_e_obs_mid_", workspace_id, ".rds")))
   
   ################################## Figure S4 ##################################
   
@@ -2235,19 +2235,19 @@
   reformatted_table$Gammas[idx] <- paste(round(gamma.LS.offshore.multi, 2), round(gamma.MS.offshore.multi, 2), round(gamma.HS.offshore.multi, 2), sep = ", ")
   reformatted_table$Effective_R0[idx] <- paste(round(R0s.offshore.multi, 2), collapse = ", ")
   
-  # Print the final table
-  print(reformatted_table)
-  
-  #write to CSV for easy dumping of data into Word table in manuscript
-  output_path <- here("output", "tablex2_freqency.csv")
-  
-  # Write the table to a CSV file without row names
-  write.csv(reformatted_table, output_path, row.names = FALSE)
-  
-  # Print the file path for confirmation
-  cat("Table saved to: ", output_path, "\n")
-  # Print the final table
-  print(reformatted_table)
+  # # Print the final table
+  # print(reformatted_table)
+  # 
+  # #write to CSV for easy dumping of data into Word table in manuscript
+  # output_path <- here("output", "tablex2_freqency.csv")
+  # 
+  # # Write the table to a CSV file without row names
+  # write.csv(reformatted_table, output_path, row.names = FALSE)
+  # 
+  # # Print the file path for confirmation
+  # cat("Table saved to: ", output_path, "\n")
+  # # Print the final table
+  # print(reformatted_table)
   
   ##################################  adj. betas & R0s ##################################
   
@@ -2544,13 +2544,13 @@
   
   output_path <- here("output", "tablex2_freqency.csv")
   
-  # Write the table to a CSV file without row names
-  write.csv(reformatted_table, output_path, row.names = FALSE)
-  
-  # Print the file path for confirmation
-  cat("Table saved to: ", output_path, "\n")
-  # Print the final table
-  print(reformatted_table)
+  # # Write the table to a CSV file without row names
+  # write.csv(reformatted_table, output_path, row.names = FALSE)
+  # 
+  # # Print the file path for confirmation
+  # cat("Table saved to: ", output_path, "\n")
+  # # Print the final table
+  # print(reformatted_table)
   
   
   ################################## Table 1 - Dens. ##################################
@@ -2746,16 +2746,16 @@
   #write to CSV for easy dumping of data into Word table in manuscript
   output_path <- here("output", "tablex2_density.csv")
   
-  # Write the table to a CSV file without row names
-  write.csv(reformatted_table, output_path, row.names = FALSE)
-  
-  # Print the file path for confirmation
-  cat("Table saved to: ", output_path, "\n")
-  # Print the final table
-  print(reformatted_table)
+  # # Write the table to a CSV file without row names
+  # write.csv(reformatted_table, output_path, row.names = FALSE)
+  # 
+  # # Print the file path for confirmation
+  # cat("Table saved to: ", output_path, "\n")
+  # # Print the final table
+  # print(reformatted_table)
 
   ################################## Save output ##################################
   
-  #pass workspace to downstream script
-  save.image(file = here("output", "tables_figures_workspace.RData"))
+  # #pass workspace to downstream script
+  # save.image(file = here("output", "tables_figures_workspace.RData"))
   
