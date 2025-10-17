@@ -2256,19 +2256,23 @@
   #      - ideally this would be integrated properly into the table code above and/or below to output
   #         adjusted beta in a more reproducible way!
   
-  beta.offshore.adj.REAL = beta.nearshore.full * (1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.offshore.full)) / (1 - exp(-k_val)))
-  beta.midchannel.adj.REAL = beta.nearshore.full * (1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.midchannel.full)) / (1 - exp(-k_val)))
-  beta.nearshore.adj.REAL = beta.offshore.full * (1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.nearshore.full)) / (1 - exp(-k_val)))
+  beta.offshore.adj.REAL = beta.offshore.full * ((1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.offshore.full)) / (1 - exp(-k_val))))
+  beta.midchannel.adj.REAL = beta.midchannel.full * ((1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.midchannel.full)) / (1 - exp(-k_val))))
+  beta.nearshore.adj.REAL = beta.nearshore.full * ((1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.nearshore.full)) / (1 - exp(-k_val))))
   
-  R0.offshore.adj.REAL = beta.offshore.adj.REAL / gamma.nearshore.full
-  R0.midchannel.adj.REAL = beta.midchannel.adj.REAL / gamma.nearshore.full
-  R0.nearshore.adj.REAL = beta.nearshore.adj.REAL / gamma.offshore.full
+  R0.offshore.adj.REAL = beta.offshore.adj.REAL / gamma.offshore.full
+  R0.midchannel.adj.REAL = beta.midchannel.adj.REAL / gamma.midchannel.full
+  R0.nearshore.adj.REAL = beta.nearshore.adj.REAL / gamma.nearshore.full
+  
+  beta.offshore.transfer.adj.REAL = beta.nearshore.full * ((1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.offshore.full)) / (1 - exp(-k_val))))
+  beta.midchannel.transfer.adj.REAL = beta.nearshore.full * ((1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.midchannel.full)) / (1 - exp(-k_val))))
+  beta.nearshore.transfer.adj.REAL = beta.offshore.full * ((1 - alpha_val) + alpha_val*((1 - exp(-k_val*cover.nearshore.full)) / (1 - exp(-k_val))))
+  
+  R0.offshore.adj.REAL = beta.offshore.transfer.adj.REAL / gamma.nearshore.full
+  R0.midchannel.adj.REAL = beta.midchannel.transfer.adj.REAL / gamma.nearshore.full
+  R0.nearshore.adj.REAL = beta.nearshore.transfer.adj.REAL / gamma.offshore.full
   
   ################################## Force of infection / R0 ##################################
-  
-  # TEST - stopping point - note - 22 April 2025
-  # - working out Jacobian matrix for group-wide R0
-  # Define parameters
   
   # OFFSHORE
   betas.offshore.jacobian.freq <- c(beta.LS.offshore.multi, beta.MS.offshore.multi, beta.HS.offshore.multi)
@@ -2421,6 +2425,41 @@
   eigenvalues.near.to.off.freq <- eigen(K.near.to.off.freq)$values
   R0.near.to.off.jacobian.freq <- max(Re(eigenvalues.near.to.off.freq))
   
+  
+  # NEAR TO MID
+  betas.nearshore.jacobian.freq
+  gammas.nearshore.jacobian.freq
+  Ns.midchannel
+  
+  # Construct F matrix
+  F.near.to.mid.freq <- matrix(0, nrow = 3, ncol = 3)
+  for (i in 1:3) {
+    for (j in 1:3) {
+      F.near.to.mid.freq[i, j] <- betas.nearshore.jacobian.freq[j] * Ns.midchannel[i] / Ns.midchannel[j]
+    }
+  }
+  
+  # Add row and column names to F matrix
+  rownames(F.near.to.mid.freq) <- paste0("To_", group_names)
+  colnames(F.near.to.mid.freq) <- paste0("From_", group_names)
+  
+  # Construct V matrix (diagonal with gammas)
+  V.near.to.mid.freq <- diag(gammas.nearshore.jacobian.freq)
+  
+  # Add row and column names to V matrix
+  rownames(V.near.to.mid.freq) <- group_names
+  colnames(V.near.to.mid.freq) <- group_names
+  
+  # Next-generation matrix
+  K.near.to.mid.freq <- F.near.to.mid.freq %*% solve(V.near.to.mid.freq)
+  
+  # Add row and column names to K matrix
+  rownames(K.near.to.mid.freq) <- paste0("To_", group_names)
+  colnames(K.near.to.mid.freq) <- paste0("From_", group_names)
+  
+  # R0 is the dominant eigenvalue
+  eigenvalues.near.to.mid.freq <- eigen(K.near.to.mid.freq)$values
+  R0.near.to.mid.jacobian.freq <- max(Re(eigenvalues.near.to.mid.freq))
   
   
   # OFF TO NEAR

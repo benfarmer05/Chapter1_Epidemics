@@ -374,6 +374,7 @@
   #   theme_classic(base_family = 'Georgia')
   # 
   ################################## Fitted whole-outbreak ##################################
+  
   # Nearshore
   site.loop = 'Nearshore'
   curr.site = 'near'

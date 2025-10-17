@@ -225,31 +225,31 @@
       # dI.HS.dt = b.HS*S.HS*(P) / (N.LS + N.MS + N.HS) * transmission_modifier.HS - g.HS*I.HS
       # dR.HS.dt = g.HS*I.HS
       
-      # #within-group NL dens contact rate
-      # dS.LS.dt = -b.LS*S.LS*(P) * transmission_modifier.LS
-      # dI.LS.dt = b.LS*S.LS*(P) * transmission_modifier.LS - g.LS*I.LS
+      #within-group NL dens contact rate
+      dS.LS.dt = -b.LS*S.LS*(P) * transmission_modifier.LS
+      dI.LS.dt = b.LS*S.LS*(P) * transmission_modifier.LS - g.LS*I.LS
+      dR.LS.dt = g.LS*I.LS
+
+      dS.MS.dt = -b.MS*S.MS*(P) * transmission_modifier.MS
+      dI.MS.dt = b.MS*S.MS*(P) * transmission_modifier.MS - g.MS*I.MS
+      dR.MS.dt = g.MS*I.MS
+
+      dS.HS.dt = -b.HS*S.HS*(P) * transmission_modifier.HS
+      dI.HS.dt = b.HS*S.HS*(P) * transmission_modifier.HS - g.HS*I.HS
+      dR.HS.dt = g.HS*I.HS
+      
+      # #density-dependent
+      # dS.LS.dt = -b.LS*S.LS*(P)
+      # dI.LS.dt = b.LS*S.LS*(P) - g.LS*I.LS
       # dR.LS.dt = g.LS*I.LS
       # 
-      # dS.MS.dt = -b.MS*S.MS*(P) * transmission_modifier.MS
-      # dI.MS.dt = b.MS*S.MS*(P) * transmission_modifier.MS - g.MS*I.MS
+      # dS.MS.dt = -b.MS*S.MS*(P)
+      # dI.MS.dt = b.MS*S.MS*(P) - g.MS*I.MS
       # dR.MS.dt = g.MS*I.MS
       # 
-      # dS.HS.dt = -b.HS*S.HS*(P) * transmission_modifier.HS
-      # dI.HS.dt = b.HS*S.HS*(P) * transmission_modifier.HS - g.HS*I.HS
+      # dS.HS.dt = -b.HS*S.HS*(P)
+      # dI.HS.dt = b.HS*S.HS*(P) - g.HS*I.HS
       # dR.HS.dt = g.HS*I.HS
-      
-      #density-dependent
-      dS.LS.dt = -b.LS*S.LS*(P)
-      dI.LS.dt = b.LS*S.LS*(P) - g.LS*I.LS
-      dR.LS.dt = g.LS*I.LS
-      
-      dS.MS.dt = -b.MS*S.MS*(P)
-      dI.MS.dt = b.MS*S.MS*(P) - g.MS*I.MS
-      dR.MS.dt = g.MS*I.MS
-      
-      dS.HS.dt = -b.HS*S.HS*(P)
-      dI.HS.dt = b.HS*S.HS*(P) - g.HS*I.HS
-      dR.HS.dt = g.HS*I.HS
       
       return(list(c(dS.LS.dt, dI.LS.dt, dR.LS.dt, dS.MS.dt, dI.MS.dt, dR.MS.dt, dS.HS.dt, dI.HS.dt, dR.HS.dt), P = P))
     })

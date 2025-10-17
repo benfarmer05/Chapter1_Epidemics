@@ -1704,7 +1704,7 @@
   saveRDS(fig2b, file = here("output", "fig2b.rds"))
   
   ############################## Draft figures of SST for paper ##################################
-
+  
   # Define styling parameters
   linewidths = 0.75 #0.4 #0.75 is roughly 1 pt. ggplot measures these in mm, not points
   symbsizes = 1.3
@@ -1774,10 +1774,13 @@
               linewidth = linewidths) +
     
     # Vertical dashed line (placed at the new final timepoint for infected data)
-    geom_vline(xintercept = max(infected_dates), 
-               color = fittedlinecolor, 
-               linetype = "dashed", 
-               linewidth = linewidths) +
+    geom_vline(
+      # xintercept = max(infected_dates), 
+      xintercept = max(data_fig3_midchannel$date[data_fig3_midchannel$Compartment == "Infected"]), 
+      color = fittedlinecolor, 
+      linetype = "dashed", 
+      linewidth = linewidths
+    ) +
     
     # Add grey observation line for infected tissue
     geom_line(data = data.frame(date = infected_dates, tissue = infected_data$tissue),

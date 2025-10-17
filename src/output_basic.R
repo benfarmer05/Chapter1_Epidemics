@@ -194,7 +194,7 @@
       
       # #null conditions
       # transmission_modifier = 1
-      
+
       #with effect of coral cover - I only ran this with frequency-dependence, since this essentially hard-codes density-dependence from a "null model" of frequency-dependence
       # NOTE - previously I used a similar but more complicated equation with lambda - alpha could be renamed lambda here
       transmission_modifier = (1 - alpha_val) + alpha_val*((1 - exp(-k_val*C)) / (1 - exp(-k_val)))
@@ -212,20 +212,20 @@
       # 0.671040 * (1 - alpha_val) + alpha_val*((1 - exp(-k_val*172.82766*(1/1000))) / (1 - exp(-k_val))) #near
       # # TEST - 21 APRIL 2025
       
-      # #frequency-dependent
-      # dS.dt = -b * S * I / N * transmission_modifier
-      # dI.dt = b * S * I / N * transmission_modifier - g * I
-      # dR.dt = g * I
+      #frequency-dependent (and can be w/ NL dens contact rate)
+      dS.dt = -b * S * I / N * transmission_modifier
+      dI.dt = b * S * I / N * transmission_modifier - g * I
+      dR.dt = g * I
       
       # #density-dependent with NL dens contact rate
       # dS.dt = -b * S * I * transmission_modifier
       # dI.dt = b * S * I * transmission_modifier - g * I
       # dR.dt = g * I
       
-      #density-dependent
-      dS.dt = -b * S * I
-      dI.dt = b * S * I - g * I
-      dR.dt = g * I
+      # #density-dependent
+      # dS.dt = -b * S * I
+      # dI.dt = b * S * I - g * I
+      # dR.dt = g * I
       
       return(list(c(dS.dt, dI.dt, dR.dt)))
     })
@@ -972,15 +972,15 @@
     
     # uniform
     
-    # TEST
-    lower_bounds.tiss = c(0, 0, lambda.modifier)  #lower bounds for beta, gamma and lambda
-    upper_bounds.tiss = c(0.1, 3, lambda.modifier)  #upper bounds for beta, gamma and lambda
-    # TEST
-    
+    # # TEST
     # lower_bounds.tiss = c(0, 0, lambda.modifier)  #lower bounds for beta, gamma and lambda
-    # upper_bounds.tiss = c(4, 4, lambda.modifier)  #upper bounds for beta, gamma and lambda
+    # upper_bounds.tiss = c(0.1, 3, lambda.modifier)  #upper bounds for beta, gamma and lambda
+    # # TEST
+    
+    lower_bounds.tiss = c(0, 0, lambda.modifier)  #lower bounds for beta, gamma and lambda
+    upper_bounds.tiss = c(4, 4, lambda.modifier)  #upper bounds for beta, gamma and lambda
 
-    control = list(itermax = 100)  # Maximum number of iterations. 200 is default
+    control = list(itermax = 200)  # Maximum number of iterations. 200 is default
     
     # Run the optimization
     result.tiss = DEoptim(fn = objective_function, lower = lower_bounds.tiss, upper = upper_bounds.tiss,
