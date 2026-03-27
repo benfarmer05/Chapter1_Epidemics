@@ -1129,12 +1129,12 @@
   #   scale_color_brewer(name = 'Susceptibility', palette = 'Set2') +
   #   theme_classic()
   
-  #facet-wrapped observations
-  (p.SIR.offshore.multi | p.SIR.midchannel.multi | p.SIR.nearshore.multi) + plot_layout(guides = "collect") & theme(legend.position = 'bottom') #&
-  # scale_color_brewer(name = 'Susceptibility', labels = c("High", "Low", "Medium"), palette = 'Dark2')
-  
-  # Infection observations only [lines are observations]
-  (p.I.offshore.multi | p.I.midchannel.multi | p.I.nearshore.multi) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+  # #facet-wrapped observations
+  # (p.SIR.offshore.multi | p.SIR.midchannel.multi | p.SIR.nearshore.multi) + plot_layout(guides = "collect") & theme(legend.position = 'bottom') #&
+  # # scale_color_brewer(name = 'Susceptibility', labels = c("High", "Low", "Medium"), palette = 'Dark2')
+  # 
+  # # Infection observations only [lines are observations]
+  # (p.I.offshore.multi | p.I.midchannel.multi | p.I.nearshore.multi) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
   
   #whole outbreak simulations
   (p.fit.offshore.multi | p.fit.midchannel.multi | p.fit.nearshore.multi) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')

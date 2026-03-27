@@ -664,6 +664,9 @@
     
     control = list(itermax = 300)  # Maximum number of iterations. 200 is default
     
+    # set.seed(42)
+    set.seed(as.integer(Sys.time()))
+    
     # Run the optimization
     result.tiss = DEoptim(fn = objective_function, lower = lower_bounds.tiss, upper = upper_bounds.tiss,
                           data = coraldata.tiss, time = days.model, initial_state = initial_state.tiss,
