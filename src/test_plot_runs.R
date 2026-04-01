@@ -10,6 +10,12 @@
   # ── Upstream context (obs data, initial conditions, helper objects) ──────────
   load(here("output/multi_SIR_workspace.RData"))
   
+  env_fd = new.env()
+  load(here("output/plots_basic_workspace_freqdep.RData"), envir = env_fd)
+  
+  env_dd = new.env()
+  load(here("output/plots_basic_workspace_nldens.RData"), envir = env_dd)
+  
   # ── Load iteration results ───────────────────────────────────────────────────
   OUTPUT_DIR <- here("output/withingroup-freq-multi_SIR_runs")
   
@@ -48,7 +54,12 @@
     mid_to_near = "Mid → Near (Projected)",
     mid_to_off = "Mid → Off (Projected)"
   )
+  
   SUS_COLORS  <- c(Low = "#1E90FF", Moderate = "#FFD700", High = "#FF1493")
+  SH_COLORS = c("Freq.-dependent" = "black", 
+                "NL density-dependent" = "#2e8b57") #for single-host modeled output
+  SH_LINETYPES = c("Freq.-dependent" = "solid",
+                   "NL density-dependent" = "dashed")
   
   ################################## Helpers ##################################
   
@@ -67,6 +78,36 @@
         iteration = iter, site = site
       ) %>%
       rename(days.model = 1, tissue = value)
+  }
+  
+  unpivot_sh = function(pivoted){
+    pivoted %>%
+      filter(Compartment %in% c("Susceptible", "Infected", "Dead")) %>%
+      mutate(col = case_match(Compartment,
+                              "Susceptible" ~ "S",
+                              "Infected" ~ "I",
+                              "Dead" ~ "R")) %>%
+      pivot_wider(id_cols = days.model,
+                  names_from = col,
+                  values_from = tissue) %>%
+      rename(time = days.model)
+  }
+  
+  tidy_sh = function(raw, tgt_site, sh_label){
+    raw %>%
+      select(time, S, I, R) %>%
+      rename(days.model = time) %>%
+      pivot_longer(-days.model,
+                   names_to = "Compartment",
+                   values_to = "tissue") %>%
+      mutate(
+        Compartment = case_match(Compartment,
+                                 "S" ~ "Susceptible",
+                                 "I" ~ "Infected",
+                                 "R" ~ "Dead"),
+        site = tgt_site,
+        sh_type = sh_label
+      )
   }
   
   # run the ODE for a projection (source params → target initial conditions)
@@ -93,6 +134,62 @@
       )
     ))
   }
+  
+  #handles both fd and dd output
+  plot_sh_panel <- function(sh_obj, site_label, title = NULL,
+                            sh_obj_dd = NULL,
+                            y_lab = "Surface area of tissue (m²)") {
+    
+    obs_d <- env_fd$obs.total %>%
+      filter(Site == site_label) %>%
+      mutate(Compartment = as.character(Compartment),
+             Compartment = ifelse(Compartment == "Recovered", "Dead", Compartment))
+    
+    sh_tidy <- sh_obj %>%
+      mutate(Compartment = as.character(Compartment),
+             Compartment = ifelse(Compartment == "Recovered", "Dead", Compartment)) %>%
+      filter(Compartment %in% c("Susceptible", "Infected", "Dead")) %>%
+      mutate(sh_type = "Freq.-dependent")
+    
+    if (!is.null(sh_obj_dd)) {
+      sh_tidy <- bind_rows(
+        sh_tidy,
+        sh_obj_dd %>%
+          mutate(Compartment = as.character(Compartment),
+                 Compartment = ifelse(Compartment == "Recovered", "Dead", Compartment)) %>%
+          filter(Compartment %in% c("Susceptible", "Infected", "Dead")) %>%
+          mutate(sh_type = "NL density-dependent")
+      )
+    }
+    
+    ggplot(sh_tidy, aes(x = days.model, y = tissue,
+                        group = interaction(Compartment, sh_type),
+                        shape = Compartment,
+                        color = sh_type,
+                        linetype = sh_type)) +
+      geom_line(linewidth = 0.75) +
+      geom_point(data = obs_d,
+                 aes(x = days.inf.site, y = tissue, shape = Compartment),
+                 color = "black", size = 1.3,
+                 inherit.aes = FALSE) +
+      scale_shape_manual(values = c(Susceptible = 16, Infected = 17, Dead = 15),
+                         name = NULL) +
+      scale_color_manual(values = SH_COLORS, name = NULL) +
+      scale_linetype_manual(values = SH_LINETYPES, name = NULL) +
+      labs(x = "Day of outbreak", y = y_lab,
+           title = title %||% site_label) +
+      theme(legend.position = "bottom")
+  }  
+  
+  sh_proj_long = bind_rows(
+    tidy_sh(unpivot_sh(env_fd$output.basic.offshore.transfer), "off", "Freq.-dependent"),
+    tidy_sh(unpivot_sh(env_fd$output.basic.midchannel.transfer), "mid",  "Freq.-dependent"),
+    tidy_sh(unpivot_sh(env_fd$output.basic.nearshore.transfer),  "near", "Freq.-dependent"),
+    tidy_sh(unpivot_sh(env_dd$output.basic.offshore.transfer),   "off",  "NL density-dependent"),
+    tidy_sh(unpivot_sh(env_dd$output.basic.midchannel.transfer), "mid",  "NL density-dependent"),
+    tidy_sh(unpivot_sh(env_dd$output.basic.nearshore.transfer),  "near", "NL density-dependent")
+  ) %>%
+    mutate(site = factor(site, levels = SITE_DISPLAY_ORDER))
   
   ################################## Build params_long ########################
   
@@ -299,6 +396,54 @@
       theme(legend.position = "bottom")
   }
   
+  plot_median_iter_black <- function(iter, site, proj = "fitted",
+                                     compartments = c("Susceptible", "Infected", "Dead"),
+                                     y_lab = "Surface area of tissue (m²)") {
+    
+    d <- sims_long %>%
+      filter(iteration == iter, site == !!site, projection == proj,
+             Compartment %in% compartments) %>%
+      group_by(Compartment, days.model) %>%
+      summarise(tissue = sum(tissue), .groups = "drop") %>%
+      arrange(Compartment, days.model)
+    
+    obs_d <- obs.model %>%
+      filter(Site == site, Category == "Total",
+             Compartment %in% compartments)
+    
+    ggplot(d, aes(x = days.model, y = tissue,
+                  group = Compartment, shape = Compartment)) +
+      geom_line(linewidth = 0.75, color = "black") +
+      geom_point(data = obs_d,
+                 aes(x = days.inf.site, y = tissue, shape = Compartment),
+                 color = "black", size = 1.3) +
+      scale_shape_manual(values = c(Susceptible = 16, Infected = 17, Dead = 15),
+                         name = NULL) +
+      labs(x = "Day of outbreak", y = y_lab, title = NULL) +
+      theme(legend.position = "bottom")
+  }
+  
+  find_median_iter <- function(proj, site_tgt, sim_data = sims_long) {
+    
+    d <- sim_data %>%
+      filter(site == site_tgt, projection == proj, Compartment == "Dead") %>%
+      group_by(iteration, days.model) %>%
+      summarise(tissue = sum(tissue), .groups = "drop")
+    
+    final_day <- max(d$days.model)
+    
+    final_vals <- d %>%
+      filter(days.model == final_day) %>%
+      arrange(tissue)
+    
+    med_val <- median(final_vals$tissue)
+    
+    final_vals %>%
+      mutate(dist = abs(tissue - med_val)) %>%
+      slice_min(dist, n = 1, with_ties = FALSE) %>%
+      pull(iteration)
+  }
+  
   ################################## Single-iteration inspection ##############
   
   inspect_iter <- if (identical(INSPECT_ITER, "random")) sample(seq_len(N_ITER), 1) else INSPECT_ITER
@@ -312,7 +457,7 @@
     
     site_label <- SITE_LABELS[site]
     
-    ggplot(d, aes(days.model, tissue, color = Susceptibility, linetype = Compartment)) +
+    ggplot(d, aes(days.model, tissue, color = Susceptibility, group = interaction(Susceptibility, Compartment))) +
       geom_line(linewidth = 0.8) +
       obs_points(site_label) +
       scale_color_manual(values = SUS_COLORS) +
@@ -413,6 +558,53 @@
       labs(x = "Day of outbreak", y = y_lab,
            title = title %||% PROJ_LABELS[proj]) +
       theme(legend.position = "none")
+  }
+  
+  layer_plot_collapsed_sh = function(proj,
+                                     compartment = "Dead",
+                                     title = NULL,
+                                     sim_data = sims_long,
+                                     obs_src = obs.model,
+                                     sh_data = sh_proj_long,
+                                     y_lab = "Surface area of tissue (m²)"){
+    
+    tgt = PROJECTIONS[[proj]]["tgt"]
+    
+    d = sim_data %>%
+      filter(site == tgt, projection == proj, Compartment == compartment) %>%
+      group_by(iteration, days.model) %>%
+      summarise(tissue = sum(tissue), .groups = "drop")
+    
+    med = d %>%
+      group_by(days.model) %>%
+      summarise(tissue = median(tissue), .groups = "drop")
+    
+    obs_d = obs_src %>%
+      filter(Site == tgt, Category == "Total", Compartment == compartment)
+    
+    sh_d = sh_data %>%
+      filter(site == tgt, Compartment == compartment)
+    
+    ggplot() +
+      geom_line(data = d,
+                aes(x = days.model, y = tissue, group = iteration),
+                color = "black", alpha = 0.12, linewidth = 0.4) +
+      geom_line(data = med,
+                aes(x = days.model, y = tissue),
+                color = "black", linewidth = 1) +
+      geom_point(data = obs_d,
+                 aes(x = days.inf.site, y = tissue),
+                 color = "black", shape = 15, size = 1.5) +
+      geom_line(data = sh_d,
+                aes(x = days.model, y = tissue,
+                    color = sh_type, linetype = sh_type),
+                linewidth = 0.9) +
+      scale_color_manual(values = SH_COLORS, name = NULL) +
+      scale_linetype_manual(values = SH_LINETYPES, name = NULL) +
+      labs(x = "Day of outbreak", y = y_lab,
+           title = title %||% PROJ_LABELS[proj]) +
+      theme(legend.position = "bottom")
+    
   }
   
   fig3_projections_collapsed <-
@@ -604,6 +796,97 @@
     plot_layout(ncol = 1)
   
   fig3_projections_I_collapsed_scaled
+  
+  
+  ################################## plots including single-host #############
+  
+  fig3_projections_collapsed_sh = 
+    layer_plot_collapsed_sh("near_to_off") + 
+    layer_plot_collapsed_sh("near_to_mid") + 
+    layer_plot_collapsed_sh("off_to_near") + 
+    plot_layout(ncol = 1, guides = "collect") +
+    theme(legend.position = "bottom")
+  
+  fig3_projections_collapsed_sh
+  
+  
+  
+  
+  
+  
+  # Single-host panels (deterministic, all three compartments)
+  p_sh_near_fitted <- plot_sh_panel(
+    env_fd$output.basic.nearshore.full,
+    site_label = "Nearshore",
+    title = "Nearshore - Fitted (Single-host)"
+  )
+  
+  p_sh_off_fitted <- plot_sh_panel(
+    env_fd$output.basic.offshore.full,
+    site_label = "Offshore",
+    title = "Offshore - Fitted (Single-host)"
+  )
+  
+  p_sh_near_to_off <- plot_sh_panel(
+    env_fd$output.basic.offshore.transfer,
+    site_label = "Offshore",
+    sh_obj_dd = env_dd$output.basic.offshore.transfer,
+    title = "Near → Off - Projected (Single-host)"
+  )
+  
+  # Multi-host panels (ensemble + median)
+  iter_near_fitted <- find_median_iter("fitted",      "near")
+  iter_off_fitted  <- find_median_iter("fitted",      "off")
+  iter_near_to_off <- find_median_iter("near_to_off", "off")
+  #
+  p_mh_near_fitted <- plot_single_iter(iter_near_fitted, "near", proj = "fitted")
+  p_mh_off_fitted  <- plot_single_iter(iter_off_fitted,  "off",  proj = "fitted")
+  p_mh_near_to_off <- plot_single_iter(iter_near_to_off, "off",  proj = "near_to_off")
+  
+  # Composite
+  fig3_new <-
+    p_sh_near_fitted + p_mh_near_fitted +
+    p_sh_off_fitted  + p_mh_off_fitted  +
+    p_sh_near_to_off + p_mh_near_to_off +
+    plot_layout(ncol = 2,
+                guides = "collect",
+                axis_titles = "collect") &
+    theme_classic(base_family = "Georgia") &
+    theme(legend.position = "bottom",
+          legend.box = "horizontal",
+          legend.box.spacing = unit(0, "cm"),
+          legend.key.size = unit(0.3, "cm"),
+          legend.text = element_text(size = 8),
+          legend.title = element_blank(),
+          axis.title = element_text(size = 10, color = "black"),
+          axis.text = element_text(size = 9, color = "black"),
+          axis.ticks = element_line(color = "black"),
+          plot.margin = margin(t = 5, r = 5, b = 0, l = 5))
+  
+  fig3_new <- fig3_new +
+    plot_annotation(tag_levels = "A") &
+    theme(plot.tag.position = c(1, 1))
+  
+  fig3_new
+  
+  
+  
+  # # PDF
+  # ggsave(filename = here("output", "fig3_new.pdf"),
+  #        plot   = fig3_new,
+  #        device = "pdf",
+  #        width  = 7.087,
+  #        height = 5,
+  #        units  = "in")
+  # 
+  # # PNG
+  # ggsave(filename = here("output", "fig3_new.png"),
+  #        plot   = fig3_new,
+  #        device = "png",
+  #        width  = 7.087,
+  #        height = 5,
+  #        dpi    = 1200,
+  #        units  = "in")
   
   ################################## Parameter distribution plots #############
   
