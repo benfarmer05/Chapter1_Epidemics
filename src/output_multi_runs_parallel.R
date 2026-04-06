@@ -711,19 +711,19 @@
               
               ############################## OPTIMIZE PARAMETERS ############################################################
               
-              # TEST
-              lower_bounds.tiss = c(0, 0, 0, 0, 0, 0)  # Lower bounds for betas and gammas - maybe more relaxed?
-              upper_bounds.tiss = c(1, 1.5, 1, 1.5, 1, 4)  # Upper bounds for betas and gammas
-              # TEST
-              
-              # # uniform or no?
+              # # TEST
               # lower_bounds.tiss = c(0, 0, 0, 0, 0, 0)  # Lower bounds for betas and gammas - maybe more relaxed?
-              # # upper_bounds.tiss = c(0.09/N.LS.site, 0.11, 0.15/N.MS.site, 0.16, 2.0/N.HS.site, 1.0)  # Upper bounds for betas and gammas
-              # # upper_bounds.tiss = c(0.15/N.LS.site, 0.10, 0.15/N.MS.site, 0.10, 1.5/N.HS.site, 1.5)  # Upper bounds for betas and gammas
-              # # upper_bounds.tiss = c(0.003/N.LS.site, 0.01, 0.01/N.MS.site, 0.02, 0.15/N.HS.site, 0.10)  # Upper bounds for betas and gammas
-              # 
-              # # upper_bounds.tiss = c(1/N.LS.site, 1, 1/N.MS.site, 1, 1.5/N.HS.site, 1.5)  # Upper bounds for betas and gammas
-              # upper_bounds.tiss = c(4, 4, 4, 4, 4, 4)  # Upper bounds for betas and gammas
+              # upper_bounds.tiss = c(1, 1.5, 1, 1.5, 1, 4)  # Upper bounds for betas and gammas
+              # # TEST
+              
+              # uniform or no?
+              lower_bounds.tiss = c(0, 0, 0, 0, 0, 0)  # Lower bounds for betas and gammas - maybe more relaxed?
+              # upper_bounds.tiss = c(0.09/N.LS.site, 0.11, 0.15/N.MS.site, 0.16, 2.0/N.HS.site, 1.0)  # Upper bounds for betas and gammas
+              # upper_bounds.tiss = c(0.15/N.LS.site, 0.10, 0.15/N.MS.site, 0.10, 1.5/N.HS.site, 1.5)  # Upper bounds for betas and gammas
+              # upper_bounds.tiss = c(0.003/N.LS.site, 0.01, 0.01/N.MS.site, 0.02, 0.15/N.HS.site, 0.10)  # Upper bounds for betas and gammas
+
+              # upper_bounds.tiss = c(1/N.LS.site, 1, 1/N.MS.site, 1, 1.5/N.HS.site, 1.5)  # Upper bounds for betas and gammas
+              upper_bounds.tiss = c(4, 4, 4, 4, 4, 4)  # Upper bounds for betas and gammas
               
               # # NOTE - TEMP
               # STOPPING POINT - 12 feb 2025; not sure what on earth is going wrong but it seems like sum of squares (sum_diff) is not porting between functions correctly...need to make sure it is, so I can properly record R-squared values. and multi-host model should actually have a quite good R-squared so something is wonky
