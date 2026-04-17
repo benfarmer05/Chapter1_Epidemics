@@ -55,7 +55,7 @@ sites = unique(summary$site)
 
 # Set fit_q = TRUE to optimize q alongside beta and gamma.
 # Set fit_q = FALSE to fix q at q_val_fixed.
-fit_q       = FALSE   # <-- TOGGLE HERE
+fit_q       = TRUE   # <-- TOGGLE HERE
 q_val_fixed = 1.0     # used only when fit_q = FALSE
 
 ################################## define cover params ##################################
@@ -68,6 +68,8 @@ K_val     = 172
 SIR = function(t, y, p) {
   S = y[1]; I = y[2]; R = y[3]
   with(as.list(p), {
+    # N = S + I # NOTE - this is N(t), meaning that the death of coral tissue is accounted for in N
+    # N = max(S + I, 2.0)
     contact_rate = (K^q) * S * I / (N^q)
     dS.dt = -b * contact_rate
     dI.dt =  b * contact_rate - g * I

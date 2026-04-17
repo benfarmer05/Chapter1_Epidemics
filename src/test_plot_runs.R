@@ -933,8 +933,8 @@
       site  = factor(SITE_LABELS[site], levels = SITE_LABELS[SITE_DISPLAY_ORDER])
     ) %>%
     ggplot(aes(value, fill = susceptibility)) +
-    # geom_histogram(bins = 30, alpha = 0.7, position = "identity") +
-    geom_density(alpha = 0.4) +
+    geom_histogram(bins = 30, alpha = 0.7, position = "identity") +
+    # geom_density(alpha = 0.4) +
     # facet_grid(site ~ param, scales = "free_x") +
     facet_grid(site ~ param, scales = "free") +
     scale_fill_manual(values = SUS_COLORS) +

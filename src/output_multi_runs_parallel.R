@@ -11,7 +11,7 @@
   
   ################################## Toggles ##################################
   
-  N_ITER = 1000 #desired iterations
+  N_ITER = 250 #desired iterations
   RESUME = TRUE # 'TRUE' to resume from paused/ended run; 'FALSE' to start fresh
   OUTPUT_DIR  = here("output/withingroup-freq-multi_SIR_runs")
   dir.create(OUTPUT_DIR, recursive = TRUE, showWarnings = FALSE)
